@@ -1,0 +1,255 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum OrderStatus {
+  UNINBOUND
+  INBOUNDED
+  USER_CONFIRM_PENDING
+  REVIEW_PENDING
+  PAYMENT_PENDING
+  PAID
+  READY_TO_SHIP
+  SHIPPED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PROCESSING
+  PAID
+}
+
+enum PackageStatus {
+  PENDING
+  INBOUNDED
+  CONFIRMED
+  EXCEPTION
+}
+
+enum ImageType {
+  OUTER
+  LABEL
+  INNER
+  EXCEPTION
+}
+
+enum ExceptionType {
+  MISSING_ITEM
+  WRONG_ITEM
+  DAMAGED
+  RESTRICTED
+  OTHER
+}
+
+enum ExceptionStatus {
+  OPEN
+  PROCESSING
+  RESOLVED
+}
+
+enum AdminAction {
+  OVERRIDE_PAYMENT
+  OVERRIDE_SHIP
+  OVERRIDE_STATUS
+  MANUAL_CONFIRM
+}
+
+enum NotificationTrigger {
+  INBOUND_DONE
+  CONFIRM_PENDING
+  PAYMENT_PENDING
+  SHIPPED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id         String   @id @default(cuid())
+  openid     String   @unique
+  nickname   String?
+  avatar     String?
+  user_code  String   @unique
+  is_admin   Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  orders        Order[]
+  adminLogs     AdminLog[]
+  qrTokens      QRToken[]
+  inboundOps    InboundRecord[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Order {
+  id                  String        @id @default(cuid())
+  user_id             String
+  status              OrderStatus   @default(UNINBOUND)
+  payment_status      PaymentStatus @default(UNPAID)
+  total_actual_weight Float?
+  total_volume_weight Float?
+  chargeable_weight   Float?
+  estimated_price     Float?
+  final_price         Float?
+  currency            String        @default("CNY")
+  manual_override     Boolean       @default(false)
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @updatedAt
+
+  user          User           @relation(fields: [user_id], references: [id])
+  packages      Package[]
+  shipment      Shipment?
+  adminLogs     AdminLog[]
+  qrTokens      QRToken[]
+  notifications Notification[]
+
+  @@map("orders")
+}
+
+model Package {
+  id                   String        @id @default(cuid())
+  order_id             String
+  domestic_tracking_no String        @unique
+  source_platform      String?
+  status               PackageStatus @default(PENDING)
+  actual_weight        Float?
+  length               Float?
+  width                Float?
+  height               Float?
+  volume_weight        Float?
+  inbound_time         DateTime?
+  user_confirmed_at    DateTime?
+  created_at           DateTime      @default(now())
+  updated_at           DateTime      @updatedAt
+
+  order         Order          @relation(fields: [order_id], references: [id])
+  goodsItems    GoodsItem[]
+  images        PackageImage[]
+  inboundRecord InboundRecord?
+  exceptions    Exception[]
+
+  @@map("packages")
+}
+
+model GoodsItem {
+  id         String   @id @default(cuid())
+  package_id String
+  name       String
+  quantity   Int      @default(1)
+  unit_value Float?
+  created_at DateTime @default(now())
+
+  package Package @relation(fields: [package_id], references: [id])
+
+  @@map("goods_items")
+}
+
+model InboundRecord {
+  id          String   @id @default(cuid())
+  package_id  String   @unique
+  operator_id String
+  notes       String?
+  created_at  DateTime @default(now())
+
+  package  Package @relation(fields: [package_id], references: [id])
+  operator User    @relation(fields: [operator_id], references: [id])
+
+  @@map("inbound_records")
+}
+
+model PackageImage {
+  id         String    @id @default(cuid())
+  package_id String
+  type       ImageType
+  url        String
+  created_at DateTime  @default(now())
+
+  package Package @relation(fields: [package_id], references: [id])
+
+  @@map("package_images")
+}
+
+model Exception {
+  id          String          @id @default(cuid())
+  package_id  String
+  type        ExceptionType
+  status      ExceptionStatus @default(OPEN)
+  description String?
+  created_at  DateTime        @default(now())
+  updated_at  DateTime        @updatedAt
+
+  package Package @relation(fields: [package_id], references: [id])
+
+  @@map("exceptions")
+}
+
+model Shipment {
+  id                String    @id @default(cuid())
+  order_id          String    @unique
+  provider          String
+  tracking_number   String
+  shipped_at        DateTime?
+  estimated_arrival DateTime?
+  status            String    @default("CREATED")
+  raw_json          Json?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  order Order @relation(fields: [order_id], references: [id])
+
+  @@map("shipments")
+}
+
+model QRToken {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  order_id   String
+  user_id    String
+  used       Boolean  @default(false)
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  order Order @relation(fields: [order_id], references: [id])
+  user  User  @relation(fields: [user_id], references: [id])
+
+  @@map("qr_tokens")
+}
+
+model AdminLog {
+  id         String      @id @default(cuid())
+  admin_id   String
+  order_id   String?
+  action     AdminAction
+  details    Json?
+  created_at DateTime    @default(now())
+
+  admin User   @relation(fields: [admin_id], references: [id])
+  order Order? @relation(fields: [order_id], references: [id])
+
+  @@map("admin_logs")
+}
+
+model Notification {
+  id         String              @id @default(cuid())
+  order_id   String
+  user_id    String
+  trigger    NotificationTrigger
+  sent_at    DateTime?
+  created_at DateTime            @default(now())
+
+  order Order @relation(fields: [order_id], references: [id])
+  user  User  @relation(fields: [user_id], references: [id])
+
+  @@map("notifications")
+}
