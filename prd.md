@@ -2,9 +2,9 @@
 
 ## 1. 基本信息
 
-- 产品名称：广骏供应链服务（WeChat Mini Program）
+`- 产品名称：广骏供应链服务（WeChat Mini Program）
 - 英文名称：GJ Supply Chain Service
-- 项目名称：GJXpress
+- 项目名称：GJXpress`
 - Slogan：看得见的跨境物流
 
 ---

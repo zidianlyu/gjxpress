@@ -6,8 +6,10 @@ node_modules/
 
 # Build outputs
 dist/
+dist-ssr/
 build/
 *.tsbuildinfo
+*.local
 
 # Environment variables
 .env
@@ -62,3 +64,32 @@ docker-compose.override.yml
 # Misc
 .cache/
 .eslintcache
+*.pem
+*.pid
+*.seed
+*.pid.lock
+
+# Editor directories and files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Vite
+.vite/
+
+# Frontend specific (admin)
+admin/.env
+admin/.env.local
+
+# Backend specific
+backend/.env
+backend/dist/
+
+# Testing
+*.lcov
+
+# Temporary folders
+*.tgz
+*.tar.gz
