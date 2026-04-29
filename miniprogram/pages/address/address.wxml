@@ -1,0 +1,91 @@
+<view class="container">
+  <!-- 用户提示 -->
+  <view class="tip-card">
+    <text class="tip-icon">[提示]</text>
+    <text class="tip-text">在淘宝/京东等电商平台下单时，请使用以下地址作为收货地址，并确保填写您的专属用户代码</text>
+  </view>
+
+  <!-- 用户信息 -->
+  <view class="card" wx:if="{{userInfo}}">
+    <view class="card-title">我的专属代码</view>
+    <view class="user-code-section">
+      <text class="user-code">{{userInfo.user_code}}</text>
+      <button class="btn-copy-small" bindtap="copyUserCode">复制</button>
+    </view>
+    <text class="code-tip">电商平台收件人姓名后请加上此代码，如：张三 {{userInfo.user_code}}</text>
+  </view>
+
+  <!-- 仓库地址 -->
+  <view class="card">
+    <view class="card-title">国内仓库收货地址</view>
+    <view class="address-card">
+      <view class="address-row">
+        <text class="address-label">收件人</text>
+        <text class="address-value">{{address.recipient || '广骏集运'}}</text>
+      </view>
+      <view class="address-row">
+        <text class="address-label">电话</text>
+        <text class="address-value">{{address.phone || '13800138000'}}</text>
+      </view>
+      <view class="address-row">
+        <text class="address-label">省份</text>
+        <text class="address-value">{{address.province || '广东省'}}</text>
+      </view>
+      <view class="address-row">
+        <text class="address-label">城市</text>
+        <text class="address-value">{{address.city || '广州市'}}</text>
+      </view>
+      <view class="address-row">
+        <text class="address-label">区县</text>
+        <text class="address-value">{{address.district || '白云区'}}</text>
+      </view>
+      <view class="address-row">
+        <text class="address-label">详细地址</text>
+        <text class="address-value">{{address.address || '白云大道123号物流园A区'}}</text>
+      </view>
+      <view class="address-row">
+        <text class="address-label">邮编</text>
+        <text class="address-value">{{address.zip_code || '510000'}}</text>
+      </view>
+    </view>
+
+    <button class="btn btn-success btn-block" bindtap="copyFullAddress">
+      <text class="btn-icon">[复制]</text>
+      <text>一键复制完整地址</text>
+    </button>
+  </view>
+
+  <!-- 填写示例 -->
+  <view class="card">
+    <view class="card-title">填写示例</view>
+    <view class="example-box">
+      <view class="example-line">
+        <text class="example-label">收件人：</text>
+        <text class="example-value">张三 {{userInfo && userInfo.user_code ? userInfo.user_code : '1234'}}</text>
+      </view>
+      <view class="example-line">
+        <text class="example-label">手机号码：</text>
+        <text class="example-value">13800138000</text>
+      </view>
+      <view class="example-line">
+        <text class="example-label">所在地区：</text>
+        <text class="example-value">广东省广州市白云区</text>
+      </view>
+      <view class="example-line">
+        <text class="example-label">详细地址：</text>
+        <text class="example-value">白云大道123号物流园A区</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 温馨提示 -->
+  <view class="card notice-card">
+    <view class="card-title">温馨提示</view>
+    <view class="notice-list">
+      <text class="notice-item">1. 请务必填写您的专属用户代码，否则无法识别包裹归属</text>
+      <text class="notice-item">2. 包裹到达仓库后会拍照入库，您可以在小程序中查看</text>
+      <text class="notice-item">3. 多个包裹可以合并发货，节省运费</text>
+      <text class="notice-item">4. 禁运物品：液体、粉末、电池、磁性物品等</text>
+    </view>
+  </view>
+</view>

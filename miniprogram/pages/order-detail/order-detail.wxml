@@ -1,0 +1,169 @@
+<view class="container" wx:if="{{order}}">
+  <!-- 订单状态卡片 -->
+  <view class="status-card status-{{order.statusType}}">
+    <view class="status-icon">
+      <text wx:if="{{order.status === 'COMPLETED'}}">[完成]</text>
+      <text wx:elif="{{order.status === 'SHIPPED'}}">[运输]</text>
+      <text wx:elif="{{order.status === 'PAID'}}">[已付]</text>
+      <text wx:elif="{{order.status === 'USER_CONFIRM_PENDING'}}">[确认]</text>
+      <text wx:elif="{{order.status === 'INBOUNDED'}}">[入库]</text>
+      <text wx:else>[处理]</text>
+    </view>
+    <view class="status-info">
+      <text class="status-text">{{order.statusLabel}}</text>
+      <text class="status-desc">{{statusDesc}}</text>
+    </view>
+  </view>
+
+  <!-- 订单信息 -->
+  <view class="card">
+    <view class="card-title">订单信息</view>
+    <view class="info-list">
+      <view class="info-item">
+        <text class="info-label">订单号</text>
+        <text class="info-value">{{order.id}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">创建时间</text>
+        <text class="info-value">{{order.created_at}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">支付状态</text>
+        <text class="info-value status-{{order.paymentStatusType}}">
+          {{order.paymentStatusLabel}}
+          <text wx:if="{{order.manual_override}}"> (人工)</text>
+        </text>
+      </view>
+      <view class="info-item" wx:if="{{order.chargeable_weight}}">
+        <text class="info-label">计费重量</text>
+        <text class="info-value">{{order.chargeable_weight}} kg</text>
+      </view>
+      <view class="info-item" wx:if="{{order.final_price || order.estimated_price}}">
+        <text class="info-label">金额</text>
+        <text class="info-value price">{{order.final_price || order.estimated_price}} {{order.currency}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 物流信息 -->
+  <view class="card" wx:if="{{order.shipment}}">
+    <view class="card-title">物流信息</view>
+    <view class="shipment-info">
+      <view class="shipment-row">
+        <text class="shipment-label">物流商</text>
+        <text class="shipment-value">{{order.shipment.provider}}</text>
+      </view>
+      <view class="shipment-row">
+        <text class="shipment-label">追踪号码</text>
+        <text class="shipment-value">{{order.shipment.tracking_number}}</text>
+        <text class="copy-btn" bindtap="copyTracking">复制</text>
+      </view>
+      <view class="shipment-row" wx:if="{{order.shipment.shipped_at}}">
+        <text class="shipment-label">发货时间</text>
+        <text class="shipment-value">{{order.shipment.shipped_at}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 包裹列表 -->
+  <view class="card">
+    <view class="card-title">包裹列表 ({{order.packages.length}})</view>
+    <view class="package-list">
+      <view class="package-item" wx:for="{{order.packages}}" wx:key="id" wx:for-item="pkg">
+        <!-- 包裹头部 -->
+        <view class="package-header">
+          <view class="package-track">
+            <text class="track-label">运单号:</text>
+            <text class="track-value">{{pkg.domestic_tracking_no}}</text>
+          </view>
+          <view class="package-status tag tag-{{pkg.statusType}}">
+            {{pkg.statusLabel}}
+          </view>
+        </view>
+
+        <!-- 包裹图片 -->
+        <view class="package-images" wx:if="{{pkg.images.length > 0}}">
+          <scroll-view scroll-x class="image-scroll">
+            <view class="image-list">
+              <view
+                class="image-item"
+                wx:for="{{pkg.images}}"
+                wx:key="id"
+                wx:for-item="img"
+                bindtap="previewImage"
+                data-url="{{img.url}}"
+                data-images="{{pkg.images}}"
+              >
+                <image src="{{img.url}}" mode="aspectFill" lazy-load/>
+                <text class="image-type">{{img.type === 'OUTER' ? '外包装' : img.type === 'LABEL' ? '面单' : img.type === 'INNER' ? '内物' : '其他'}}</text>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <!-- 包裹信息 -->
+        <view class="package-info">
+          <view class="info-row" wx:if="{{pkg.actual_weight}}">
+            <text>实际重量: {{pkg.actual_weight}} kg</text>
+          </view>
+          <view class="info-row" wx:if="{{pkg.volume_weight}}">
+            <text>体积重量: {{pkg.volume_weight}} kg ({{pkg.length}}×{{pkg.width}}×{{pkg.height}} cm)</text>
+          </view>
+          <view class="info-row" wx:if="{{pkg.inbound_time}}">
+            <text>入库时间: {{pkg.inbound_time}}</text>
+          </view>
+        </view>
+
+        <!-- 确认操作区 - 仅当状态为 USER_CONFIRM_PENDING 时显示 -->
+        <view class="confirm-section" wx:if="{{pkg.needConfirm}}">
+          <view class="confirm-tip">
+            <text class="tip-icon">[!]</text>
+            <text>请核对包裹照片和重量，确认是否无误</text>
+          </view>
+          <view class="confirm-actions">
+            <button class="btn btn-danger btn-small" bindtap="reportIssue" data-package-id="{{pkg.id}}">
+              有问题
+            </button>
+            <button class="btn btn-success btn-small" bindtap="confirmPackage" data-package-id="{{pkg.id}}">
+              确认无误
+            </button>
+          </view>
+        </view>
+
+        <!-- 异常表单 -->
+        <view class="issue-form" wx:if="{{pkg.showIssueForm}}">
+          <textarea
+            class="issue-textarea"
+            placeholder="请描述问题（如：物品缺失、损坏、错误等）"
+            bindinput="onIssueInput"
+            data-package-id="{{pkg.id}}"
+          />
+          <view class="issue-actions">
+            <button class="btn btn-default btn-small" bindtap="cancelIssue" data-package-id="{{pkg.id}}">
+              取消
+            </button>
+            <button class="btn btn-warning btn-small" bindtap="submitIssue" data-package-id="{{pkg.id}}">
+              提交问题
+            </button>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 操作按钮区 -->
+  <view class="action-bar" wx:if="{{canPay || hasPendingConfirm}}">
+    <button class="btn btn-primary btn-block" wx:if="{{canPay}}" bindtap="goToPay">
+      去支付
+    </button>
+    <text class="action-tip" wx:if="{{hasPendingConfirm}}">
+      您有包裹等待确认，请核对后确认或反馈问题
+    </text>
+  </view>
+</view>
+
+<!-- 加载中 -->
+<view class="loading-full" wx:if="{{loading}}">
+  <view class="loading-spinner"></view>
+  <text>加载中...</text>
+</view>

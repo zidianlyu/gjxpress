@@ -1,0 +1,42 @@
+<view class="login-container">
+  <view class="login-header">
+    <view class="brand-logo">GJX</view>
+    <text class="brand-name">广骏供应链</text>
+    <text class="brand-slogan">看得见的跨境物流</text>
+  </view>
+
+  <view class="login-card">
+    <view class="login-title">欢迎登录</view>
+    <view class="login-subtitle">使用微信账号快速登录</view>
+
+    <button 
+      class="wx-login-btn" 
+      bindtap="handleWxLogin"
+      loading="{{loading}}"
+    >
+      <text class="wx-icon">微信</text>
+      <text>微信一键登录</text>
+    </button>
+
+    <view class="divider">
+      <view class="divider-line"></view>
+      <text class="divider-text">或</text>
+      <view class="divider-line"></view>
+    </view>
+
+    <button 
+      class="dev-login-btn" 
+      bindtap="handleDevLogin"
+      loading="{{loading}}"
+    >
+      开发测试登录
+    </button>
+  </view>
+
+  <view class="agreement">
+    <text>登录即表示您同意</text>
+    <text class="link">《用户协议》</text>
+    <text>和</text>
+    <text class="link">《隐私政策》</text>
+  </view>
+</view>

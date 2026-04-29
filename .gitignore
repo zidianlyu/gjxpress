@@ -93,3 +93,14 @@ backend/dist/
 # Temporary folders
 *.tgz
 *.tar.gz
+
+# WeChat Mini Program
+miniprogram/project.private.config.json
+miniprogram/.eslintrc.js
+miniprogram/node_modules/
+miniprogram/miniprogram_npm/
+
+# WeChat DevTools
+*.wxss.cache
+*.wxml.cache
+*.js.cache

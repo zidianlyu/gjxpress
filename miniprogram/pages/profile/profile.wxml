@@ -1,0 +1,94 @@
+<view class="container">
+  <!-- 用户信息卡片 -->
+  <view class="user-card">
+    <view class="user-header">
+      <view class="avatar-section">
+        <image
+          class="user-avatar"
+          src="{{userInfo && userInfo.avatar ? userInfo.avatar : '/images/default-avatar.png'}}"
+          mode="aspectFill"
+        />
+        <view class="user-info">
+          <text class="user-name">{{userInfo && userInfo.nickname ? userInfo.nickname : '未登录'}}</text>
+          <view class="user-code-tag" wx:if="{{userInfo && userInfo.user_code}}">
+            <text class="code-label">专属代码:</text>
+            <text class="code-value">{{userInfo.user_code}}</text>
+          </view>
+        </view>
+      </view>
+      <button
+        class="login-btn"
+        wx:if="{{!isLogin}}"
+        bindtap="goToLogin"
+      >
+        登录
+      </button>
+    </view>
+  </view>
+
+  <!-- 快捷入口 -->
+  <view class="menu-section">
+    <view class="menu-item" bindtap="goToOrders">
+      <view class="menu-icon" style="background: #e6f7ff; color: #1890ff;">
+        <text>[单]</text>
+      </view>
+      <text class="menu-text">我的订单</text>
+      <text class="menu-arrow">></text>
+    </view>
+    <view class="menu-item" bindtap="goToAddress">
+      <view class="menu-icon" style="background: #f6ffed; color: #52c41a;">
+        <text>[仓]</text>
+      </view>
+      <text class="menu-text">仓库地址</text>
+      <text class="menu-arrow">></text>
+    </view>
+    <view class="menu-item" bindtap="contactService">
+      <view class="menu-icon" style="background: #fff7e6; color: #faad14;">
+        <text>[服]</text>
+      </view>
+      <text class="menu-text">客服中心</text>
+      <text class="menu-arrow">></text>
+    </view>
+  </view>
+
+  <!-- 数据统计 -->
+  <view class="stats-section" wx:if="{{isLogin}}">
+    <view class="stats-item" bindtap="goToOrders">
+      <text class="stats-num">{{stats.total || 0}}</text>
+      <text class="stats-label">全部订单</text>
+    </view>
+    <view class="stats-item" bindtap="goToFilterOrders" data-filter="inbound">
+      <text class="stats-num" style="color: #faad14;">{{stats.inbound || 0}}</text>
+      <text class="stats-label">待入库</text>
+    </view>
+    <view class="stats-item" bindtap="goToFilterOrders" data-filter="confirm">
+      <text class="stats-num" style="color: #1890ff;">{{stats.confirm || 0}}</text>
+      <text class="stats-label">待确认</text>
+    </view>
+    <view class="stats-item" bindtap="goToFilterOrders" data-filter="payment">
+      <text class="stats-num" style="color: #ff4d4f;">{{stats.payment || 0}}</text>
+      <text class="stats-label">待支付</text>
+    </view>
+  </view>
+
+  <!-- 关于我们 -->
+  <view class="about-section">
+    <view class="about-item">
+      <text class="about-label">关于广骏</text>
+      <text class="about-value">看得见的跨境物流</text>
+    </view>
+    <view class="about-item">
+      <text class="about-label">当前版本</text>
+      <text class="about-value">v1.0.0</text>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <button
+    class="btn btn-danger btn-block logout-btn"
+    wx:if="{{isLogin}}"
+    bindtap="logout"
+  >
+    退出登录
+  </button>
+</view>

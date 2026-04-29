@@ -1,0 +1,97 @@
+<view class="container">
+  <!-- 状态筛选 -->
+  <scroll-view class="filter-bar" scroll-x>
+    <view
+      class="filter-item {{activeFilter === 'all' ? 'active' : ''}}"
+      bindtap="switchFilter" data-filter="all"
+    >
+      全部
+    </view>
+    <view
+      class="filter-item {{activeFilter === 'inbound' ? 'active' : ''}}"
+      bindtap="switchFilter" data-filter="inbound"
+    >
+      待入库
+    </view>
+    <view
+      class="filter-item {{activeFilter === 'confirm' ? 'active' : ''}}"
+      bindtap="switchFilter" data-filter="confirm"
+    >
+      待确认
+    </view>
+    <view
+      class="filter-item {{activeFilter === 'payment' ? 'active' : ''}}"
+      bindtap="switchFilter" data-filter="payment"
+    >
+      待支付
+    </view>
+    <view
+      class="filter-item {{activeFilter === 'shipped' ? 'active' : ''}}"
+      bindtap="switchFilter" data-filter="shipped"
+    >
+      已发货
+    </view>
+  </scroll-view>
+
+  <!-- 订单列表 -->
+  <view class="order-list" wx:if="{{orders.length > 0}}">
+    <view
+      class="order-card"
+      wx:for="{{filteredOrders}}"
+      wx:key="id"
+      bindtap="goToDetail"
+      data-id="{{item.id}}"
+    >
+      <!-- 订单头部 -->
+      <view class="order-header">
+        <view class="order-id-section">
+          <text class="order-id">订单号: {{item.id}}</text>
+          <text class="order-time">{{item.created_at}}</text>
+        </view>
+        <view class="tag tag-{{item.statusType}}">
+          {{item.statusLabel}}
+        </view>
+      </view>
+
+      <!-- 包裹信息 -->
+      <view class="order-body">
+        <view class="package-count">
+          <text class="package-icon">[包]</text>
+          <text>共 {{item.packages && item.packages.length ? item.packages.length : 0}} 个包裹</text>
+        </view>
+        <view class="order-weight" wx:if="{{item.chargeable_weight}}">
+          <text>计费重量: {{item.chargeable_weight}} kg</text>
+        </view>
+        <view class="order-price" wx:if="{{item.final_price || item.estimated_price}}">
+          <text class="price-label">金额:</text>
+          <text class="price-value">{{item.final_price || item.estimated_price}} {{item.currency}}</text>
+        </view>
+      </view>
+
+      <!-- 订单底部 -->
+      <view class="order-footer">
+        <view class="payment-status">
+          <text class="status-label">支付状态:</text>
+          <text class="status-value status-{{item.paymentStatusType}}">
+            {{item.paymentStatusLabel}}
+          </text>
+        </view>
+        <view class="arrow">></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && filteredOrders.length === 0}}">
+    <view class="empty-icon">[空]</view>
+    <text class="empty-text">暂无订单</text>
+    <text class="empty-subtext">快去电商平台下单吧</text>
+    <button class="btn btn-primary" bindtap="goToAddress">查看仓库地址</button>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+</view>
