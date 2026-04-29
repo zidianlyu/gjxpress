@@ -4,10 +4,14 @@
     <view class="user-header">
       <view class="avatar-section">
         <image
+          wx:if="{{userInfo && userInfo.avatar}}"
           class="user-avatar"
-          src="{{userInfo && userInfo.avatar ? userInfo.avatar : '/images/default-avatar.png'}}"
+          src="{{userInfo.avatar}}"
           mode="aspectFill"
         />
+        <view wx:else class="user-avatar avatar-placeholder">
+          <text class="avatar-text">{{userInfo && userInfo.nickname ? userInfo.nickname[0] : '我'}}</text>
+        </view>
         <view class="user-info">
           <text class="user-name">{{userInfo && userInfo.nickname ? userInfo.nickname : '未登录'}}</text>
           <view class="user-code-tag" wx:if="{{userInfo && userInfo.user_code}}">

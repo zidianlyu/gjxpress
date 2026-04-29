@@ -44,19 +44,19 @@ Page({
   // 加载订单详情
   loadOrderDetail(id) {
     this.setData({ loading: true })
-    
+
     api.order.getDetail(id).then(order => {
       // 处理订单数据
       const processedOrder = this.processOrder(order)
-      
+
       // 检查是否有待确认的包裹
       const hasPendingConfirm = order.packages.some(
         pkg => pkg.status === 'INBOUNDED' && !pkg.user_confirmed_at
       )
-      
+
       // 检查是否可以支付
       const canPay = order.payment_status === 'UNPAID' || order.payment_status === 'PROCESSING'
-      
+
       this.setData({
         order: processedOrder,
         loading: false,
@@ -67,9 +67,42 @@ Page({
     }).catch(err => {
       console.error('加载订单详情失败:', err)
       this.setData({ loading: false })
-      
-      if (err.message === 'Unauthorized') {
-        wx.navigateTo({ url: '/pages/login/login' })
+
+      if (err.statusCode === 401) {
+        wx.showToast({ title: '请先登录', icon: 'none' })
+        setTimeout(() => {
+          wx.navigateTo({ url: '/pages/login/login' })
+        }, 1500)
+      } else if (err.statusCode === 404) {
+        wx.showModal({
+          title: '订单不存在',
+          content: '该订单可能已被删除或您无权查看',
+          showCancel: false,
+          success: () => {
+            wx.navigateBack()
+          }
+        })
+      } else if (err.statusCode === 0) {
+        wx.showModal({
+          title: '网络错误',
+          content: err.message || '无法连接到服务器',
+          showCancel: true,
+          confirmText: '重试',
+          cancelText: '返回',
+          success: (res) => {
+            if (res.confirm) {
+              this.loadOrderDetail(id)
+            } else {
+              wx.navigateBack()
+            }
+          }
+        })
+      } else {
+        wx.showToast({
+          title: err.message || '加载订单详情失败',
+          icon: 'none',
+          duration: 3000
+        })
       }
     })
   },
@@ -78,7 +111,7 @@ Page({
   processOrder(order) {
     const statusInfo = api.utils.getStatusDisplay(order.status)
     const paymentStatusInfo = api.utils.getPaymentStatusDisplay(order.payment_status)
-    
+
     return {
       ...order,
       statusLabel: statusInfo.label,
@@ -98,7 +131,7 @@ Page({
   // 处理包裹数据
   processPackage(pkg) {
     const statusInfo = api.utils.getStatusDisplay(pkg.status)
-    
+
     return {
       ...pkg,
       statusLabel: statusInfo.label,
@@ -126,7 +159,7 @@ Page({
   previewImage(e) {
     const { url, images } = e.currentTarget.dataset
     const urls = images.map(img => img.url)
-    
+
     wx.previewImage({
       current: url,
       urls: urls
@@ -136,7 +169,7 @@ Page({
   // 确认包裹无误
   confirmPackage(e) {
     const { packageId } = e.currentTarget.dataset
-    
+
     wx.showModal({
       title: '确认包裹',
       content: '确认该包裹信息无误吗？',
@@ -145,7 +178,7 @@ Page({
       success: (res) => {
         if (res.confirm) {
           wx.showLoading({ title: '处理中...' })
-          
+
           api.package.confirm(packageId).then(() => {
             wx.hideLoading()
             wx.showToast({ title: '确认成功', icon: 'success' })
@@ -164,13 +197,13 @@ Page({
   reportIssue(e) {
     const { packageId } = e.currentTarget.dataset
     const { order } = this.data
-    
+
     // 找到对应的包裹并显示表单
     const packages = order.packages.map(pkg => ({
       ...pkg,
       showIssueForm: pkg.id === packageId ? true : pkg.showIssueForm
     }))
-    
+
     this.setData({
       'order.packages': packages
     })
@@ -180,7 +213,7 @@ Page({
   onIssueInput(e) {
     const { packageId } = e.currentTarget.dataset
     const { value } = e.detail
-    
+
     this.setData({
       [`issueInputs.${packageId}`]: value
     })
@@ -190,12 +223,12 @@ Page({
   cancelIssue(e) {
     const { packageId } = e.currentTarget.dataset
     const { order } = this.data
-    
+
     const packages = order.packages.map(pkg => ({
       ...pkg,
       showIssueForm: pkg.id === packageId ? false : pkg.showIssueForm
     }))
-    
+
     this.setData({
       'order.packages': packages
     })
@@ -205,26 +238,57 @@ Page({
   submitIssue(e) {
     const { packageId } = e.currentTarget.dataset
     const description = this.data.issueInputs[packageId]
-    
+
     if (!description || !description.trim()) {
       wx.showToast({ title: '请输入问题描述', icon: 'none' })
       return
     }
-    
+
+    // 二次确认弹窗
+    wx.showModal({
+      title: '提交异常反馈',
+      content: '确认提交该问题？客服将在24小时内联系您处理。',
+      confirmText: '确认提交',
+      cancelText: '再想想',
+      success: (res) => {
+        if (res.confirm) {
+          this.doSubmitIssue(packageId, description)
+        }
+      }
+    })
+  },
+
+  // 实际提交问题
+  doSubmitIssue(packageId, description) {
     wx.showLoading({ title: '提交中...' })
-    
+
     api.package.reportIssue(packageId, description).then(() => {
       wx.hideLoading()
-      wx.showToast({ title: '问题已提交', icon: 'success' })
-      
-      // 清空输入并刷新
-      this.setData({
-        [`issueInputs.${packageId}`]: ''
+      // 使用 modal 替代 toast 以便用户看清
+      wx.showModal({
+        title: '提交成功',
+        content: '您的问题已提交，客服将在24小时内联系您处理。',
+        showCancel: false,
+        confirmText: '知道了',
+        success: () => {
+          // 清空输入并刷新
+          this.setData({
+            [`issueInputs.${packageId}`]: ''
+          })
+          this.loadOrderDetail(this.data.order.id)
+        }
       })
-      this.loadOrderDetail(this.data.order.id)
     }).catch(err => {
       wx.hideLoading()
-      wx.showToast({ title: err.message || '提交失败', icon: 'none' })
+      wx.showModal({
+        title: '提交失败',
+        content: err.message || '网络错误，请重试',
+        showCancel: false,
+        confirmText: '重试',
+        success: () => {
+          this.doSubmitIssue(packageId, description)
+        }
+      })
     })
   },
 

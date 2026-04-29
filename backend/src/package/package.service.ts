@@ -84,7 +84,12 @@ export class PackageService {
     return pkg;
   }
 
-  async confirm(packageId: string, userId: string, action: ConfirmAction) {
+  async confirm(
+    packageId: string,
+    userId: string,
+    action: ConfirmAction,
+    description?: string,
+  ) {
     const pkg = await this.prisma.package.findUnique({
       where: { id: packageId },
       include: { order: true },
@@ -106,9 +111,27 @@ export class PackageService {
       });
     }
 
-    return this.prisma.package.update({
-      where: { id: packageId },
-      data: { status: PackageStatus.EXCEPTION },
+    // REPORT_ISSUE: Update status and create exception record
+    return this.prisma.$transaction(async (tx) => {
+      // Update package status
+      await tx.package.update({
+        where: { id: packageId },
+        data: { status: PackageStatus.EXCEPTION },
+      });
+
+      // Create exception record if description provided
+      if (description) {
+        await tx.exception.create({
+          data: {
+            package_id: packageId,
+            type: 'OTHER',
+            status: 'OPEN',
+            description,
+          },
+        });
+      }
+
+      return { status: PackageStatus.EXCEPTION };
     });
   }
 }

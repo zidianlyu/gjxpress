@@ -41,6 +41,6 @@ export class PackageController {
     @Body() dto: ConfirmPackageDto,
     @CurrentUser() user: any,
   ) {
-    return this.packageService.confirm(id, user.id, dto.action);
+    return this.packageService.confirm(id, user.id, dto.action, dto.description);
   }
 }

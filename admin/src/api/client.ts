@@ -41,7 +41,7 @@ export const orderApi = {
   getOrders: () => apiClient.get('/orders'),
   getOrder: (id: string) => apiClient.get(`/orders/${id}`),
   updatePayment: (id: string, status: string, finalPrice?: number, manualOverride?: boolean) =>
-    apiClient.patch(`/orders/${id}/payment`, { status, final_price: finalPrice, manual_override: manualOverride }),
+    apiClient.patch(`/orders/${id}/payment/status`, { status, final_price: finalPrice, manual_override: manualOverride }),
 }
 
 // Package APIs
@@ -64,8 +64,8 @@ export const packageApi = {
 
 // Shipment APIs
 export const shipmentApi = {
-  create: (orderId: string, data: { provider: string; tracking_number: string; estimated_arrival?: string }) =>
-    apiClient.post('/shipments', { orderId, ...data }),
+  create: (orderId: string, data: { provider: string; tracking_number: string; estimated_arrival?: string }, forceOverride?: boolean) =>
+    apiClient.post(`/shipments/${orderId}?force=${forceOverride || false}`, data),
   getByOrder: (orderId: string) => apiClient.get(`/shipments/${orderId}`),
 }
 

@@ -29,11 +29,11 @@ Page({
   // 加载订单列表
   loadOrders() {
     this.setData({ loading: true })
-    
+
     api.order.getList().then(orders => {
       // 处理订单数据
       const processedOrders = orders.map(order => this.processOrder(order))
-      
+
       this.setData({
         orders: processedOrders,
         loading: false
@@ -43,9 +43,29 @@ Page({
     }).catch(err => {
       console.error('加载订单失败:', err)
       this.setData({ loading: false })
-      
-      if (err.message === 'Unauthorized') {
-        wx.navigateTo({ url: '/pages/login/login' })
+
+      if (err.statusCode === 401) {
+        wx.showToast({ title: '请先登录', icon: 'none' })
+        setTimeout(() => {
+          wx.navigateTo({ url: '/pages/login/login' })
+        }, 1500)
+      } else if (err.statusCode === 0) {
+        // 网络错误
+        wx.showModal({
+          title: '网络错误',
+          content: err.message || '无法连接到服务器，请检查网络设置',
+          showCancel: false,
+          confirmText: '重试',
+          success: () => {
+            this.loadOrders()
+          }
+        })
+      } else {
+        wx.showToast({
+          title: err.message || '加载订单失败',
+          icon: 'none',
+          duration: 3000
+        })
       }
     })
   },
@@ -54,7 +74,7 @@ Page({
   processOrder(order) {
     const statusInfo = api.utils.getStatusDisplay(order.status)
     const paymentStatusInfo = api.utils.getPaymentStatusDisplay(order.payment_status)
-    
+
     return {
       ...order,
       statusLabel: statusInfo.label,
@@ -72,11 +92,11 @@ Page({
     const date = new Date(dateStr)
     const now = new Date()
     const isToday = date.toDateString() === now.toDateString()
-    
+
     if (isToday) {
       return `今天 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
     }
-    
+
     return `${date.getMonth() + 1}月${date.getDate()}日`
   },
 
@@ -92,12 +112,12 @@ Page({
   applyFilter() {
     const { orders, activeFilter } = this.data
     const targetStatus = filterMap[activeFilter]
-    
+
     if (!targetStatus) {
       this.setData({ filteredOrders: orders })
       return
     }
-    
+
     const filtered = orders.filter(order => order.status === targetStatus)
     this.setData({ filteredOrders: filtered })
   },

@@ -36,7 +36,7 @@ function getStatusDisplay(status, isPayment = false) {
 function request(options) {
   return new Promise((resolve, reject) => {
     const token = wx.getStorageSync('access_token')
-    
+
     wx.request({
       ...options,
       header: {
@@ -50,20 +50,45 @@ function request(options) {
         } else if (res.statusCode === 401) {
           // token 过期，清除登录状态
           wx.removeStorageSync('access_token')
-          wx.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-          setTimeout(() => {
-            wx.navigateTo({ url: '/pages/login/login' })
-          }, 1500)
-          reject(new Error('Unauthorized'))
+          const error = new Error('Unauthorized')
+          error.statusCode = 401
+          error.message = '登录已过期，请重新登录'
+          reject(error)
+        } else if (res.statusCode === 403) {
+          const error = new Error('Forbidden')
+          error.statusCode = 403
+          error.message = res.data?.message || '无权访问此资源'
+          reject(error)
+        } else if (res.statusCode === 404) {
+          const error = new Error('Not Found')
+          error.statusCode = 404
+          error.message = res.data?.message || '请求的资源不存在'
+          reject(error)
+        } else if (res.statusCode === 400) {
+          const error = new Error('Bad Request')
+          error.statusCode = 400
+          error.message = res.data?.message || '请求参数错误'
+          reject(error)
         } else {
-          const message = res.data?.message || `请求失败 (${res.statusCode})`
-          wx.showToast({ title: message, icon: 'none' })
-          reject(new Error(message))
+          const error = new Error('Request Failed')
+          error.statusCode = res.statusCode
+          error.message = res.data?.message || `请求失败 (${res.statusCode})`
+          reject(error)
         }
       },
       fail: (err) => {
-        wx.showToast({ title: '网络请求失败', icon: 'none' })
-        reject(err)
+        // 区分不同类型的网络错误
+        let errorMsg = '网络请求失败'
+        if (err.errMsg && err.errMsg.includes('timeout')) {
+          errorMsg = '请求超时，请检查网络连接'
+        } else if (err.errMsg && err.errMsg.includes('fail')) {
+          errorMsg = '无法连接到服务器，请检查网络'
+        }
+        const error = new Error('Network Error')
+        error.statusCode = 0
+        error.message = errorMsg
+        error.originalError = err
+        reject(error)
       }
     })
   })
@@ -127,10 +152,10 @@ const api = {
       })
     },
 
-    // 报告问题
+    // 报告问题 (异常) - 使用 confirm 端点，action 为 REPORT_ISSUE
     reportIssue(packageId, description) {
       return request({
-        url: `${api.getBaseUrl()}/packages/${packageId}/issue`,
+        url: `${api.getBaseUrl()}/packages/${packageId}/confirm`,
         method: 'POST',
         data: { action: 'REPORT_ISSUE', description }
       })
