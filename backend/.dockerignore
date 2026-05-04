@@ -4,7 +4,6 @@ dist
 .gitignore
 .env
 .env.*
-*.md
 npm-debug.log
 Dockerfile
 docker-compose*.yml
@@ -13,3 +12,5 @@ coverage
 .DS_Store
 .eslintrc*
 .prettierrc*
+README.md
+RUN.md

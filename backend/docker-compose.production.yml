@@ -5,13 +5,11 @@
 
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: 919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest
     container_name: gjxpress-api
     restart: always
-    ports:
-      - "127.0.0.1:3000:3000"
+    expose:
+      - "3000"
     env_file:
       - .env.production
     healthcheck:
@@ -20,16 +18,23 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+  nginx:
+    image: nginx:alpine
+    container_name: gjxpress-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443" # 新增 443 端口
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # 挂载证书 (将宿主机的证书路径映射到容器内)
+      - /etc/letsencrypt/live/api.gjxpress.net/fullchain.pem:/etc/nginx/certs/fullchain.pem:ro
+      - /etc/letsencrypt/live/api.gjxpress.net/privkey.pem:/etc/nginx/certs/privkey.pem:ro
+    depends_on:
+      api:
+        condition: service_healthy

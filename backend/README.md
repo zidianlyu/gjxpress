@@ -322,6 +322,56 @@ doesn't match the Alpine OpenSSL version. Fixes applied:
 
 ---
 
+## AWS ECR + EC2 Production Deployment
+
+### 1. Build & push image to ECR (from local machine)
+
+```bash
+# Login to ECR
+aws ecr get-login-password --region us-west-1 | \
+  docker login --username AWS --password-stdin 919333998053.dkr.ecr.us-west-1.amazonaws.com
+
+# Build image
+docker build -t gjxpress-backend .
+
+# Tag for ECR
+docker tag gjxpress-backend:latest \
+  919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest
+
+# Push to ECR
+docker push 919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest
+```
+
+### 2. Deploy on EC2
+
+```bash
+# SSH into EC2
+ssh -i ~/.ssh/gjxpress-backend-key.pem ubuntu@54.215.255.83
+
+# Login to ECR on EC2
+aws ecr get-login-password --region us-west-1 | \
+  docker login --username AWS --password-stdin 919333998053.dkr.ecr.us-west-1.amazonaws.com
+
+# Pull latest image
+docker compose -f docker-compose.production.yml pull
+
+# Start (or restart)
+docker compose -f docker-compose.production.yml up -d
+
+# Check logs
+docker logs -f gjxpress-api
+```
+
+### 3. Verify
+
+```bash
+curl http://localhost:3000/api/health
+# or from outside (if Nginx configured):
+curl https://api.gjxpress.net/api/health
+```
+
+---
+
 ## Security
 
 1. **Never commit secrets** — `.env*` files are in `.gitignore`
