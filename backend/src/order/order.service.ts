@@ -7,27 +7,27 @@ export class OrderService {
 
   async findAllByUser(userId: string) {
     return this.prisma.order.findMany({
-      where: { user_id: userId },
+      where: { userId },
       include: {
         packages: {
           include: { images: true },
         },
         shipment: true,
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   async findOneByUser(orderId: string, userId: string) {
     const order = await this.prisma.order.findFirst({
-      where: { id: orderId, user_id: userId },
+      where: { id: orderId, userId },
       include: {
         packages: {
           include: {
             images: true,
             goodsItems: true,
             exceptions: true,
-            inboundRecord: true,
+            inboundRecords: true,
           },
         },
         shipment: true,
@@ -40,15 +40,15 @@ export class OrderService {
   recalcWeights(orderId: string) {
     return this.prisma.$transaction(async (tx) => {
       const packages = await tx.package.findMany({
-        where: { order_id: orderId },
+        where: { orderId },
       });
 
       const totalActual = packages.reduce(
-        (sum, p) => sum + (p.actual_weight ?? 0),
+        (sum, p) => sum + Number(p.actualWeight ?? 0),
         0,
       );
       const totalVolume = packages.reduce(
-        (sum, p) => sum + (p.volume_weight ?? 0),
+        (sum, p) => sum + Number(p.volumeWeight ?? 0),
         0,
       );
       const chargeable = Math.max(totalActual, totalVolume);
@@ -56,9 +56,9 @@ export class OrderService {
       return tx.order.update({
         where: { id: orderId },
         data: {
-          total_actual_weight: totalActual,
-          total_volume_weight: totalVolume,
-          chargeable_weight: chargeable,
+          totalActualWeight: totalActual,
+          totalVolumeWeight: totalVolume,
+          chargeableWeight: chargeable,
         },
       });
     });

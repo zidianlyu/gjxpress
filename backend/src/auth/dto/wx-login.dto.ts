@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class WxLoginDto {
-  @ApiProperty({ description: 'WeChat wx.login() code' })
+  @ApiProperty({ description: 'WeChat wx.login() code, or any string in mock mode' })
   @IsString()
   @IsNotEmpty()
   code: string;
@@ -15,5 +15,5 @@ export class WxLoginDto {
   @ApiProperty({ description: 'Avatar URL from WeChat profile', required: false })
   @IsString()
   @IsOptional()
-  avatar?: string;
+  avatarUrl?: string;
 }

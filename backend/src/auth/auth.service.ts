@@ -29,15 +29,15 @@ export class AuthService {
           openid,
           userCode: userCode,
           nickname: dto.nickname,
-          avatarUrl: dto.avatar,
+          avatarUrl: dto.avatarUrl,
         },
       });
-    } else if (dto.nickname || dto.avatar) {
+    } else if (dto.nickname || dto.avatarUrl) {
       user = await this.prisma.user.update({
         where: { id: user.id },
         data: {
           nickname: dto.nickname ?? user.nickname,
-          avatarUrl: dto.avatar ?? user.avatarUrl,
+          avatarUrl: dto.avatarUrl ?? user.avatarUrl,
         },
       });
     }
@@ -49,7 +49,7 @@ export class AuthService {
         type: 'USER',
         openid: user.openid,
       },
-      { expiresIn },
+      { expiresIn: expiresIn as any },
     );
 
     return {
@@ -87,7 +87,7 @@ export class AuthService {
         type: 'ADMIN',
         role: admin.role,
       },
-      { expiresIn },
+      { expiresIn: expiresIn as any },
     );
 
     return {
@@ -122,7 +122,14 @@ export class AuthService {
   }
 
   private async getOpenid(code: string): Promise<string> {
-    const url = this.configService.get<string>('WECHAT_CODE2SESSION_URL');
+    const mockLogin = this.configService.get<string>('WECHAT_MOCK_LOGIN') === 'true';
+
+    if (mockLogin) {
+      return `mock_openid_${code}`;
+    }
+
+    const url = this.configService.get<string>('WECHAT_CODE2SESSION_URL')
+      || 'https://api.weixin.qq.com/sns/jscode2session';
     const params = {
       appid: this.configService.get<string>('WECHAT_APP_ID'),
       secret: this.configService.get<string>('WECHAT_APP_SECRET'),
@@ -147,7 +154,7 @@ export class AuthService {
     while (exists) {
       code = Math.floor(1000 + Math.random() * 9000).toString();
       exists = !!(await this.prisma.user.findUnique({
-        where: { user_code: code },
+        where: { userCode: code },
       }));
     }
     return code;

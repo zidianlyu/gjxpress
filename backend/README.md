@@ -8,14 +8,15 @@ Logistic OS backend for 广骏供应链服务 (GJ Supply Chain / GJXpress).
 - **Language**: TypeScript
 - **ORM**: Prisma 5.x
 - **Database**: PostgreSQL (Supabase)
-- **Storage**: Supabase Storage
-- **Auth**: JWT + WeChat Mini Program (code2Session)
+- **Storage**: Supabase Storage (`@supabase/supabase-js`)
+- **Auth**: JWT + WeChat Mini Program (code2Session) + Mock login for dev
 - **Deployment**: AWS EC2 + Docker Compose
 
 ## Project Structure
 
 ```
 src/
+├── config/            # Environment validation (Joi)
 ├── common/            # Guards, decorators, filters, utils
 ├── prisma/            # Prisma service and module
 ├── auth/              # WeChat login + Admin login + JWT
@@ -31,17 +32,17 @@ src/
 ├── notification/      # Notification service
 ├── address/           # Warehouse address
 ├── adminlog/          # Admin operation logs
-└── health/            # Health check endpoint
+└── health/            # Health check (DB + Storage)
 ```
+
+---
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 20+
-- PostgreSQL (local or Supabase)
-- Supabase account (for storage)
-- WeChat Mini Program credentials
+- Supabase account (database + storage)
 
 ### 1. Install Dependencies
 
@@ -50,76 +51,165 @@ cd backend
 npm install
 ```
 
-### 2. Environment Setup
+### 2. Create `.env` (or `.env.local`)
 
 ```bash
-cp .env.example .env.local
-# Edit .env.local with your credentials
+cp .env.example .env
+# Edit .env with your Supabase credentials
 ```
 
-Required environment variables:
+#### How to get Supabase credentials
+
+| Variable | Where to find |
+|----------|--------------|
+| `DATABASE_URL` | Supabase Dashboard → Settings → Database → Connection String → **Transaction pooler** (port 6543, append `?pgbouncer=true`) |
+| `DIRECT_URL` | Supabase Dashboard → Settings → Database → Connection String → **Session mode** (port 5432) |
+| `SUPABASE_URL` | Supabase Dashboard → Settings → API → **Project URL** |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → **service_role** key (keep secret!) |
+
+#### Required env variables
 
 ```env
-# Database
-DATABASE_URL="postgresql://..."
-DIRECT_URL="postgresql://..."
-
-# Supabase Storage
-SUPABASE_URL="https://[project].supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="..."
-SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES="package-images"
-
-# JWT
-JWT_SECRET="your-secret"
-JWT_EXPIRES_IN="7d"
-ADMIN_JWT_EXPIRES_IN="1d"
-
-# WeChat
-WECHAT_APP_ID="wx_..."
-WECHAT_APP_SECRET="..."
-
-# CORS (comma-separated)
-CORS_ORIGINS="http://localhost:3000,http://localhost:3001"
+DATABASE_URL="postgresql://postgres.[ref]:[pwd]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.[ref]:[pwd]@aws-0-[region].pooler.supabase.com:5432/postgres"
+SUPABASE_URL="https://[ref].supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="eyJ..."
+JWT_SECRET="your-strong-random-secret-min-32-chars"
 ```
 
-### 3. Database Setup
+#### Optional env variables
+
+```env
+JWT_EXPIRES_IN="7d"                          # default: 7d
+ADMIN_JWT_EXPIRES_IN="1d"                    # default: 1d
+WECHAT_MOCK_LOGIN=true                       # default: false. Set true for dev.
+WECHAT_APP_ID=""                             # required if WECHAT_MOCK_LOGIN=false
+WECHAT_APP_SECRET=""                         # required if WECHAT_MOCK_LOGIN=false
+SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES="gjxpress-storage"  # default bucket name
+PORT=3000
+CORS_ORIGINS="http://localhost:3000,http://localhost:5173"
+```
+
+> **Never commit `.env`, `.env.local`, or `.env.production` to git.**
+
+### 3. Validate & Generate Prisma Client
 
 ```bash
-# Generate Prisma client
-npx prisma generate
-
-# Run migrations
-npx prisma migrate dev
-
-# (Optional) Seed database
-npx prisma db seed
+npx prisma validate     # Check schema is correct
+npx prisma generate     # Generate typed Prisma Client
 ```
 
-### 4. Start Development Server
+### 4. Database Migration
+
+**Recommended (with migration files):**
+
+```bash
+# Apply existing migrations to Supabase
+npx prisma migrate deploy
+```
+
+**If no migration files exist yet (prototype stage):**
+
+```bash
+# Push schema directly (no migration history)
+npx prisma db push
+```
+
+> ⚠️ `prisma db push` is a **temporary** solution for prototyping. It does not create migration files. For production, always use `prisma migrate deploy` with proper migration files.
+
+**To create a new migration locally:**
+
+```bash
+npx prisma migrate dev --name describe_your_change
+```
+
+> ⚠️ **Never run** `prisma migrate reset`, `DROP TABLE`, or destructive commands against the shared Supabase database.
+
+### 5. Start Development Server
 
 ```bash
 npm run start:dev
 ```
 
-The API will be available at `http://localhost:3000`
+### 6. Verify
 
-- API endpoints: `http://localhost:3000/api`
-- Swagger docs: `http://localhost:3000/docs`
-- Health check: `http://localhost:3000/health`
+```bash
+curl http://localhost:3000/api/health
+```
+
+Expected response:
+```json
+{
+  "status": "ok",
+  "timestamp": "2025-05-04T...",
+  "service": "gjxpress-api",
+  "database": "ok",
+  "storage": "ok"
+}
+```
+
+- **API base**: `http://localhost:3000/api`
+- **Swagger docs**: `http://localhost:3000/docs`
+- **Health check**: `http://localhost:3000/api/health`
+
+---
+
+## Supabase Storage Setup
+
+1. Go to Supabase Dashboard → Storage → **Create bucket**
+2. Bucket name: `gjxpress-storage`
+3. Recommended: **Private bucket** (use signed URLs for access)
+4. The backend uses `SUPABASE_SERVICE_ROLE_KEY` internally to generate signed upload/read URLs — this key is never exposed to the frontend or mini program
+
+---
+
+## WeChat Mock Login (Development)
+
+Set `WECHAT_MOCK_LOGIN=true` in your `.env`.
+
+Then call:
+```bash
+curl -X POST http://localhost:3000/api/auth/wechat-login \
+  -H 'Content-Type: application/json' \
+  -d '{"code": "dev-test"}'
+```
+
+In mock mode:
+- The `code` is used to generate a deterministic mock openid: `mock_openid_<code>`
+- A User is created/updated and a JWT is returned
+- No real WeChat API is called
+
+In production mode (`WECHAT_MOCK_LOGIN=false`):
+- `WECHAT_APP_ID` and `WECHAT_APP_SECRET` are **required**
+- The backend calls WeChat `code2Session` API to verify the code
+- `openid` comes from WeChat server only; frontend-provided openid is never trusted
+
+---
+
+## Environment Validation
+
+On startup, the app validates all required env variables using **Joi**.
+If any required variable is missing, the app will fail to start with a clear error message:
+
+```
+Error: Config validation error: "DATABASE_URL" is required. Get it from Supabase Dashboard → Settings → Database → Connection String (Transaction pooler).
+```
+
+---
 
 ## API Endpoints
 
-### Public
+### Health
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/health` | GET | Health check |
+| `/api/health` | GET | Health check (DB + Storage) |
 
 ### Auth
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/api/auth/wechat-login` | POST | No | WeChat Mini Program login |
+| `/api/auth/wechat-login` | POST | No | WeChat Mini Program login (or mock login) |
 | `/api/auth/admin-login` | POST | No | Admin login |
-| `/api/auth/me` | GET | JWT | Get current user |
+| `/api/auth/me` | GET | JWT | Get current user/admin profile |
 
 ### User
 | Endpoint | Method | Auth | Description |
@@ -131,10 +221,6 @@ The API will be available at `http://localhost:3000`
 |----------|--------|------|-------------|
 | `/api/orders` | GET | JWT | List my orders |
 | `/api/orders/:id` | GET | JWT | Get order detail |
-| `/api/admin/orders` | GET | Admin | List all orders |
-| `/api/admin/orders` | POST | Admin | Create order |
-| `/api/admin/orders/:id/status` | PATCH | Admin | Update order status |
-| `/api/admin/orders/:id/payment-status` | PATCH | Admin | Update payment status |
 
 ### Packages
 | Endpoint | Method | Auth | Description |
@@ -144,224 +230,52 @@ The API will be available at `http://localhost:3000`
 | `/api/packages/:id/issue` | POST | JWT | Report exception |
 | `/api/admin/packages/inbound` | POST | Admin | Create inbound package |
 
-### Images
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/images/upload-url` | POST | Admin | Get signed upload URL |
-| `/api/images/:id/signed-url` | GET | JWT | Get signed read URL |
-
 ### Shipments
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/api/shipments/:orderId` | GET | JWT | Get shipment |
 | `/api/admin/shipments` | POST | Admin | Create shipment |
 
-### Warehouse Address
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/warehouse-address` | GET | JWT | Get warehouse address |
-
-## Order Status Flow
-
-```
-UNINBOUND
-  ↓
-INBOUNDED (at least one package arrived)
-  ↓
-USER_CONFIRM_PENDING (photos uploaded, awaiting user confirmation)
-  ↓
-REVIEW_PENDING (user confirmed, admin review)
-  ↓
-PAYMENT_PENDING (pricing calculated, awaiting payment)
-  ↓
-PAID (payment confirmed)
-  ↓
-READY_TO_SHIP (ready for international shipment)
-  ↓
-SHIPPED (tracking number assigned)
-  ↓
-COMPLETED (delivered and confirmed)
-```
-
-## Supabase Storage Setup
-
-1. Create a Supabase project at https://supabase.com
-
-2. Create the following buckets (private unless noted):
-   - `package-images` (private)
-   - `payment-proofs` (private)
-   - `exception-images` (private)
-   - `public-assets` (public)
-
-3. Get your credentials from Settings > API:
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY` (keep this secret!)
-
-4. Get database connection strings from Settings > Database:
-   - `DATABASE_URL` (use connection pooling for runtime)
-   - `DIRECT_URL` (use direct connection for migrations)
-
-## Deployment
-
-### Local Docker Testing
-
-```bash
-# Build and run locally
-docker-compose -f docker-compose.local.yml up --build
-
-# Health check
-curl http://localhost:3000/health
-```
-
-### Production Deployment (AWS EC2)
-
-#### 1. Server Setup
-
-```bash
-# SSH into your EC2 instance
-ssh ubuntu@<your-ec2-ip>
-
-# Install dependencies
-sudo apt update
-sudo apt install -y docker.io docker-compose-plugin nginx certbot python3-certbot-nginx git
-sudo systemctl enable docker
-sudo systemctl start docker
-sudo usermod -aG docker ubuntu
-```
-
-#### 2. DNS Configuration
-
-In your DNS provider (e.g., Namecheap):
-```
-Host: api
-Type: A
-Value: <EC2 Elastic IP>
-TTL: Automatic
-```
-
-#### 3. Nginx Setup
-
-```bash
-sudo nano /etc/nginx/sites-available/gjxpress-api
-```
-
-Add:
-```nginx
-server {
-    listen 80;
-    server_name api.gjxpress.net;
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-}
-```
-
-Enable:
-```bash
-sudo ln -s /etc/nginx/sites-available/gjxpress-api /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-#### 4. HTTPS (Let's Encrypt)
-
-```bash
-sudo certbot --nginx -d api.gjxpress.net
-```
-
-#### 5. Deploy Application
-
-```bash
-cd ~
-git clone <your-repo-url> gjxpress
-cd gjxpress/backend
-
-# Create production environment file
-nano .env.production
-# (Fill in all production values)
-
-# Build and start
-docker-compose -f docker-compose.production.yml up -d --build
-
-# Run migrations
-docker exec gjxpress-api npx prisma migrate deploy
-
-# Check logs
-docker logs -f gjxpress-api
-```
-
-#### 6. Verify Deployment
-
-```bash
-# Health check
-curl https://api.gjxpress.net/health
-
-# Should return:
-# {"data":{"status":"ok","timestamp":"...","service":"gjxpress-api"}}
-```
-
-## WeChat Mini Program Configuration
-
-In WeChat Mini Program admin console (https://mp.weixin.qq.com):
-
-1. Go to: Development > Development Settings
-2. Configure request domain:
-   - `https://api.gjxpress.net`
-3. Configure upload/download domain:
-   - `https://api.gjxpress.net`
-
-## Security Best Practices
-
-1. **Never commit `.env.production`** - Add to `.gitignore`
-2. **Keep `SUPABASE_SERVICE_ROLE_KEY` secret** - Never expose to frontend
-3. **Use strong JWT secrets** - Minimum 32 characters
-4. **Restrict SSH access** - Use security groups/IP whitelist
-5. **Enable HTTPS only** - Redirect HTTP to HTTPS
-6. **Regular updates** - Keep Node.js and dependencies updated
-
-## Supabase Required Environment Variables
-
-The following Supabase environment variables are required:
-
-| Variable | How to Get | Location in Supabase |
-|----------|------------|---------------------|
-| `SUPABASE_URL` | Project URL | Settings > API > Project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role key | Settings > API > Project API Keys |
-| `DATABASE_URL` | Pooled connection string | Settings > Database > Connection Pooling |
-| `DIRECT_URL` | Direct connection string | Settings > Database > Connection String |
+---
 
 ## Common Commands
 
 ```bash
 # Development
-npm run start:dev          # Start with hot reload
-npm run build              # Build for production
-npm run test               # Run tests
-npm run lint               # Run linter
+npm run start:dev              # Start with hot reload
+npm run build                  # Build for production
+npm run test                   # Run tests
 
-# Database
-npx prisma migrate dev     # Create migration
-npx prisma migrate deploy  # Run migrations (production)
-npx prisma generate        # Generate Prisma client
-npx prisma studio          # Open Prisma Studio
-npx prisma db seed         # Run seed script
-
-# Docker
-docker-compose -f docker-compose.local.yml up --build
-docker-compose -f docker-compose.production.yml up -d --build
-docker logs -f gjxpress-api
+# Prisma
+npm run prisma:validate        # Validate schema
+npm run prisma:generate        # Generate Prisma Client
+npm run prisma:migrate:dev     # Create new migration (local)
+npm run prisma:migrate:deploy  # Apply migrations (production/Supabase)
+npm run prisma:db:push         # Push schema directly (prototype only)
+npm run prisma:studio          # Open Prisma Studio GUI
+npm run prisma:seed            # Seed test data
 ```
+
+---
+
+## Order Status Flow
+
+```
+UNINBOUND → INBOUNDED → USER_CONFIRM_PENDING → REVIEW_PENDING
+  → PAYMENT_PENDING → PAID → READY_TO_SHIP → SHIPPED → COMPLETED
+```
+
+At any point, an order can move to `EXCEPTION` or `CANCELLED`.
+
+---
+
+## Security
+
+1. **Never commit secrets** — `.env*` files are in `.gitignore`
+2. **`SUPABASE_SERVICE_ROLE_KEY`** — Only used server-side, never returned to clients
+3. **JWT_SECRET** — Minimum 32 characters
+4. **HTTPS only** in production
+
+---
 
 ## License
 

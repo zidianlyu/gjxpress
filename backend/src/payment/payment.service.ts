@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
-import { PaymentStatus, AdminAction, OrderStatus } from '@prisma/client';
+import { PaymentStatus, OrderStatus } from '@prisma/client';
 
 @Injectable()
 export class PaymentService {
@@ -22,15 +22,15 @@ export class PaymentService {
       throw new NotFoundException('Order not found');
     }
 
-    const previousStatus = order.payment_status;
+    const previousStatus = order.paymentStatus;
 
     // 2. Update order payment status
     const updatedOrder = await this.prisma.order.update({
       where: { id: orderId },
       data: {
-        payment_status: dto.status,
-        final_price: dto.final_price ?? undefined,
-        manual_override: dto.manual_override ?? false,
+        paymentStatus: dto.status,
+        finalPrice: dto.final_price ?? undefined,
+        manualOverride: dto.manual_override ?? false,
         // If paid, update order status to READY_TO_SHIP
         status:
           dto.status === PaymentStatus.PAID && order.status === OrderStatus.PAYMENT_PENDING
@@ -39,21 +39,21 @@ export class PaymentService {
       },
     });
 
-    // 3. Always log admin action (not just for manual override)
-    await this.prisma.adminLog.create({
+    // 3. Always log admin action
+    await this.prisma.adminActionLog.create({
       data: {
-        admin_id: adminId,
-        order_id: orderId,
-        action: dto.manual_override
-          ? AdminAction.OVERRIDE_PAYMENT
-          : AdminAction.OVERRIDE_STATUS,
-        details: {
-          ...dto,
-          previous_payment_status: previousStatus,
-          new_payment_status: dto.status,
-          previous_order_status: order.status,
-          new_order_status: updatedOrder.status,
-        } as any,
+        adminId,
+        targetType: 'PAYMENT',
+        targetId: orderId,
+        action: dto.manual_override ? 'OVERRIDE_PAYMENT' : 'UPDATE_PAYMENT_STATUS',
+        beforeState: {
+          paymentStatus: previousStatus,
+          orderStatus: order.status,
+        },
+        afterState: {
+          paymentStatus: dto.status,
+          orderStatus: updatedOrder.status,
+        },
       },
     });
 
@@ -64,23 +64,21 @@ export class PaymentService {
    * Get payment status history (via admin logs)
    */
   async getPaymentHistory(orderId: string) {
-    return this.prisma.adminLog.findMany({
+    return this.prisma.adminActionLog.findMany({
       where: {
-        order_id: orderId,
-        action: {
-          in: [AdminAction.OVERRIDE_PAYMENT, AdminAction.OVERRIDE_STATUS],
-        },
+        targetType: 'PAYMENT',
+        targetId: orderId,
       },
       include: {
         admin: {
           select: {
-            nickname: true,
-            user_code: true,
+            displayName: true,
+            username: true,
           },
         },
       },
       orderBy: {
-        created_at: 'desc',
+        createdAt: 'desc',
       },
     });
   }

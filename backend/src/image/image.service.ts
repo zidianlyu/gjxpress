@@ -37,7 +37,14 @@ export class ImageService {
     images: { type: ImageType; url: string }[],
   ) {
     return this.prisma.packageImage.createMany({
-      data: images.map((img) => ({ ...img, package_id: packageId })),
+      data: images.map((img) => ({
+        packageId,
+        imageType: img.type,
+        bucket: 'package-images',
+        storagePath: img.url,
+        publicUrl: img.url,
+        status: 'UPLOADED' as const,
+      })),
     });
   }
 
@@ -51,9 +58,12 @@ export class ImageService {
   ) {
     return this.prisma.packageImage.create({
       data: {
-        package_id: packageId,
-        type: metadata.type,
-        url: metadata.url,
+        packageId,
+        imageType: metadata.type,
+        bucket: 'package-images',
+        storagePath: metadata.url,
+        publicUrl: metadata.url,
+        status: 'UPLOADED',
       },
     });
   }
@@ -63,8 +73,8 @@ export class ImageService {
    */
   async listByPackage(packageId: string) {
     return this.prisma.packageImage.findMany({
-      where: { package_id: packageId },
-      orderBy: { created_at: 'asc' },
+      where: { packageId },
+      orderBy: { createdAt: 'asc' },
     });
   }
 

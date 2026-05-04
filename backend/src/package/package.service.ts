@@ -22,27 +22,31 @@ export class PackageService {
 
     return this.prisma.$transaction(async (tx) => {
       let order = await tx.order.findFirst({
-        where: { user_id: dto.user_id, status: OrderStatus.UNINBOUND },
+        where: { userId: dto.user_id, status: OrderStatus.UNINBOUND },
       });
 
       if (!order) {
         order = await tx.order.create({
-          data: { user_id: dto.user_id },
+          data: {
+            userId: dto.user_id,
+            orderNo: `ORD-${Date.now()}`,
+          },
         });
       }
 
       const pkg = await tx.package.create({
         data: {
-          order_id: order.id,
-          domestic_tracking_no: dto.domestic_tracking_no,
-          source_platform: dto.source_platform,
-          actual_weight: dto.actual_weight,
-          length: dto.length,
-          width: dto.width,
-          height: dto.height,
-          volume_weight: volumeWeight,
+          orderId: order.id,
+          packageNo: `PKG-${Date.now()}`,
+          domesticTrackingNo: dto.domestic_tracking_no,
+          sourcePlatform: dto.source_platform as any,
+          actualWeight: dto.actual_weight,
+          lengthCm: dto.length,
+          widthCm: dto.width,
+          heightCm: dto.height,
+          volumeWeight: volumeWeight,
           status: PackageStatus.INBOUNDED,
-          inbound_time: new Date(),
+          inboundAt: new Date(),
           goodsItems: dto.goods_items
             ? { create: dto.goods_items }
             : undefined,
@@ -52,9 +56,9 @@ export class PackageService {
 
       await tx.inboundRecord.create({
         data: {
-          package_id: pkg.id,
-          operator_id: operatorId,
-          notes: dto.notes,
+          packageId: pkg.id,
+          operatorAdminId: operatorId,
+          remark: dto.notes,
         },
       });
 
@@ -74,13 +78,13 @@ export class PackageService {
         images: true,
         goodsItems: true,
         exceptions: true,
-        inboundRecord: true,
+        inboundRecords: true,
         order: true,
       },
     });
 
     if (!pkg) throw new NotFoundException('Package not found');
-    if (pkg.order.user_id !== userId) throw new ForbiddenException();
+    if (pkg.order.userId !== userId) throw new ForbiddenException();
     return pkg;
   }
 
@@ -96,7 +100,7 @@ export class PackageService {
     });
 
     if (!pkg) throw new NotFoundException('Package not found');
-    if (pkg.order.user_id !== userId) throw new ForbiddenException();
+    if (pkg.order.userId !== userId) throw new ForbiddenException();
     if (pkg.status !== PackageStatus.INBOUNDED) {
       throw new BadRequestException('Package is not awaiting confirmation');
     }
@@ -106,7 +110,7 @@ export class PackageService {
         where: { id: packageId },
         data: {
           status: PackageStatus.CONFIRMED,
-          user_confirmed_at: new Date(),
+          userConfirmedAt: new Date(),
         },
       });
     }
@@ -121,9 +125,10 @@ export class PackageService {
 
       // Create exception record if description provided
       if (description) {
-        await tx.exception.create({
+        await tx.exceptionCase.create({
           data: {
-            package_id: packageId,
+            orderId: pkg.order.id,
+            packageId: packageId,
             type: 'OTHER',
             status: 'OPEN',
             description,

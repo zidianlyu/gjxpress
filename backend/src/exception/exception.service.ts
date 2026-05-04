@@ -13,24 +13,30 @@ export class ExceptionService {
       include: { order: true },
     });
     if (!pkg) throw new NotFoundException('Package not found');
-    if (pkg.order.user_id !== userId) throw new ForbiddenException();
+    if (pkg.order.userId !== userId) throw new ForbiddenException();
 
-    return this.prisma.exception.create({
-      data: { package_id: packageId, ...dto },
+    return this.prisma.exceptionCase.create({
+      data: {
+        orderId: pkg.order.id,
+        packageId,
+        type: dto.type,
+        description: dto.description,
+        createdByUserId: userId,
+      },
     });
   }
 
   async updateStatus(exceptionId: string, dto: UpdateExceptionDto) {
-    return this.prisma.exception.update({
+    return this.prisma.exceptionCase.update({
       where: { id: exceptionId },
       data: { status: dto.status },
     });
   }
 
   async listByPackage(packageId: string) {
-    return this.prisma.exception.findMany({
-      where: { package_id: packageId },
-      orderBy: { created_at: 'desc' },
+    return this.prisma.exceptionCase.findMany({
+      where: { packageId },
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

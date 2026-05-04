@@ -1,162 +1,193 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { PrismaService } from '../prisma/prisma.service';
+import { ImageType, ImageStatus } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
-interface SignedUploadUrlResponse {
+export interface SignedUploadUrlResponse {
   uploadUrl: string;
-  storageKey: string;
-  path: string;
+  storagePath: string;
   token: string;
   expiresIn: number;
 }
 
-interface SignedReadUrlResponse {
-  url: string;
+export interface SignedReadUrlResponse {
+  signedUrl: string;
   expiresIn: number;
 }
 
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
-  private readonly supabaseUrl: string;
-  private readonly supabaseServiceKey: string;
+  private supabase: SupabaseClient | null = null;
   private readonly bucketName: string;
 
-  constructor(private readonly configService: ConfigService) {
-    this.supabaseUrl = this.configService.get<string>('SUPABASE_URL') || '';
-    this.supabaseServiceKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') || '';
-    this.bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES') || 'package-images';
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
+    const supabaseServiceKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    this.bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES') || 'gjxpress-storage';
 
-    if (!this.supabaseUrl || !this.supabaseServiceKey) {
-      this.logger.warn('Supabase storage not configured. Image uploads will fail.');
+    if (supabaseUrl && supabaseServiceKey) {
+      this.supabase = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: { persistSession: false },
+      });
+    } else {
+      this.logger.warn('Supabase storage not configured. Image uploads will use mock mode.');
     }
   }
 
   /**
-   * Generate a signed upload URL for direct browser upload to Supabase Storage
-   * The client uploads directly to Supabase, then confirms with backend
+   * Create a signed upload URL for a package image.
+   * The client uploads directly to Supabase Storage, then calls savePackageImageMetadata.
    */
-  async createSignedUploadUrl(
+  async createPackageImageUploadUrl(
     packageId: string,
-    imageType: string,
-    fileName: string,
-    contentType: string,
+    imageType: ImageType,
+    filename: string,
   ): Promise<SignedUploadUrlResponse> {
-    if (!this.supabaseUrl || !this.supabaseServiceKey) {
+    if (!this.supabase) {
       throw new Error('Supabase storage not configured');
     }
 
-    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const uuid = this.generateUUID();
-    const ext = this.getExtension(fileName);
-    const path = `packages/${packageId}/${imageType}/${timestamp}_${uuid}.${ext}`;
+    const ext = this.getExtension(filename);
+    const storagePath = `packages/${packageId}/${imageType.toLowerCase()}/${uuidv4()}.${ext}`;
 
-    try {
-      // Call Supabase Storage API to create signed upload URL
-      const response = await fetch(
-        `${this.supabaseUrl}/storage/v1/object/sign/${this.bucketName}/${path}`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.supabaseServiceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            expiresIn: 7200, // 2 hours
-          }),
-        },
-      );
+    const { data, error } = await this.supabase.storage
+      .from(this.bucketName)
+      .createSignedUploadUrl(storagePath);
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Failed to create signed URL: ${error}`);
-      }
-
-      const data = await response.json();
-      
-      return {
-        uploadUrl: `${this.supabaseUrl}/storage/v1${data.signedURL}`,
-        storageKey: path,
-        path,
-        token: data.token,
-        expiresIn: 7200,
-      };
-    } catch (error) {
+    if (error || !data) {
       this.logger.error('Failed to create signed upload URL:', error);
-      throw new Error('Failed to create upload URL');
+      throw new Error(`Failed to create upload URL: ${error?.message}`);
     }
+
+    return {
+      uploadUrl: data.signedUrl,
+      storagePath,
+      token: data.token,
+      expiresIn: 7200,
+    };
   }
 
   /**
-   * Create a signed URL for reading a private file
+   * Save image metadata to PackageImage table after successful upload.
    */
-  async createSignedReadUrl(storagePath: string, expiresInSeconds = 3600): Promise<SignedReadUrlResponse> {
-    if (!this.supabaseUrl || !this.supabaseServiceKey) {
+  async savePackageImageMetadata(
+    packageId: string,
+    imageType: ImageType,
+    storagePath: string,
+    uploadedByAdminId?: string,
+  ) {
+    return this.prisma.packageImage.create({
+      data: {
+        packageId,
+        imageType,
+        bucket: this.bucketName,
+        storagePath,
+        status: ImageStatus.UPLOADED,
+        uploadedByAdminId,
+        uploadedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Get a signed read URL for a private image.
+   */
+  async getPackageImageSignedUrl(imageId: string): Promise<SignedReadUrlResponse> {
+    if (!this.supabase) {
       throw new Error('Supabase storage not configured');
     }
 
-    try {
-      const response = await fetch(
-        `${this.supabaseUrl}/storage/v1/object/sign/${this.bucketName}/${storagePath}`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.supabaseServiceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            expiresIn: expiresInSeconds,
-          }),
-        },
-      );
+    const image = await this.prisma.packageImage.findUnique({
+      where: { id: imageId },
+    });
 
-      if (!response.ok) {
-        throw new Error(`Failed to create signed read URL: ${await response.text()}`);
-      }
-
-      const data = await response.json();
-
-      return {
-        url: `${this.supabaseUrl}/storage/v1${data.signedURL}`,
-        expiresIn: expiresInSeconds,
-      };
-    } catch (error) {
-      this.logger.error('Failed to create signed read URL:', error);
-      throw new Error('Failed to create read URL');
+    if (!image) {
+      throw new Error('Image not found');
     }
+
+    const expiresIn = 3600;
+    const { data, error } = await this.supabase.storage
+      .from(this.bucketName)
+      .createSignedUrl(image.storagePath, expiresIn);
+
+    if (error || !data) {
+      this.logger.error('Failed to create signed read URL:', error);
+      throw new Error(`Failed to create read URL: ${error?.message}`);
+    }
+
+    return {
+      signedUrl: data.signedUrl,
+      expiresIn,
+    };
   }
 
   /**
-   * Get public URL for a file (only works if bucket is public)
+   * Get public URL (only works if bucket is set to public).
    */
   getPublicUrl(storagePath: string): string {
-    return `${this.supabaseUrl}/storage/v1/object/public/${this.bucketName}/${storagePath}`;
+    if (!this.supabase) {
+      return '';
+    }
+    const { data } = this.supabase.storage
+      .from(this.bucketName)
+      .getPublicUrl(storagePath);
+    return data.publicUrl;
   }
 
   /**
-   * Delete a file from storage
+   * Delete a file from storage and soft-delete the DB record.
    */
-  async deleteFile(storagePath: string): Promise<void> {
-    if (!this.supabaseUrl || !this.supabaseServiceKey) {
+  async deleteFile(imageId: string): Promise<void> {
+    if (!this.supabase) {
       throw new Error('Supabase storage not configured');
     }
 
-    try {
-      const response = await fetch(
-        `${this.supabaseUrl}/storage/v1/object/${this.bucketName}/${storagePath}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${this.supabaseServiceKey}`,
-          },
-        },
-      );
+    const image = await this.prisma.packageImage.findUnique({
+      where: { id: imageId },
+    });
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete file: ${await response.text()}`);
+    if (!image) {
+      throw new Error('Image not found');
+    }
+
+    const { error } = await this.supabase.storage
+      .from(this.bucketName)
+      .remove([image.storagePath]);
+
+    if (error) {
+      this.logger.error('Failed to delete file from storage:', error);
+      throw new Error(`Failed to delete file: ${error.message}`);
+    }
+
+    await this.prisma.packageImage.update({
+      where: { id: imageId },
+      data: { status: ImageStatus.DELETED, deletedAt: new Date() },
+    });
+  }
+
+  /**
+   * Check if Supabase storage is reachable.
+   */
+  async healthCheck(): Promise<{ ok: boolean; error?: string }> {
+    if (!this.supabase) {
+      return { ok: false, error: 'Supabase storage not configured' };
+    }
+    try {
+      const { error } = await this.supabase.storage
+        .from(this.bucketName)
+        .list('', { limit: 1 });
+      if (error) {
+        return { ok: false, error: error.message };
       }
-    } catch (error) {
-      this.logger.error('Failed to delete file:', error);
-      throw new Error('Failed to delete file');
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: String(e) };
     }
   }
 
@@ -164,15 +195,7 @@ export class StorageService {
    * Check if storage is configured
    */
   isConfigured(): boolean {
-    return !!(this.supabaseUrl && this.supabaseServiceKey);
-  }
-
-  private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    return !!this.supabase;
   }
 
   private getExtension(fileName: string): string {

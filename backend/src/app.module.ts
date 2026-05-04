@@ -15,10 +15,14 @@ import { AddressModule } from './address/address.module';
 import { AdminLogModule } from './adminlog/adminlog.module';
 import { StorageModule } from './storage/storage.module';
 import { HealthModule } from './health/health.module';
+import { envValidationSchema } from './config/env.validation';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: envValidationSchema,
+    }),
     PrismaModule,
     AuthModule,
     UserModule,

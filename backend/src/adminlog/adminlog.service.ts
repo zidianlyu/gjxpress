@@ -6,10 +6,10 @@ export class AdminLogService {
   constructor(private prisma: PrismaService) {}
 
   async listLogs(orderId?: string) {
-    return this.prisma.adminLog.findMany({
-      where: orderId ? { order_id: orderId } : undefined,
-      include: { admin: { select: { nickname: true, user_code: true } } },
-      orderBy: { created_at: 'desc' },
+    return this.prisma.adminActionLog.findMany({
+      where: orderId ? { targetId: orderId } : undefined,
+      include: { admin: { select: { displayName: true, username: true } } },
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

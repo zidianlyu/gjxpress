@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
-import { OrderStatus, PaymentStatus, AdminAction } from '@prisma/client';
+import { OrderStatus, PaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class ShipmentService {
@@ -42,12 +42,12 @@ export class ShipmentService {
       OrderStatus.COMPLETED,
     ];
 
-    const isPaid = order.payment_status === PaymentStatus.PAID;
+    const isPaid = order.paymentStatus === PaymentStatus.PAID;
     const isAllowedStatus = allowedStatuses.includes(order.status);
 
     if (!isAllowedStatus && !isPaid && !forceOverride) {
       throw new BadRequestException(
-        `Cannot ship order: Payment status is ${order.payment_status}. ` +
+        `Cannot ship order: Payment status is ${order.paymentStatus}. ` +
           `Order must be paid or admin override (force=true) is required.`,
       );
     }
@@ -55,13 +55,14 @@ export class ShipmentService {
     // 3. Create shipment
     const shipment = await this.prisma.shipment.create({
       data: {
-        order_id: orderId,
-        provider: dto.provider,
-        tracking_number: dto.tracking_number,
-        shipped_at: new Date(),
-        estimated_arrival: dto.estimated_arrival
+        orderId,
+        provider: dto.provider as any,
+        trackingNumber: dto.tracking_number,
+        shippedAt: new Date(),
+        estimatedArrivalAt: dto.estimated_arrival
           ? new Date(dto.estimated_arrival)
           : null,
+        createdByAdminId: adminId,
       },
     });
 
@@ -72,16 +73,20 @@ export class ShipmentService {
     });
 
     // 5. Log admin action
-    await this.prisma.adminLog.create({
+    await this.prisma.adminActionLog.create({
       data: {
-        admin_id: adminId,
-        order_id: orderId,
-        action: forceOverride ? AdminAction.OVERRIDE_SHIP : AdminAction.OVERRIDE_STATUS,
-        details: {
-          ...dto,
-          force_override: forceOverride,
-          previous_payment_status: order.payment_status,
-          previous_order_status: order.status,
+        adminId,
+        targetType: 'SHIPMENT',
+        targetId: orderId,
+        action: forceOverride ? 'FORCE_SHIP' : 'CREATE_SHIPMENT',
+        beforeState: {
+          paymentStatus: order.paymentStatus,
+          orderStatus: order.status,
+        },
+        afterState: {
+          orderStatus: OrderStatus.SHIPPED,
+          trackingNumber: dto.tracking_number,
+          provider: dto.provider,
         },
       },
     });
@@ -91,7 +96,7 @@ export class ShipmentService {
 
   async findByOrder(orderId: string) {
     return this.prisma.shipment.findUnique({
-      where: { order_id: orderId },
+      where: { orderId },
     });
   }
 
@@ -100,14 +105,14 @@ export class ShipmentService {
    */
   async findByOrderWithDetails(orderId: string) {
     return this.prisma.shipment.findUnique({
-      where: { order_id: orderId },
+      where: { orderId },
       include: {
         order: {
           select: {
             id: true,
             status: true,
-            payment_status: true,
-            user_id: true,
+            paymentStatus: true,
+            userId: true,
           },
         },
       },

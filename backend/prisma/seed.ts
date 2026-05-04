@@ -1,6 +1,11 @@
-import { PrismaClient, OrderStatus, PackageStatus, PaymentStatus, ImageType, AdminAction } from '@prisma/client';
+import { PrismaClient, OrderStatus, PackageStatus, PaymentStatus, ImageType, SourcePlatform, ShipmentStatus } from '@prisma/client';
+import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
+
+function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
 
 async function main() {
   console.log('开始生成测试数据...');
@@ -11,26 +16,25 @@ async function main() {
     update: {},
     create: {
       openid: 'test_openid_12345',
-      user_code: '8888',
+      userCode: '8888',
       nickname: '测试用户',
-      avatar: 'https://via.placeholder.com/100x100/1890ff/ffffff?text=Test',
+      avatarUrl: 'https://via.placeholder.com/100x100/1890ff/ffffff?text=Test',
     },
   });
-  console.log('✓ 创建测试用户:', testUser.user_code);
+  console.log('✓ 创建测试用户:', testUser.userCode);
 
-  // 2. 创建管理员用户 (用于操作日志)
-  const adminUser = await prisma.user.upsert({
-    where: { openid: 'admin_openid_12345' },
+  // 2. 创建管理员 (Admin model)
+  const admin = await prisma.admin.upsert({
+    where: { username: 'admin' },
     update: {},
     create: {
-      openid: 'admin_openid_12345',
-      user_code: '0000',
-      nickname: '管理员',
-      avatar: 'https://via.placeholder.com/100x100/52c41a/ffffff?text=Admin',
-      is_admin: true,
+      username: 'admin',
+      passwordHash: hashPassword('admin123'),
+      displayName: '管理员',
+      role: 'SUPER_ADMIN',
     },
   });
-  console.log('✓ 创建管理员用户');
+  console.log('✓ 创建管理员');
 
   // Mock 图片 URLs
   const mockImages = {
@@ -39,128 +43,125 @@ async function main() {
     inner: 'https://via.placeholder.com/400x300/f6ffed/52c41a?text=内物',
   };
 
-  // 3. 创建订单 1: 待用户确认 (UNINBOUND 状态，包裹已入库等待确认)
+  // 3. 创建订单 1: 待用户确认
   const order1 = await prisma.order.create({
     data: {
-      user_id: testUser.id,
+      orderNo: `ORD-${Date.now()}-001`,
+      userId: testUser.id,
       status: OrderStatus.USER_CONFIRM_PENDING,
-      payment_status: PaymentStatus.UNPAID,
-      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7天前
-      updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3天前更新
+      paymentStatus: PaymentStatus.UNPAID,
     },
   });
 
-  // 创建包裹 (已入库，等待用户确认)
   const pkg1 = await prisma.package.create({
     data: {
-      order_id: order1.id,
-      domestic_tracking_no: 'SF1234567890',
-      source_platform: '淘宝',
+      packageNo: `PKG-${Date.now()}-001`,
+      orderId: order1.id,
+      domesticTrackingNo: 'SF1234567890',
+      sourcePlatform: SourcePlatform.TAOBAO,
       status: PackageStatus.INBOUNDED,
-      actual_weight: 2.5,
-      length: 30,
-      width: 25,
-      height: 15,
-      volume_weight: (30 * 25 * 15) / 6000,
-      inbound_time: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      actualWeight: 2.5,
+      lengthCm: 30,
+      widthCm: 25,
+      heightCm: 15,
+      volumeWeight: (30 * 25 * 15) / 6000,
+      inboundAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
       goodsItems: {
         create: [
-          { name: '运动鞋', quantity: 1, unit_value: 299 },
-          { name: '袜子', quantity: 3, unit_value: 15 },
+          { name: '运动鞋', quantity: 1 },
+          { name: '袜子', quantity: 3 },
         ],
       },
       images: {
         create: [
-          { type: ImageType.OUTER, url: mockImages.outer },
-          { type: ImageType.LABEL, url: mockImages.label },
-          { type: ImageType.INNER, url: mockImages.inner },
+          { imageType: ImageType.OUTER, bucket: 'package-images', storagePath: mockImages.outer, publicUrl: mockImages.outer, status: 'UPLOADED' },
+          { imageType: ImageType.LABEL, bucket: 'package-images', storagePath: mockImages.label, publicUrl: mockImages.label, status: 'UPLOADED' },
+          { imageType: ImageType.INNER, bucket: 'package-images', storagePath: mockImages.inner, publicUrl: mockImages.inner, status: 'UPLOADED' },
         ],
       },
     },
   });
 
-  // 创建入库记录
   await prisma.inboundRecord.create({
     data: {
-      package_id: pkg1.id,
-      operator_id: adminUser.id,
-      notes: '包裹完好，已拍照入库',
+      packageId: pkg1.id,
+      operatorAdminId: admin.id,
+      remark: '包裹完好，已拍照入库',
     },
   });
 
-  // 更新订单重量
   await prisma.order.update({
     where: { id: order1.id },
     data: {
-      total_actual_weight: pkg1.actual_weight ?? 0,
-      total_volume_weight: pkg1.volume_weight ?? 0,
-      chargeable_weight: Math.max(pkg1.actual_weight ?? 0, pkg1.volume_weight ?? 0),
+      totalActualWeight: 2.5,
+      totalVolumeWeight: (30 * 25 * 15) / 6000,
+      chargeableWeight: Math.max(2.5, (30 * 25 * 15) / 6000),
     },
   });
 
   console.log('✓ 创建订单 1: 待用户确认 (订单ID:', order1.id.slice(0, 8) + ')');
 
-  // 4. 创建订单 2: 待支付 (已确认，等待支付)
+  // 4. 创建订单 2: 待支付
   const order2 = await prisma.order.create({
     data: {
-      user_id: testUser.id,
+      orderNo: `ORD-${Date.now()}-002`,
+      userId: testUser.id,
       status: OrderStatus.PAYMENT_PENDING,
-      payment_status: PaymentStatus.UNPAID,
-      total_actual_weight: 5.2,
-      total_volume_weight: 4.8,
-      chargeable_weight: 5.2,
-      estimated_price: 156,
-      created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      paymentStatus: PaymentStatus.UNPAID,
+      totalActualWeight: 5.2,
+      totalVolumeWeight: 4.8,
+      chargeableWeight: 5.2,
+      estimatedPrice: 156,
     },
   });
 
-  // 创建两个已确认的包裹
-  const pkg2_1 = await prisma.package.create({
+  await prisma.package.create({
     data: {
-      order_id: order2.id,
-      domestic_tracking_no: 'YT9876543210',
-      source_platform: '京东',
+      packageNo: `PKG-${Date.now()}-002`,
+      orderId: order2.id,
+      domesticTrackingNo: 'YT9876543210',
+      sourcePlatform: SourcePlatform.JD,
       status: PackageStatus.CONFIRMED,
-      actual_weight: 3.0,
-      length: 35,
-      width: 30,
-      height: 20,
-      volume_weight: (35 * 30 * 20) / 6000,
-      inbound_time: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      user_confirmed_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      actualWeight: 3.0,
+      lengthCm: 35,
+      widthCm: 30,
+      heightCm: 20,
+      volumeWeight: (35 * 30 * 20) / 6000,
+      inboundAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      userConfirmedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
       goodsItems: {
-        create: [{ name: '电动牙刷', quantity: 1, unit_value: 199 }],
+        create: [{ name: '电动牙刷', quantity: 1 }],
       },
       images: {
         create: [
-          { type: ImageType.OUTER, url: mockImages.outer },
-          { type: ImageType.INNER, url: mockImages.inner },
+          { imageType: ImageType.OUTER, bucket: 'package-images', storagePath: mockImages.outer, publicUrl: mockImages.outer, status: 'UPLOADED' },
+          { imageType: ImageType.INNER, bucket: 'package-images', storagePath: mockImages.inner, publicUrl: mockImages.inner, status: 'UPLOADED' },
         ],
       },
     },
   });
 
-  const pkg2_2 = await prisma.package.create({
+  await prisma.package.create({
     data: {
-      order_id: order2.id,
-      domestic_tracking_no: 'SF1122334455',
-      source_platform: '拼多多',
+      packageNo: `PKG-${Date.now()}-003`,
+      orderId: order2.id,
+      domesticTrackingNo: 'SF1122334455',
+      sourcePlatform: SourcePlatform.PINDUODUO,
       status: PackageStatus.CONFIRMED,
-      actual_weight: 2.2,
-      length: 25,
-      width: 20,
-      height: 12,
-      volume_weight: (25 * 20 * 12) / 6000,
-      inbound_time: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
-      user_confirmed_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      actualWeight: 2.2,
+      lengthCm: 25,
+      widthCm: 20,
+      heightCm: 12,
+      volumeWeight: (25 * 20 * 12) / 6000,
+      inboundAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
+      userConfirmedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
       goodsItems: {
-        create: [{ name: '手机壳', quantity: 2, unit_value: 25 }],
+        create: [{ name: '手机壳', quantity: 2 }],
       },
       images: {
         create: [
-          { type: ImageType.OUTER, url: mockImages.outer },
-          { type: ImageType.LABEL, url: mockImages.label },
+          { imageType: ImageType.OUTER, bucket: 'package-images', storagePath: mockImages.outer, publicUrl: mockImages.outer, status: 'UPLOADED' },
+          { imageType: ImageType.LABEL, bucket: 'package-images', storagePath: mockImages.label, publicUrl: mockImages.label, status: 'UPLOADED' },
         ],
       },
     },
@@ -168,66 +169,65 @@ async function main() {
 
   console.log('✓ 创建订单 2: 待支付 (订单ID:', order2.id.slice(0, 8) + ')');
 
-  // 5. 创建订单 3: 已发货 (已支付并发出)
+  // 5. 创建订单 3: 已发货
   const order3 = await prisma.order.create({
     data: {
-      user_id: testUser.id,
+      orderNo: `ORD-${Date.now()}-003`,
+      userId: testUser.id,
       status: OrderStatus.SHIPPED,
-      payment_status: PaymentStatus.PAID,
-      total_actual_weight: 1.8,
-      total_volume_weight: 1.5,
-      chargeable_weight: 1.8,
-      estimated_price: 89,
-      final_price: 89,
-      created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-      updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      paymentStatus: PaymentStatus.PAID,
+      totalActualWeight: 1.8,
+      totalVolumeWeight: 1.5,
+      chargeableWeight: 1.8,
+      estimatedPrice: 89,
+      finalPrice: 89,
     },
   });
 
-  // 创建已发货的包裹
-  const pkg3 = await prisma.package.create({
+  await prisma.package.create({
     data: {
-      order_id: order3.id,
-      domestic_tracking_no: 'JD5555666677',
-      source_platform: '天猫',
+      packageNo: `PKG-${Date.now()}-004`,
+      orderId: order3.id,
+      domesticTrackingNo: 'JD5555666677',
+      sourcePlatform: SourcePlatform.OTHER,
       status: PackageStatus.CONFIRMED,
-      actual_weight: 1.8,
-      length: 22,
-      width: 18,
-      height: 10,
-      volume_weight: (22 * 18 * 10) / 6000,
-      inbound_time: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000),
-      user_confirmed_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      actualWeight: 1.8,
+      lengthCm: 22,
+      widthCm: 18,
+      heightCm: 10,
+      volumeWeight: (22 * 18 * 10) / 6000,
+      inboundAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000),
+      userConfirmedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
       goodsItems: {
-        create: [{ name: '耳机', quantity: 1, unit_value: 129 }],
+        create: [{ name: '耳机', quantity: 1 }],
       },
       images: {
         create: [
-          { type: ImageType.OUTER, url: mockImages.outer },
-          { type: ImageType.INNER, url: mockImages.inner },
+          { imageType: ImageType.OUTER, bucket: 'package-images', storagePath: mockImages.outer, publicUrl: mockImages.outer, status: 'UPLOADED' },
+          { imageType: ImageType.INNER, bucket: 'package-images', storagePath: mockImages.inner, publicUrl: mockImages.inner, status: 'UPLOADED' },
         ],
       },
     },
   });
 
-  // 创建发货信息
   await prisma.shipment.create({
     data: {
-      order_id: order3.id,
+      orderId: order3.id,
       provider: 'DHL',
-      tracking_number: 'DHL7890123456',
-      shipped_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      status: 'IN_TRANSIT',
+      trackingNumber: 'DHL7890123456',
+      shippedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      status: ShipmentStatus.IN_TRANSIT,
+      createdByAdminId: admin.id,
     },
   });
 
-  // 记录发货操作日志
-  await prisma.adminLog.create({
+  await prisma.adminActionLog.create({
     data: {
-      admin_id: adminUser.id,
-      order_id: order3.id,
-      action: AdminAction.OVERRIDE_SHIP,
-      details: { provider: 'DHL', tracking_number: 'DHL7890123456' },
+      adminId: admin.id,
+      targetType: 'SHIPMENT',
+      targetId: order3.id,
+      action: 'CREATE_SHIPMENT',
+      afterState: { provider: 'DHL', trackingNumber: 'DHL7890123456' },
     },
   });
 
@@ -236,73 +236,76 @@ async function main() {
   // 6. 创建订单 4: 有异常的包裹
   const order4 = await prisma.order.create({
     data: {
-      user_id: testUser.id,
+      orderNo: `ORD-${Date.now()}-004`,
+      userId: testUser.id,
       status: OrderStatus.USER_CONFIRM_PENDING,
-      payment_status: PaymentStatus.UNPAID,
-      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      paymentStatus: PaymentStatus.UNPAID,
     },
   });
 
   const pkg4 = await prisma.package.create({
     data: {
-      order_id: order4.id,
-      domestic_tracking_no: 'SF9999888877',
-      source_platform: '淘宝',
+      packageNo: `PKG-${Date.now()}-005`,
+      orderId: order4.id,
+      domesticTrackingNo: 'SF9999888877',
+      sourcePlatform: SourcePlatform.TAOBAO,
       status: PackageStatus.INBOUNDED,
-      actual_weight: 3.5,
-      length: 40,
-      width: 35,
-      height: 20,
-      volume_weight: (40 * 35 * 20) / 6000,
-      inbound_time: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      actualWeight: 3.5,
+      lengthCm: 40,
+      widthCm: 35,
+      heightCm: 20,
+      volumeWeight: (40 * 35 * 20) / 6000,
+      inboundAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
       goodsItems: {
-        create: [{ name: '衣服', quantity: 2, unit_value: 99 }],
+        create: [{ name: '衣服', quantity: 2 }],
       },
       images: {
         create: [
-          { type: ImageType.OUTER, url: mockImages.outer },
-          { type: ImageType.LABEL, url: mockImages.label },
-        ],
-      },
-      exceptions: {
-        create: [
-          {
-            type: 'WRONG_ITEM',
-            status: 'OPEN',
-            description: '收到的商品与描述不符',
-          },
+          { imageType: ImageType.OUTER, bucket: 'package-images', storagePath: mockImages.outer, publicUrl: mockImages.outer, status: 'UPLOADED' },
+          { imageType: ImageType.LABEL, bucket: 'package-images', storagePath: mockImages.label, publicUrl: mockImages.label, status: 'UPLOADED' },
         ],
       },
     },
   });
 
-  // 更新订单重量
+  await prisma.exceptionCase.create({
+    data: {
+      orderId: order4.id,
+      packageId: pkg4.id,
+      type: 'WRONG_ITEM',
+      status: 'OPEN',
+      description: '收到的商品与描述不符',
+    },
+  });
+
   await prisma.order.update({
     where: { id: order4.id },
     data: {
-      total_actual_weight: pkg4.actual_weight ?? 0,
-      total_volume_weight: pkg4.volume_weight ?? 0,
-      chargeable_weight: Math.max(pkg4.actual_weight ?? 0, pkg4.volume_weight ?? 0),
+      totalActualWeight: 3.5,
+      totalVolumeWeight: (40 * 35 * 20) / 6000,
+      chargeableWeight: Math.max(3.5, (40 * 35 * 20) / 6000),
     },
   });
 
   console.log('✓ 创建订单 4: 有异常待处理 (订单ID:', order4.id.slice(0, 8) + ')');
 
-  // 7. 创建一些 AdminLog 示例
-  await prisma.adminLog.create({
+  // 7. 创建 AdminActionLog 示例
+  await prisma.adminActionLog.create({
     data: {
-      admin_id: adminUser.id,
-      order_id: order1.id,
-      action: AdminAction.OVERRIDE_STATUS,
-      details: { from: 'UNINBOUND', to: 'USER_CONFIRM_PENDING' },
+      adminId: admin.id,
+      targetType: 'ORDER',
+      targetId: order1.id,
+      action: 'UPDATE_STATUS',
+      beforeState: { status: 'UNINBOUND' },
+      afterState: { status: 'USER_CONFIRM_PENDING' },
     },
   });
 
   console.log('✓ 创建 Admin 操作日志');
 
   console.log('\n=== 测试数据生成完成 ===');
-  console.log('测试用户:', testUser.user_code);
+  console.log('测试用户:', testUser.userCode);
+  console.log('管理员: admin / admin123');
   console.log('- 待确认订单:', 1);
   console.log('- 待支付订单:', 1);
   console.log('- 已发货订单:', 1);

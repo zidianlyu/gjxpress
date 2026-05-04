@@ -41,7 +41,7 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`GJXpress API running on http://localhost:${port}/api`);
   console.log(`Swagger docs: http://localhost:${port}/docs`);
-  console.log(`Health check: http://localhost:${port}/health`);
+  console.log(`Health check: http://localhost:${port}/api/health`);
 }
 
 bootstrap();

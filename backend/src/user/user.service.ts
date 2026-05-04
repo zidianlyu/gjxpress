@@ -11,9 +11,9 @@ export class UserService {
       select: {
         id: true,
         nickname: true,
-        avatar: true,
-        user_code: true,
-        created_at: true,
+        avatarUrl: true,
+        userCode: true,
+        createdAt: true,
       },
     });
   }

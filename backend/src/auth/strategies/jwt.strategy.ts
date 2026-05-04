@@ -13,11 +13,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; openid: string }) {
+  async validate(payload: { sub: string; type: string; openid?: string; role?: string }) {
+    if (payload.type === 'ADMIN') {
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: payload.sub },
+      });
+      if (!admin || !admin.isActive) throw new UnauthorizedException();
+      return { ...admin, type: 'ADMIN' };
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });
-    if (!user) throw new UnauthorizedException();
-    return user;
+    if (!user || !user.isActive) throw new UnauthorizedException();
+    return { ...user, type: 'USER' };
   }
 }
