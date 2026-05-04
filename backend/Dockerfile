@@ -4,74 +4,59 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Stage 1: Dependencies
-# -----------------------------------------------------------------------------
-FROM node:20-alpine AS deps
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies (clean install for production)
-RUN npm ci --only=production && npm cache clean --force
-
-# -----------------------------------------------------------------------------
-# Stage 2: Builder
+# Stage 1: Builder
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies
 COPY package*.json ./
 RUN npm ci
 
-# Copy source code
-COPY . .
-
-# Generate Prisma client and build
+COPY prisma ./prisma
 RUN npx prisma generate
+
+COPY tsconfig*.json nest-cli.json ./
+COPY src ./src
+
 RUN npm run build
 
+# Debug: verify dist output
+RUN echo "=== dist output ===" && find dist -maxdepth 3 -type f | head -20
+
+# Prune to production dependencies (keeps generated prisma client)
+RUN npm prune --omit=dev
+
 # -----------------------------------------------------------------------------
-# Stage 3: Runner (Production)
+# Stage 2: Runner (Production)
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Set production environment
 ENV NODE_ENV=production
 ENV PORT=3000
+# Prisma engine auto-detection works after binaryTargets are set in schema.prisma
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init openssl
 
-# Copy package files
 COPY package*.json ./
 
-# Copy production dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Copy pruned production node_modules (includes correct prisma binaries)
+COPY --from=builder /app/node_modules ./node_modules
 
-# Copy built application from builder stage
+# Built application
 COPY --from=builder /app/dist ./dist
 
-# Copy Prisma schema for migrations
+# Prisma schema (for migrations)
 COPY --from=builder /app/prisma ./prisma
 
-# Copy generated Prisma client
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-
-# Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the application
-CMD ["node", "dist/main.js"]
+# Entry point: nest build outputs to dist/src/main.js
+CMD ["node", "dist/src/main.js"]

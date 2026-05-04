@@ -268,6 +268,60 @@ At any point, an order can move to `EXCEPTION` or `CANCELLED`.
 
 ---
 
+## Docker Local Test
+
+### 1. Create `.env.local`
+
+```bash
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+```
+
+### 2. Build and run
+
+```bash
+docker compose -f docker-compose.local.yml up --build
+```
+
+### 3. Test
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+Expected:
+
+```json
+{"status":"ok","timestamp":"...","service":"gjxpress-api","database":"ok","storage":"ok"}
+```
+
+### 4. Stop
+
+```bash
+docker compose -f docker-compose.local.yml down
+```
+
+### Troubleshooting: `Cannot find module /app/dist/main.js`
+
+NestJS with `baseUrl: "./"` outputs to `dist/src/main.js`, not `dist/main.js`.
+This project's Dockerfile CMD is set to `node dist/src/main.js`.
+If you see this error:
+
+1. Check that `start:prod` in `package.json` matches: `node dist/src/main.js`
+2. Check that Dockerfile CMD matches: `CMD ["node", "dist/src/main.js"]`
+3. Make sure no `volumes` in `docker-compose*.yml` overwrite `/app/dist`
+
+### Troubleshooting: Prisma engine OpenSSL error
+
+If you see `Error loading shared library libssl.so.1.1`, the Prisma engine binary
+doesn't match the Alpine OpenSSL version. Fixes applied:
+
+1. `prisma/schema.prisma` includes `binaryTargets` for `linux-musl-arm64-openssl-3.0.x`
+2. Dockerfile runner stage installs `openssl` package
+3. Both builder and runner use the same `node:20-alpine` base
+
+---
+
 ## Security
 
 1. **Never commit secrets** — `.env*` files are in `.gitignore`

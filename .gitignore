@@ -79,9 +79,9 @@ docker-compose.override.yml
 # Vite
 .vite/
 
-# Frontend specific (admin)
-admin/.env
-admin/.env.local
+# Frontend specific
+frontend/.env
+frontend/.env.local
 
 # Backend specific
 backend/.env
