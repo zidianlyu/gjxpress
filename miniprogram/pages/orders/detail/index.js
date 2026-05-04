@@ -25,7 +25,7 @@ Page({
       wx.navigateBack();
       return;
     }
-    
+
     this.setData({ orderId: id });
     this.loadData();
   },
@@ -38,14 +38,14 @@ Page({
 
   async loadData() {
     this.setData({ loading: true, error: null });
-    
+
     try {
       await authService.ensureLogin();
-      
+
       // 获取订单详情
       const res = await orderService.getOrderDetail(this.data.orderId);
       const order = res.data;
-      
+
       // 处理订单数据
       const processedOrder = {
         ...order,
@@ -59,7 +59,7 @@ Page({
           statusType: status.getOrderStatusType(pkg.status),
         })),
       };
-      
+
       this.setData({ order: processedOrder });
     } catch (err) {
       console.error('加载订单详情失败:', err);
@@ -76,8 +76,8 @@ Page({
   },
 
   onConfirmPackage(e) {
-    const { id } = e.currentTarget.dataset;
-    
+    const { packageId } = e.detail;
+
     wx.showModal({
       title: '确认包裹',
       content: '确认后将进入下一步审核流程，是否确认？',
@@ -85,7 +85,7 @@ Page({
       cancelText: '取消',
       success: async (res) => {
         if (res.confirm) {
-          await this.confirmPackage(id);
+          await this.confirmPackage(packageId);
         }
       },
     });
@@ -93,15 +93,15 @@ Page({
 
   async confirmPackage(packageId) {
     this.setData({ submitting: true });
-    
+
     try {
       await packageService.confirmPackage(packageId, { confirmNote: '确认无误' });
-      
+
       wx.showToast({
         title: '已确认，等待审核',
         icon: 'success',
       });
-      
+
       // 刷新数据
       this.loadData();
     } catch (err) {
@@ -116,9 +116,9 @@ Page({
   },
 
   onReportIssue(e) {
-    const { id } = e.currentTarget.dataset;
+    const { packageId } = e.detail;
     this.setData({
-      currentPackageId: id,
+      currentPackageId: packageId,
       showIssueModal: true,
       issueDescription: '',
     });
@@ -134,7 +134,7 @@ Page({
 
   async submitIssue() {
     const { currentPackageId, issueDescription } = this.data;
-    
+
     if (!issueDescription.trim()) {
       wx.showToast({
         title: '请输入问题描述',
@@ -142,23 +142,23 @@ Page({
       });
       return;
     }
-    
+
     this.setData({ submitting: true });
-    
+
     try {
       await packageService.reportPackageIssue(currentPackageId, {
         type: 'OTHER',
         description: issueDescription.trim(),
       });
-      
+
       this.setData({ showIssueModal: false });
-      
+
       wx.showToast({
         title: '已提交异常，客服会尽快处理',
         icon: 'success',
         duration: 2000,
       });
-      
+
       // 刷新数据
       this.loadData();
     } catch (err) {
@@ -175,7 +175,7 @@ Page({
   copyTrackingNumber(e) {
     const { number } = e.currentTarget.dataset;
     if (!number) return;
-    
+
     wx.setClipboardData({
       data: number,
       success: () => {

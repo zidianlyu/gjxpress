@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -35,6 +35,20 @@ export class OrderService {
     });
     if (!order) throw new NotFoundException('Order not found');
     return order;
+  }
+
+  async getShipmentByOrder(orderId: string, userId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: {
+        shipment: {
+          include: { events: { orderBy: { eventTime: 'desc' } } },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    if (!order.shipment) return { data: null };
+    return { data: order.shipment };
   }
 
   recalcWeights(orderId: string) {

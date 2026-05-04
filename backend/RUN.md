@@ -127,3 +127,9 @@ sudo crontab -e
 # 添加一行：
 0 12 * * * /usr/bin/certbot renew --quiet
 ```
+
+## 本地测试
+
+```bash
+kill -9 $(lsof -t -i:3000)
+```

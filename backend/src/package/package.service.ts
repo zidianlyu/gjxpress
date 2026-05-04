@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OrderService } from '../order/order.service';
 import { InboundPackageDto } from './dto/inbound-package.dto';
 import { ConfirmAction } from './dto/confirm-package.dto';
-import { OrderStatus, PackageStatus } from '@prisma/client';
+import { ExceptionType, OrderStatus, PackageStatus } from '@prisma/client';
 
 @Injectable()
 export class PackageService {
@@ -137,6 +137,56 @@ export class PackageService {
       }
 
       return { status: PackageStatus.EXCEPTION };
+    });
+  }
+
+  async reportIssue(
+    packageId: string,
+    userId: string,
+    type: string,
+    description?: string,
+  ) {
+    const pkg = await this.prisma.package.findUnique({
+      where: { id: packageId },
+      include: { order: true },
+    });
+
+    if (!pkg) throw new NotFoundException('Package not found');
+    if (pkg.order.userId !== userId) throw new ForbiddenException();
+
+    const validType = Object.values(ExceptionType).includes(type as ExceptionType)
+      ? (type as ExceptionType)
+      : ExceptionType.OTHER;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.package.update({
+        where: { id: packageId },
+        data: { status: PackageStatus.EXCEPTION },
+      });
+
+      await tx.order.update({
+        where: { id: pkg.order.id },
+        data: { status: OrderStatus.EXCEPTION },
+      });
+
+      const exception = await tx.exceptionCase.create({
+        data: {
+          orderId: pkg.order.id,
+          packageId,
+          type: validType,
+          status: 'OPEN',
+          description: description || '',
+          createdByUserId: userId,
+        },
+      });
+
+      return {
+        data: {
+          exception: { id: exception.id, type: exception.type, status: exception.status, description: exception.description },
+          package: { id: pkg.id, status: PackageStatus.EXCEPTION },
+          order: { id: pkg.order.id, status: OrderStatus.EXCEPTION },
+        },
+      };
     });
   }
 }

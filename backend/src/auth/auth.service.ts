@@ -1,8 +1,14 @@
-import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  ServiceUnavailableException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { WxLoginDto } from './dto/wx-login.dto';
@@ -18,37 +24,52 @@ export class AuthService {
   ) {}
 
   async wxLogin(dto: WxLoginDto) {
-    const openid = await this.getOpenid(dto.code);
+    if (!dto.code || dto.code.trim() === '') {
+      throw new BadRequestException('code is required');
+    }
+
+    const openid = await this.getOpenid(dto.code.trim());
 
     let user = await this.prisma.user.findUnique({ where: { openid } });
 
     if (!user) {
       const userCode = await this.generateUniqueUserCode();
-      user = await this.prisma.user.create({
-        data: {
-          openid,
-          userCode: userCode,
-          nickname: dto.nickname,
-          avatarUrl: dto.avatarUrl,
-        },
-      });
-    } else if (dto.nickname || dto.avatarUrl) {
+      try {
+        user = await this.prisma.user.create({
+          data: {
+            openid,
+            userCode,
+            nickname: dto.nickname || null,
+            avatarUrl: dto.avatarUrl || null,
+          },
+        });
+      } catch (e: any) {
+        if (e.code === 'P2002') {
+          const existing = await this.prisma.user.findUnique({ where: { openid } });
+          if (existing) {
+            user = existing;
+          } else {
+            console.error('[wechat-login] user create conflict, prisma code:', e.code, 'meta:', e.meta?.target);
+            throw new InternalServerErrorException('Failed to create user account');
+          }
+        } else {
+          console.error('[wechat-login] user create error, prisma code:', e.code);
+          throw new InternalServerErrorException('Failed to create user account');
+        }
+      }
+    } else if (dto.nickname !== undefined || dto.avatarUrl !== undefined) {
       user = await this.prisma.user.update({
         where: { id: user.id },
         data: {
-          nickname: dto.nickname ?? user.nickname,
-          avatarUrl: dto.avatarUrl ?? user.avatarUrl,
+          ...(dto.nickname !== undefined && { nickname: dto.nickname || null }),
+          ...(dto.avatarUrl !== undefined && { avatarUrl: dto.avatarUrl || null }),
         },
       });
     }
 
     const expiresIn = this.configService.get<string>('JWT_EXPIRES_IN') || '7d';
     const token = this.jwtService.sign(
-      {
-        sub: user.id,
-        type: 'USER',
-        openid: user.openid,
-      },
+      { sub: user.id, type: 'USER', openid: user.openid },
       { expiresIn: expiresIn as any },
     );
 
@@ -125,24 +146,59 @@ export class AuthService {
     const mockLogin = this.configService.get<string>('WECHAT_MOCK_LOGIN') === 'true';
 
     if (mockLogin) {
+      console.log('[wechat-login] mock mode enabled, openid:', `mock_openid_${code}`);
       return `mock_openid_${code}`;
+    }
+
+    const appId = this.configService.get<string>('WECHAT_APP_ID');
+    const appSecret = this.configService.get<string>('WECHAT_APP_SECRET');
+    if (!appId || !appSecret) {
+      console.error('[wechat-login] WECHAT_APP_ID or WECHAT_APP_SECRET not configured');
+      throw new ServiceUnavailableException('WeChat login not configured on server');
     }
 
     const url = this.configService.get<string>('WECHAT_CODE2SESSION_URL')
       || 'https://api.weixin.qq.com/sns/jscode2session';
-    const params = {
-      appid: this.configService.get<string>('WECHAT_APP_ID'),
-      secret: this.configService.get<string>('WECHAT_APP_SECRET'),
-      js_code: code,
-      grant_type: 'authorization_code',
-    };
 
-    const { data } = await firstValueFrom(
-      this.httpService.get(url, { params }),
-    );
+    let data: any;
+    try {
+      const response = await firstValueFrom(
+        this.httpService
+          .get(url, {
+            params: {
+              appid: appId,
+              secret: appSecret,
+              js_code: code,
+              grant_type: 'authorization_code',
+            },
+          })
+          .pipe(timeout(5000)),
+      );
+      data = response.data;
+    } catch (e: any) {
+      if (e.name === 'TimeoutError' || e.code === 'ECONNABORTED') {
+        console.error('[wechat-login] WeChat code2Session timed out');
+        throw new ServiceUnavailableException('WeChat service timeout, please retry');
+      }
+      console.error('[wechat-login] WeChat code2Session network error:', e.message);
+      throw new ServiceUnavailableException('WeChat service unavailable');
+    }
 
     if (data.errcode) {
-      throw new UnauthorizedException(`WeChat error: ${data.errmsg}`);
+      console.error('[wechat-login] WeChat errcode:', data.errcode, 'errmsg:', data.errmsg);
+      // 40029 = invalid code, 40163 = code used, 45011 = frequency limit
+      if (data.errcode === 40029 || data.errcode === 40163) {
+        throw new BadRequestException('Invalid or expired WeChat code');
+      }
+      if (data.errcode === 40125 || data.errcode === 40164) {
+        throw new UnauthorizedException('WeChat app credentials invalid');
+      }
+      throw new ServiceUnavailableException(`WeChat service error (${data.errcode})`);
+    }
+
+    if (!data.openid) {
+      console.error('[wechat-login] WeChat returned no openid, response keys:', Object.keys(data));
+      throw new ServiceUnavailableException('WeChat returned no openid');
     }
 
     return data.openid;

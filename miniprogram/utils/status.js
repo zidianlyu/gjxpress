@@ -18,11 +18,12 @@ const PAYMENT_STATUS_LABELS = {
 };
 
 const PACKAGE_STATUS_LABELS = {
-  CREATED: '未入库',
+  CREATED: '已创建',
   INBOUNDED: '已入库',
-  USER_CONFIRM_PENDING: '待确认',
+  USER_CONFIRM_PENDING: '待用户确认',
   CONFIRMED: '已确认',
   EXCEPTION: '异常处理中',
+  CONSOLIDATED: '已合单',
   SHIPPED: '已发货',
 };
 
@@ -45,16 +46,30 @@ const PAYMENT_STATUS_TYPES = {
   PAID: 'success',
 };
 
+const PACKAGE_STATUS_TYPES = {
+  CREATED: 'normal',
+  INBOUNDED: 'normal',
+  USER_CONFIRM_PENDING: 'warning',
+  CONFIRMED: 'success',
+  EXCEPTION: 'danger',
+  CONSOLIDATED: 'success',
+  SHIPPED: 'primary',
+};
+
+function getPackageStatusType(status) {
+  return PACKAGE_STATUS_TYPES[status] || 'normal';
+}
+
 function getOrderStatusLabel(status) {
-  return ORDER_STATUS_LABELS[status] || status || '-';
+  return ORDER_STATUS_LABELS[status] || '未知状态';
 }
 
 function getPaymentStatusLabel(status) {
-  return PAYMENT_STATUS_LABELS[status] || status || '-';
+  return PAYMENT_STATUS_LABELS[status] || '未知状态';
 }
 
 function getPackageStatusLabel(status) {
-  return PACKAGE_STATUS_LABELS[status] || status || '-';
+  return PACKAGE_STATUS_LABELS[status] || '未知状态';
 }
 
 function getOrderStatusType(status) {
@@ -69,9 +84,13 @@ module.exports = {
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   PACKAGE_STATUS_LABELS,
+  ORDER_STATUS_TYPES,
+  PAYMENT_STATUS_TYPES,
+  PACKAGE_STATUS_TYPES,
   getOrderStatusLabel,
   getPaymentStatusLabel,
   getPackageStatusLabel,
   getOrderStatusType,
   getPaymentStatusType,
+  getPackageStatusType,
 };

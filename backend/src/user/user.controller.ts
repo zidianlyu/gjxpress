@@ -16,4 +16,10 @@ export class UserController {
   getProfile(@CurrentUser() user: any) {
     return this.userService.getProfile(user.id);
   }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get current user profile (alias for /user/profile)' })
+  getMe(@CurrentUser() user: any) {
+    return this.userService.getProfile(user.id);
+  }
 }

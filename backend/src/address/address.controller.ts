@@ -1,25 +1,23 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import { AddressService } from './address.service';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Address')
-@Controller('address')
+@Controller('warehouse-address')
 export class AddressController {
-  private readonly warehouseAddress = {
-    name: '广骏国内仓库',
-    recipient: '广骏集运',
-    phone: '13800138000',
-    province: '广东省',
-    city: '广州市',
-    district: '白云区',
-    address: '白云大道123号物流园A区',
-    zip_code: '510000',
-    full_text:
-      '广骏集运 13800138000\n广东省广州市白云区白云大道123号物流园A区\n邮编：510000',
-  };
+  constructor(
+    private addressService: AddressService,
+    private configService: ConfigService,
+  ) {}
 
-  @Get('warehouse')
-  @ApiOperation({ summary: 'Get warehouse address for user to copy' })
-  getWarehouseAddress() {
-    return this.warehouseAddress;
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get warehouse receiving address with user-specific copyText' })
+  getWarehouseAddress(@CurrentUser() user: any) {
+    return this.addressService.getWarehouseAddress(user?.id);
   }
 }

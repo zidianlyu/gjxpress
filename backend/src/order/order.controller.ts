@@ -22,4 +22,10 @@ export class OrderController {
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     return this.orderService.findOneByUser(id, user.id);
   }
+
+  @Get(':id/shipment')
+  @ApiOperation({ summary: 'Get shipment info for an order' })
+  getShipment(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.orderService.getShipmentByOrder(id, user.id);
+  }
 }

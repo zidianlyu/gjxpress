@@ -1,14 +1,14 @@
-const ENV = 'prod';
+const ENV = 'dev';
 
 const CONFIG = {
   dev: {
-    API_BASE_URL: 'http://localhost:3000',
+    API_BASE_URL: 'http://localhost:3000/api',
   },
   staging: {
-    API_BASE_URL: 'https://api.gjxpress.net',
+    API_BASE_URL: 'https://api.gjxpress.net/api',
   },
   prod: {
-    API_BASE_URL: 'https://api.gjxpress.net',
+    API_BASE_URL: 'https://api.gjxpress.net/api',
   },
 };
 

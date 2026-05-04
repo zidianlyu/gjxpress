@@ -139,18 +139,18 @@ model User {
   openid    String   @unique
   unionid   String?
   nickname  String?
-  avatarUrl String?
-  userCode  String   @unique
+  avatarUrl String?  @map("avatar_url")
+  userCode  String   @unique @map("user_code")
   role      UserRole @default(USER)
-  isActive  Boolean  @default(true)
+  isActive  Boolean  @default(true) @map("is_active")
 
   orders        Order[]
   qrScanLogs    QrScanLog[]
   notifications Notification[]
   addressUsages AddressUsage[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([userCode])
   @@index([createdAt])
@@ -160,17 +160,17 @@ model User {
 model Admin {
   id           String   @id @default(cuid())
   username     String   @unique
-  passwordHash String
-  displayName  String?
+  passwordHash String   @map("password_hash")
+  displayName  String?  @map("display_name")
   role         UserRole @default(ADMIN)
-  isActive     Boolean  @default(true)
+  isActive     Boolean  @default(true) @map("is_active")
 
   inboundRecords InboundRecord[]
   actionLogs     AdminActionLog[]
   shipments      Shipment[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([role])
   @@index([isActive])
@@ -178,24 +178,24 @@ model Admin {
 }
 
 model Order {
-  id            String        @id @default(cuid())
-  orderNo       String        @unique
-  userId        String
-  user          User          @relation(fields: [userId], references: [id])
+  id      String @id @default(cuid())
+  orderNo String @unique @map("order_no")
+  userId  String @map("user_id")
+  user    User   @relation(fields: [userId], references: [id])
 
   status        OrderStatus   @default(UNINBOUND)
-  paymentStatus PaymentStatus @default(UNPAID)
+  paymentStatus PaymentStatus @default(UNPAID) @map("payment_status")
 
-  totalActualWeight Decimal? @db.Decimal(10, 2)
-  totalVolumeWeight Decimal? @db.Decimal(10, 2)
-  chargeableWeight  Decimal? @db.Decimal(10, 2)
-  estimatedPrice    Decimal? @db.Decimal(10, 2)
-  finalPrice        Decimal? @db.Decimal(10, 2)
+  totalActualWeight Decimal? @db.Decimal(10, 2) @map("total_actual_weight")
+  totalVolumeWeight Decimal? @db.Decimal(10, 2) @map("total_volume_weight")
+  chargeableWeight  Decimal? @db.Decimal(10, 2) @map("chargeable_weight")
+  estimatedPrice    Decimal? @db.Decimal(10, 2) @map("estimated_price")
+  finalPrice        Decimal? @db.Decimal(10, 2) @map("final_price")
   currency          String   @default("USD")
 
-  manualOverride Boolean @default(false)
-  adminRemark    String?
-  userRemark     String?
+  manualOverride Boolean @default(false) @map("manual_override")
+  adminRemark    String? @map("admin_remark")
+  userRemark     String? @map("user_remark")
 
   packages       Package[]
   paymentRecords PaymentRecord[]
@@ -204,8 +204,8 @@ model Order {
   exceptions     ExceptionCase[]
   statusLogs     OrderStatusLog[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([userId])
   @@index([orderNo])
@@ -217,22 +217,22 @@ model Order {
 
 model Package {
   id        String @id @default(cuid())
-  packageNo String @unique
-  orderId   String
+  packageNo String @unique @map("package_no")
+  orderId   String @map("order_id")
   order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  domesticTrackingNo String?
-  sourcePlatform       SourcePlatform @default(OTHER)
-  status               PackageStatus  @default(CREATED)
+  domesticTrackingNo String?        @map("domestic_tracking_no")
+  sourcePlatform     SourcePlatform @default(OTHER) @map("source_platform")
+  status             PackageStatus  @default(CREATED)
 
-  actualWeight Decimal? @db.Decimal(10, 2)
-  lengthCm     Decimal? @db.Decimal(10, 2)
-  widthCm      Decimal? @db.Decimal(10, 2)
-  heightCm     Decimal? @db.Decimal(10, 2)
-  volumeWeight Decimal? @db.Decimal(10, 2)
+  actualWeight Decimal? @db.Decimal(10, 2) @map("actual_weight")
+  lengthCm     Decimal? @db.Decimal(10, 2) @map("length_cm")
+  widthCm      Decimal? @db.Decimal(10, 2) @map("width_cm")
+  heightCm     Decimal? @db.Decimal(10, 2) @map("height_cm")
+  volumeWeight Decimal? @db.Decimal(10, 2) @map("volume_weight")
 
-  inboundAt       DateTime?
-  userConfirmedAt DateTime?
+  inboundAt       DateTime? @map("inbound_at")
+  userConfirmedAt DateTime? @map("user_confirmed_at")
   remark          String?
 
   goodsItems     GoodsItem[]
@@ -240,8 +240,8 @@ model Package {
   inboundRecords InboundRecord[]
   exceptions     ExceptionCase[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([orderId])
   @@index([packageNo])
@@ -253,17 +253,17 @@ model Package {
 
 model GoodsItem {
   id        String  @id @default(cuid())
-  packageId String
+  packageId String  @map("package_id")
   package   Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
   name                  String?
   category              String?
   quantity              Int     @default(1)
-  containsSensitiveItem Boolean @default(false)
+  containsSensitiveItem Boolean @default(false) @map("contains_sensitive_item")
   remark                String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([packageId])
   @@index([category])
@@ -271,26 +271,26 @@ model GoodsItem {
 }
 
 model PackageImage {
-  id        String  @id @default(cuid())
-  packageId String?
+  id        String   @id @default(cuid())
+  packageId String?  @map("package_id")
   package   Package? @relation(fields: [packageId], references: [id], onDelete: SetNull)
 
-  imageType ImageType
+  imageType ImageType   @map("image_type")
   status    ImageStatus @default(CREATED)
 
   bucket      String
-  storagePath String
-  publicUrl   String?
-  mimeType    String?
-  sizeBytes   Int?
+  storagePath String  @map("storage_path")
+  publicUrl   String? @map("public_url")
+  mimeType    String? @map("mime_type")
+  sizeBytes   Int?    @map("size_bytes")
   checksum    String?
 
-  uploadedByUserId  String?
-  uploadedByAdminId String?
+  uploadedByUserId  String? @map("uploaded_by_user_id")
+  uploadedByAdminId String? @map("uploaded_by_admin_id")
 
-  createdAt  DateTime @default(now())
-  uploadedAt DateTime?
-  deletedAt  DateTime?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  uploadedAt DateTime? @map("uploaded_at")
+  deletedAt  DateTime? @map("deleted_at")
 
   @@index([packageId])
   @@index([imageType])
@@ -301,18 +301,18 @@ model PackageImage {
 
 model InboundRecord {
   id        String  @id @default(cuid())
-  packageId String
+  packageId String  @map("package_id")
   package   Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
-  operatorAdminId String
+  operatorAdminId String @map("operator_admin_id")
   operatorAdmin   Admin  @relation(fields: [operatorAdminId], references: [id])
 
-  checkResult String?
+  checkResult String?  @map("check_result")
   remark      String?
-  inboundTime DateTime @default(now())
+  inboundTime DateTime @default(now()) @map("inbound_time")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([packageId])
   @@index([operatorAdminId])
@@ -322,21 +322,20 @@ model InboundRecord {
 
 model PaymentRecord {
   id      String @id @default(cuid())
-  orderId String
+  orderId String @map("order_id")
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  paymentStatus PaymentStatus
-  paymentMethod String?
-  amount        Decimal? @db.Decimal(10, 2)
-  currency      String   @default("USD")
-  proofImageId  String?
-  remark        String?
+  paymentStatus      PaymentStatus @map("payment_status")
+  paymentMethod      String?       @map("payment_method")
+  amount             Decimal?      @db.Decimal(10, 2)
+  currency           String        @default("USD")
+  proofImageId       String?       @map("proof_image_id")
+  remark             String?
+  confirmedByAdminId String?       @map("confirmed_by_admin_id")
+  confirmedAt        DateTime?     @map("confirmed_at")
 
-  confirmedByAdminId String?
-  confirmedAt        DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([orderId])
   @@index([paymentStatus])
@@ -346,24 +345,22 @@ model PaymentRecord {
 
 model Shipment {
   id      String @id @default(cuid())
-  orderId String @unique
+  orderId String @unique @map("order_id")
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   provider           ShipmentProvider
-  trackingNumber     String?
-  status             ShipmentStatus @default(CREATED)
-  shippedAt          DateTime?
-  estimatedArrivalAt DateTime?
-
-  rawPayload Json?
-
-  createdByAdminId String?
-  createdByAdmin   Admin? @relation(fields: [createdByAdminId], references: [id])
+  trackingNumber     String?          @map("tracking_number")
+  status             ShipmentStatus   @default(CREATED)
+  shippedAt          DateTime?        @map("shipped_at")
+  estimatedArrivalAt DateTime?        @map("estimated_arrival_at")
+  rawPayload         Json?            @map("raw_payload")
+  createdByAdminId   String?          @map("created_by_admin_id")
+  createdByAdmin     Admin?           @relation(fields: [createdByAdminId], references: [id])
 
   events LogisticsTrackingEvent[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([provider])
   @@index([trackingNumber])
@@ -374,16 +371,16 @@ model Shipment {
 
 model LogisticsTrackingEvent {
   id         String   @id @default(cuid())
-  shipmentId String
+  shipmentId String   @map("shipment_id")
   shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
-  eventStatus   String?
-  eventLocation String?
+  eventStatus   String?   @map("event_status")
+  eventLocation String?   @map("event_location")
   description   String?
-  eventTime     DateTime?
-  rawPayload    Json?
+  eventTime     DateTime? @map("event_time")
+  rawPayload    Json?     @map("raw_payload")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([shipmentId])
   @@index([eventTime])
@@ -392,18 +389,18 @@ model LogisticsTrackingEvent {
 
 model QrCode {
   id      String @id @default(cuid())
-  orderId String
+  orderId String @map("order_id")
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  tokenHash String
+  tokenHash String    @map("token_hash")
   purpose   QrPurpose
-  expiresAt DateTime
-  isUsed    Boolean  @default(false)
-  usedAt    DateTime?
+  expiresAt DateTime  @map("expires_at")
+  isUsed    Boolean   @default(false) @map("is_used")
+  usedAt    DateTime? @map("used_at")
 
   scanLogs QrScanLog[]
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([orderId])
   @@index([tokenHash])
@@ -413,18 +410,17 @@ model QrCode {
 
 model QrScanLog {
   id       String @id @default(cuid())
-  qrCodeId String
+  qrCodeId String @map("qr_code_id")
   qrCode   QrCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
 
-  scanUserId String?
-  scanUser   User?   @relation(fields: [scanUserId], references: [id])
-
-  isAuthorized Boolean
+  scanUserId   String?  @map("scan_user_id")
+  scanUser     User?    @relation(fields: [scanUserId], references: [id])
+  isAuthorized Boolean  @map("is_authorized")
   result       String?
-  ipAddress    String?
-  userAgent    String?
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
 
-  scannedAt DateTime @default(now())
+  scannedAt DateTime @default(now()) @map("scanned_at")
 
   @@index([qrCodeId])
   @@index([scanUserId])
@@ -434,10 +430,10 @@ model QrScanLog {
 
 model ExceptionCase {
   id      String @id @default(cuid())
-  orderId String
+  orderId String @map("order_id")
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  packageId String?
+  packageId String?  @map("package_id")
   package   Package? @relation(fields: [packageId], references: [id], onDelete: SetNull)
 
   type        ExceptionType
@@ -445,13 +441,12 @@ model ExceptionCase {
   description String?
   resolution  String?
 
-  createdByUserId  String?
-  createdByAdminId String?
+  createdByUserId  String? @map("created_by_user_id")
+  createdByAdminId String? @map("created_by_admin_id")
+  resolvedAt       DateTime? @map("resolved_at")
 
-  resolvedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([orderId])
   @@index([packageId])
@@ -463,20 +458,19 @@ model ExceptionCase {
 
 model AdminActionLog {
   id      String @id @default(cuid())
-  adminId String
+  adminId String @map("admin_id")
   admin   Admin  @relation(fields: [adminId], references: [id])
 
-  targetType  AdminActionTargetType
-  targetId    String
+  targetType  AdminActionTargetType @map("target_type")
+  targetId    String                @map("target_id")
   action      String
-  beforeState Json?
-  afterState  Json?
+  beforeState Json?   @map("before_state")
+  afterState  Json?   @map("after_state")
   reason      String?
+  ipAddress   String? @map("ip_address")
+  userAgent   String? @map("user_agent")
 
-  ipAddress String?
-  userAgent String?
-
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([adminId])
   @@index([targetType, targetId])
@@ -487,16 +481,16 @@ model AdminActionLog {
 
 model OrderStatusLog {
   id      String @id @default(cuid())
-  orderId String
+  orderId String @map("order_id")
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  fromStatus    OrderStatus?
-  toStatus      OrderStatus
-  changedByType String
-  changedById   String?
+  fromStatus    OrderStatus? @map("from_status")
+  toStatus      OrderStatus  @map("to_status")
+  changedByType String       @map("changed_by_type")
+  changedById   String?      @map("changed_by_id")
   reason        String?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([orderId])
   @@index([toStatus])
@@ -506,11 +500,11 @@ model OrderStatusLog {
 
 model AddressUsage {
   id     String @id @default(cuid())
-  userId String
+  userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  warehouseAddressId String?
-  copiedAt           DateTime @default(now())
+  warehouseAddressId String?  @map("warehouse_address_id")
+  copiedAt           DateTime @default(now()) @map("copied_at")
 
   @@index([userId])
   @@index([copiedAt])
@@ -520,19 +514,19 @@ model AddressUsage {
 model WarehouseAddress {
   id           String  @id @default(cuid())
   name         String
-  receiverName String
+  receiverName String  @map("receiver_name")
   phone        String
   country      String  @default("中国")
   province     String
   city         String
   district     String?
-  addressLine  String
-  postalCode   String?
-  isActive     Boolean @default(true)
+  addressLine  String  @map("address_line")
+  postalCode   String? @map("postal_code")
+  isActive     Boolean @default(true) @map("is_active")
   remark       String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   @@index([isActive])
   @@map("warehouse_addresses")
@@ -540,17 +534,17 @@ model WarehouseAddress {
 
 model Notification {
   id     String @id @default(cuid())
-  userId String
+  userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   type    String
   title   String?
   body    String?
   payload Json?
-  isRead  Boolean @default(false)
-  sentAt  DateTime?
+  isRead  Boolean   @default(false) @map("is_read")
+  sentAt  DateTime? @map("sent_at")
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId])
   @@index([type])
@@ -565,19 +559,17 @@ model Recommendation {
   title   String
   summary String?
   body    String?
-
   category String?
   city     String?
   tags     String[] @default([])
 
-  status RecommendationStatus @default(DRAFT)
+  status         RecommendationStatus @default(DRAFT)
+  seoTitle       String?              @map("seo_title")
+  seoDescription String?              @map("seo_description")
 
-  seoTitle       String?
-  seoDescription String?
-
-  publishedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt      @map("updated_at")
 
   @@index([slug])
   @@index([status])

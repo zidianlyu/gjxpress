@@ -15,6 +15,8 @@ import { AddressModule } from './address/address.module';
 import { AdminLogModule } from './adminlog/adminlog.module';
 import { StorageModule } from './storage/storage.module';
 import { HealthModule } from './health/health.module';
+import { AdminModule } from './admin/admin.module';
+import { PublicModule } from './public/public.module';
 import { envValidationSchema } from './config/env.validation';
 
 @Module({
@@ -38,6 +40,8 @@ import { envValidationSchema } from './config/env.validation';
     AdminLogModule,
     StorageModule,
     HealthModule,
+    AdminModule,
+    PublicModule,
   ],
 })
 export class AppModule {}
