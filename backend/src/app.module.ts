@@ -13,6 +13,8 @@ import { QrModule } from './qr/qr.module';
 import { NotificationModule } from './notification/notification.module';
 import { AddressModule } from './address/address.module';
 import { AdminLogModule } from './adminlog/adminlog.module';
+import { StorageModule } from './storage/storage.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { AdminLogModule } from './adminlog/adminlog.module';
     NotificationModule,
     AddressModule,
     AdminLogModule,
+    StorageModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

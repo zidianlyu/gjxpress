@@ -1,0 +1,94 @@
+<view class="page-container">
+  <!-- 标签栏 -->
+  <view class="tab-bar">
+    <view 
+      class="tab-item {{currentTab === index ? 'active' : ''}}" 
+      wx:for="{{tabs}}" 
+      wx:key="key"
+      data-index="{{index}}"
+      bindtap="onTabChange"
+    >
+      {{item.label}}
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading" wx:if="{{loading && orders.length === 0}}">
+    <view class="loading-text">加载中...</view>
+  </view>
+
+  <!-- 错误状态 -->
+  <error-state 
+    wx:elif="{{error}}" 
+    message="{{error}}"
+    bind:retry="onRetry"
+  />
+
+  <!-- 订单列表 -->
+  <scroll-view 
+    wx:else 
+    class="order-list" 
+    scroll-y 
+    enable-flex
+    enhanced
+    show-scrollbar
+  >
+    <block wx:if="{{orders.length > 0}}">
+      <view 
+        class="order-card" 
+        wx:for="{{orders}}" 
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="goToOrderDetail"
+      >
+        <view class="order-header">
+          <view class="order-no">{{item.orderNo}}</view>
+          <status-tag label="{{item.statusLabel}}" type="{{item.statusType}}"></status-tag>
+        </view>
+        
+        <view class="order-info">
+          <view class="info-row">
+            <text class="info-label">支付状态</text>
+            <status-tag label="{{item.paymentStatusLabel}}" type="{{item.paymentStatusType}}"></status-tag>
+          </view>
+          <view class="info-row" wx:if="{{item.packageCount}}">
+            <text class="info-label">包裹数量</text>
+            <text class="info-value">{{item.packageCount}} 件</text>
+          </view>
+          <view class="info-row" wx:if="{{item.chargeableWeight}}">
+            <text class="info-label">计费重量</text>
+            <text class="info-value">{{item.chargeableWeight}} kg</text>
+          </view>
+          <view class="info-row" wx:if="{{item.finalPrice}}">
+            <text class="info-label">费用</text>
+            <text class="info-value price">{{item.currency === 'USD' ? '$' : '¥'}}{{item.finalPrice}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">创建时间</text>
+            <text class="info-value">{{item.createdAt}}</text>
+          </view>
+        </view>
+
+        <view class="order-arrow">›</view>
+      </view>
+
+      <!-- 加载更多 -->
+      <view class="load-more" wx:if="{{hasMore}}">
+        <text wx:if="{{loading}}">加载中...</text>
+        <text wx:else>上拉加载更多</text>
+      </view>
+      <view class="no-more" wx:else>
+        <text>没有更多了</text>
+      </view>
+    </block>
+
+    <!-- 空状态 -->
+    <empty-state 
+      wx:else
+      title="暂无订单"
+      message="复制国内仓地址后，在电商平台下单，仓库入库后将显示在这里。"
+      buttonText="复制仓库地址"
+      bind:buttontap="goToAddress"
+    />
+  </scroll-view>
+</view>

@@ -1,0 +1,118 @@
+<view class="page-container">
+  <!-- 品牌区域 -->
+  <view class="brand-section">
+    <view class="brand-name">广骏国际快运</view>
+    <view class="brand-slogan">看得见的跨境物流</view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading" wx:if="{{loading}}">
+    <view class="loading-text">加载中...</view>
+  </view>
+
+  <!-- 错误状态 -->
+  <error-state 
+    wx:elif="{{error}}" 
+    message="{{error}}"
+    bind:retry="onRetry"
+  />
+
+  <!-- 内容区域 -->
+  <block wx:else>
+    <!-- 用户状态卡片 -->
+    <view class="card mx-24 mt-24" wx:if="{{user}}">
+      <view class="user-row">
+        <view class="user-info">
+          <view class="user-label">用户ID</view>
+          <view class="user-code">{{user.userCode}}</view>
+        </view>
+        <view class="user-tip">请保留此ID用于收货</view>
+      </view>
+    </view>
+
+    <!-- 快捷入口 -->
+    <view class="card mx-24 mt-24">
+      <view class="section-title">快捷服务</view>
+      <view class="quick-menu">
+        <view class="quick-item" bindtap="goToAddress">
+          <view class="quick-icon" style="background: #e6f7ff; color: #1890ff;">📍</view>
+          <view class="quick-text">复制地址</view>
+        </view>
+        <view class="quick-item" bindtap="goToOrders">
+          <view class="quick-icon" style="background: #f6ffed; color: #18a058;">📦</view>
+          <view class="quick-text">我的订单</view>
+        </view>
+        <view class="quick-item" bindtap="goToCustomerService">
+          <view class="quick-icon" style="background: #fff7e6; color: #d6a84f;">💬</view>
+          <view class="quick-text">联系客服</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 物流状态概览 -->
+    <view class="card mx-24 mt-24">
+      <view class="section-title">我的物流状态</view>
+      <view class="stat-grid">
+        <view class="stat-item" bindtap="goToOrdersByStatus" data-status="USER_CONFIRM_PENDING">
+          <view class="stat-value" style="color: #d6a84f;">{{stats.pendingConfirm}}</view>
+          <view class="stat-label">待确认</view>
+        </view>
+        <view class="stat-item" bindtap="goToOrdersByStatus" data-status="PAYMENT_PENDING">
+          <view class="stat-value" style="color: #d6a84f;">{{stats.pendingPay}}</view>
+          <view class="stat-label">待支付</view>
+        </view>
+        <view class="stat-item" bindtap="goToOrdersByStatus" data-status="SHIPPED">
+          <view class="stat-value" style="color: #1890ff;">{{stats.shipped}}</view>
+          <view class="stat-label">已发货</view>
+        </view>
+        <view class="stat-item" bindtap="goToOrdersByStatus" data-status="EXCEPTION">
+          <view class="stat-value" style="color: #d03050;">{{stats.exception}}</view>
+          <view class="stat-label">异常</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 使用说明 -->
+    <view class="card mx-24 mt-24">
+      <view class="section-title">使用说明</view>
+      <view class="guide-list">
+        <view class="guide-item">
+          <view class="guide-step">1</view>
+          <view class="guide-content">
+            <view class="guide-title">复制仓库地址</view>
+            <view class="guide-desc">获取您的专属国内仓收货地址</view>
+          </view>
+        </view>
+        <view class="guide-item">
+          <view class="guide-step">2</view>
+          <view class="guide-content">
+            <view class="guide-title">电商平台下单</view>
+            <view class="guide-desc">在淘宝、京东等平台购物时使用仓库地址</view>
+          </view>
+        </view>
+        <view class="guide-item">
+          <view class="guide-step">3</view>
+          <view class="guide-content">
+            <view class="guide-title">仓库入库确认</view>
+            <view class="guide-desc">仓库收到包裹后拍照上传，您可在小程序确认</view>
+          </view>
+        </view>
+        <view class="guide-item">
+          <view class="guide-step">4</view>
+          <view class="guide-content">
+            <view class="guide-title">支付与发货</view>
+            <view class="guide-desc">完成支付后安排国际发货，全程可查询物流</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 服务说明 -->
+    <view class="card mx-24 mt-24 mb-32">
+      <view class="section-title">服务说明</view>
+      <view class="service-desc">
+        <text>广骏供应链服务提供跨境物流信息服务，包括仓储入库、包裹确认、发货管理与物流查询。我们致力于为您提供透明、可视化的跨境物流体验。</text>
+      </view>
+    </view>
+  </block>
+</view>

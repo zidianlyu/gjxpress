@@ -1,0 +1,10 @@
+{
+  "usingComponents": {
+    "status-tag": "../../../components/status-tag/index",
+    "error-state": "../../../components/error-state/index",
+    "package-card": "../../../components/package-card/index"
+  },
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
+  "navigationBarTitleText": "订单详情"
+}

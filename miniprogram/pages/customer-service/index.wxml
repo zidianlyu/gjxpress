@@ -1,0 +1,72 @@
+<view class="page-container">
+  <!-- 头部信息 -->
+  <view class="header-section">
+    <view class="header-icon">💬</view>
+    <view class="header-title">客服中心</view>
+    <view class="header-subtitle">我们随时为您服务</view>
+  </view>
+
+  <!-- 联系方式 -->
+  <view class="contact-section">
+    <view class="section-title">联系方式</view>
+    
+    <view class="contact-card">
+      <view class="contact-item" bindtap="copyWechat">
+        <view class="contact-icon" style="background: #e6f7ff; color: #18a058;">💬</view>
+        <view class="contact-info">
+          <view class="contact-label">客服微信</view>
+          <view class="contact-value">{{serviceInfo.wechat}}</view>
+        </view>
+        <view class="contact-action">复制</view>
+      </view>
+      
+      <view class="contact-item">
+        <view class="contact-icon" style="background: #fff7e6; color: #d6a84f;">📧</view>
+        <view class="contact-info">
+          <view class="contact-label">客服邮箱</view>
+          <view class="contact-value">{{serviceInfo.email}}</view>
+        </view>
+      </view>
+      
+      <view class="contact-item">
+        <view class="contact-icon" style="background: #f0f5ff; color: #2f54eb;">🕐</view>
+        <view class="contact-info">
+          <view class="contact-label">服务时间</view>
+          <view class="contact-value">{{serviceInfo.workHours}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 常见问题 -->
+  <view class="faq-section">
+    <view class="section-title">常见问题</view>
+    
+    <view class="faq-list">
+      <view 
+        class="faq-item {{expandedIndex === index ? 'expanded' : ''}}" 
+        wx:for="{{faqs}}" 
+        wx:key="question"
+        data-index="{{index}}"
+        bindtap="toggleFaq"
+      >
+        <view class="faq-question">
+          <text class="faq-q">Q:</text>
+          <text class="faq-text">{{item.question}}</text>
+          <text class="faq-arrow">▼</text>
+        </view>
+        <view class="faq-answer" wx:if="{{expandedIndex === index}}">
+          <text class="faq-a">A:</text>
+          <text class="faq-answer-text">{{item.answer}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部提示 -->
+  <view class="footer-section">
+    <view class="footer-text">
+      如有其他问题，请添加客服微信咨询
+    </view>
+  </view>
+</view>

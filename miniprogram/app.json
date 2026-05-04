@@ -1,34 +1,39 @@
 {
   "pages": [
-    "pages/index/index",
-    "pages/address/address",
-    "pages/orders/orders",
-    "pages/order-detail/order-detail",
-    "pages/profile/profile",
-    "pages/login/login"
+    "pages/home/index",
+    "pages/address/index",
+    "pages/orders/list/index",
+    "pages/orders/detail/index",
+    "pages/profile/index",
+    "pages/privacy/index",
+    "pages/customer-service/index"
   ],
   "window": {
-    "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#1890ff",
-    "navigationBarTitleText": "广骏供应链",
-    "navigationBarTextStyle": "white"
+    "navigationBarTitleText": "广骏供应链服务",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f6f7f9"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#1890ff",
+    "color": "#666666",
+    "selectedColor": "#d6a84f",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
       {
-        "pagePath": "pages/index/index",
+        "pagePath": "pages/home/index",
         "text": "首页"
       },
       {
-        "pagePath": "pages/orders/orders",
+        "pagePath": "pages/address/index",
+        "text": "地址"
+      },
+      {
+        "pagePath": "pages/orders/list/index",
         "text": "订单"
       },
       {
-        "pagePath": "pages/profile/profile",
+        "pagePath": "pages/profile/index",
         "text": "我的"
       }
     ]

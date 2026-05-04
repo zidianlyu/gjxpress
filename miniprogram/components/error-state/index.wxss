@@ -1,0 +1,34 @@
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 96rpx 48rpx;
+}
+
+.error-icon {
+  margin-bottom: 32rpx;
+}
+
+.icon-box {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  background: #fff1f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+}
+
+.error-message {
+  font-size: 28rpx;
+  color: #666666;
+  text-align: center;
+  margin-bottom: 32rpx;
+  line-height: 1.6;
+}
+
+.error-action {
+  margin-top: 16rpx;
+}

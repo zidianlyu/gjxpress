@@ -1,8 +1,12 @@
 {
-  "desc": "关于本小程序的更多信息",
+  "desc": "广骏供应链服务 - 看得见的跨境物流",
   "rules": [
     {
       "action": "allow",
+      "page": "pages/home/index"
+    },
+    {
+      "action": "disallow",
       "page": "*"
     }
   ]
