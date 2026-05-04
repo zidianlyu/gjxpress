@@ -1,7 +1,7 @@
 <view class="page-container">
   <!-- 品牌区域 -->
   <view class="brand-section">
-    <view class="brand-name">广骏国际快运</view>
+    <view class="brand-name">广骏供应链服务</view>
     <view class="brand-slogan">看得见的跨境物流</view>
   </view>
 
@@ -11,8 +11,8 @@
   </view>
 
   <!-- 错误状态 -->
-  <error-state 
-    wx:elif="{{error}}" 
+  <error-state
+    wx:elif="{{error}}"
     message="{{error}}"
     bind:retry="onRetry"
   />
@@ -100,8 +100,8 @@
         <view class="guide-item">
           <view class="guide-step">4</view>
           <view class="guide-content">
-            <view class="guide-title">支付与发货</view>
-            <view class="guide-desc">完成支付后安排国际发货，全程可查询物流</view>
+            <view class="guide-title">发货管理</view>
+            <view class="guide-desc">支付状态确认后安排发货，全程可查询物流状态</view>
           </view>
         </view>
       </view>

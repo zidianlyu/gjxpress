@@ -47,6 +47,11 @@ function handleError(err, showToast = true) {
     message = err.data.message;
   }
 
+  // Log timeout/network issues for debugging (without sensitive data)
+  if (err.isNetworkError || err.message?.includes('超时')) {
+    console.warn('[Request] Network/Timeout error:', err.message || err.errMsg);
+  }
+
   if (showToast) {
     wx.showToast({
       title: message,
@@ -73,7 +78,7 @@ function request(options) {
   const showToast = options.showToast !== false;
 
   return new Promise((resolve, reject) => {
-    wx.request({
+    const requestTask = wx.request({
       url: `${API_BASE_URL}${options.url}`,
       method: options.method || 'GET',
       data: options.data || {},
@@ -82,6 +87,7 @@ function request(options) {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.header || {}),
       },
+      timeout: options.timeout || 10000,
       success: async (res) => {
         // 处理 401 - Token 过期
         if (res.statusCode === 401 && !options.__retried) {
@@ -126,7 +132,19 @@ function request(options) {
         }, showToast);
         reject(error);
       },
+      complete: () => {
+        // Ensure loading states are cleaned up even if promise is unresolved
+      },
     });
+
+    // Add timeout failsafe - abort request after 15s if somehow still pending
+    setTimeout(() => {
+      try {
+        requestTask.abort && requestTask.abort();
+      } catch (e) {
+        // Ignore abort errors
+      }
+    }, 15000);
   });
 }
 

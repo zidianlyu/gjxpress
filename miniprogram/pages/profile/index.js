@@ -11,16 +11,22 @@ Page({
   },
 
   onShow() {
-    this.loadData();
+    // Avoid duplicate requests if already loading
+    if (!this.data.loading) {
+      this.loadData();
+    }
   },
 
   async loadData() {
+    this.setData({ loading: true });
     try {
       await authService.ensureLogin();
       const user = getApp().globalData.userInfo;
       this.setData({ user });
     } catch (err) {
       console.error('加载用户信息失败:', err);
+    } finally {
+      this.setData({ loading: false });
     }
   },
 

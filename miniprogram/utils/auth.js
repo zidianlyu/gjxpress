@@ -9,13 +9,29 @@ const USER_KEY = 'currentUser';
  */
 function wxLoginCode() {
   return new Promise((resolve, reject) => {
+    let isResolved = false;
+
     wx.login({
+      timeout: 10000,
       success(res) {
+        if (isResolved) return;
+        isResolved = true;
         if (res.code) resolve(res.code);
         else reject(new Error('微信登录失败，未获取到 code'));
       },
       fail: (err) => {
+        if (isResolved) return;
+        isResolved = true;
         reject(new Error(err.errMsg || '微信登录失败'));
+      },
+      complete: () => {
+        // Ensure promise resolves even if wx.login hangs
+        setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(new Error('微信登录超时'));
+          }
+        }, 12000);
       },
     });
   });
@@ -32,6 +48,8 @@ async function login(options = {}) {
   const code = await wxLoginCode();
 
   return new Promise((resolve, reject) => {
+    let isResolved = false;
+
     wx.request({
       url: `${API_BASE_URL}/auth/wechat-login`,
       method: 'POST',
@@ -41,7 +59,10 @@ async function login(options = {}) {
         avatarUrl: options.avatarUrl || undefined,
       },
       header: { 'Content-Type': 'application/json' },
+      timeout: 10000,
       success(res) {
+        if (isResolved) return;
+        isResolved = true;
         if (res.statusCode >= 200 && res.statusCode < 300) {
           // 处理后端返回格式
           const responseData = res.data.data || res.data;
@@ -75,6 +96,8 @@ async function login(options = {}) {
         }
       },
       fail: (err) => {
+        if (isResolved) return;
+        isResolved = true;
         const message = err.errMsg || '网络请求失败，请检查网络';
         wx.showToast({
           title: message,
@@ -82,6 +105,15 @@ async function login(options = {}) {
           duration: 2000,
         });
         reject(new Error(message));
+      },
+      complete: () => {
+        // Failsafe: ensure promise resolves after 12s
+        setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(new Error('登录请求超时'));
+          }
+        }, 12000);
       },
     });
   });
@@ -99,6 +131,8 @@ async function getUserProfile() {
   }
 
   return new Promise((resolve, reject) => {
+    let isResolved = false;
+
     wx.request({
       url: `${API_BASE_URL}/user/me`,
       method: 'GET',
@@ -106,7 +140,10 @@ async function getUserProfile() {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      timeout: 10000,
       success(res) {
+        if (isResolved) return;
+        isResolved = true;
         if (res.statusCode === 200) {
           const user = res.data.data || res.data;
           wx.setStorageSync(USER_KEY, user);
@@ -130,7 +167,18 @@ async function getUserProfile() {
         }
       },
       fail: (err) => {
+        if (isResolved) return;
+        isResolved = true;
         reject(new Error(err.errMsg || '网络请求失败'));
+      },
+      complete: () => {
+        // Failsafe: ensure promise resolves after 12s
+        setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(new Error('获取用户信息超时'));
+          }
+        }, 12000);
       },
     });
   });

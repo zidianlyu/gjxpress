@@ -8,6 +8,7 @@ Page({
     loading: true,
     error: null,
     copied: false,
+    _copyTimer: null,
   },
 
   onLoad() {
@@ -15,6 +16,7 @@ Page({
   },
 
   onShow() {
+    // Avoid duplicate requests if already loading
     if (!this.data.loading) {
       this.loadData();
     }
@@ -22,15 +24,15 @@ Page({
 
   async loadData() {
     this.setData({ loading: true, error: null });
-    
+
     try {
       // 确保已登录
       await authService.ensureLogin();
-      
+
       // 获取用户信息
       const user = getApp().globalData.userInfo;
       this.setData({ user });
-      
+
       // 获取仓库地址
       await this.loadAddress();
     } catch (err) {
@@ -95,9 +97,11 @@ Page({
           duration: 2000,
         });
         this.setData({ copied: true });
-        setTimeout(() => {
+        // Store timer for cleanup
+        const timer = setTimeout(() => {
           this.setData({ copied: false });
         }, 3000);
+        this.setData({ _copyTimer: timer });
       },
       fail: () => {
         wx.showToast({
@@ -110,5 +114,12 @@ Page({
 
   onRetry() {
     this.loadData();
+  },
+
+  onUnload() {
+    // Clean up any pending timers
+    if (this.data._copyTimer) {
+      clearTimeout(this.data._copyTimer);
+    }
   },
 });

@@ -66,7 +66,7 @@ aws ecr get-login-password --region us-west-1 | docker login --username AWS --pa
 docker build -t gjxpress-backend .
 
 # 打标签
-docker tag zidianlyuaws/gjxpress-backend:latest 919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest
+docker tag gjxpress-backend:latest 919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest
 
 # 推送到云端
 docker push 919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest
@@ -81,7 +81,7 @@ ssh -i ~/.ssh/gjxpress-backend-key.pem ubuntu@54.215.255.83
 # 进入目录（后续）
 cd ~/gjxpress-backend
 
-# 登陆ECR （可skip）
+# 登陆ECR （后续）
 aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 919333998053.dkr.ecr.us-west-1.amazonaws.com
 
 # 拉取最新镜像（后续）
