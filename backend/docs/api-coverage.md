@@ -1,7 +1,7 @@
 # Backend API Coverage Report
 
-> Generated: 2026-05-04  
-> Global prefix: `/api`  
+> Generated: 2026-05-04
+> Global prefix: `/api`
 > Auth: JWT Bearer. `JwtAuthGuard` = user or admin. `AdminGuard` = admin-only.
 
 ---
@@ -199,13 +199,114 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 
 ---
 
+## Admin Core CRUD Coverage (Web Logistics Phase 1)
+
+> Updated: 2026-05-05 | Auth: All `/admin/*` endpoints require `JwtAuthGuard + AdminGuard`. No token → 401. User token → 403.
+
+### Customer
+
+| Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
+|---|---|---|---|---|---|---|---|---|
+| Create customer | POST | `/admin/customers` | `customers.controller.ts` | `create()` | `CreateCustomerDto` | ✅ | ✅ Implemented | Phone uniqueness check; auto GJ#### code |
+| List customers | GET | `/admin/customers` | `customers.controller.ts` | `findAll()` | query params | ✅ | ✅ Implemented | q, status, page, pageSize |
+| Get customer detail | GET | `/admin/customers/:id` | `customers.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes packages, shipments, counts |
+| Update customer | PATCH | `/admin/customers/:id` | `customers.controller.ts` | `update()` | `UpdateCustomerDto` | ✅ | ✅ Implemented | phone, wechatId, notes, status |
+| Soft-disable customer | PATCH | `/admin/customers/:id/disable` | `customers.controller.ts` | `disable()` | — | ✅ | ✅ Implemented | Sets status=DISABLED |
+| Hard delete | DELETE | `/admin/customers/:id` | `customers.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ **Added** | 409 if inboundPackages/customerShipments/transactions > 0 |
+
+### InboundPackage
+
+| Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
+|---|---|---|---|---|---|---|---|---|
+| Create inbound package | POST | `/admin/inbound-packages` | `inbound-packages.controller.ts` | `create()` | `CreateInboundPackageDto` | ✅ | ✅ Implemented | customerCode not found → 404 (not silent) |
+| List packages | GET | `/admin/inbound-packages` | `inbound-packages.controller.ts` | `findAll()` | query params | ✅ | ✅ Implemented | q, status, customerId, page, pageSize |
+| Get package detail | GET | `/admin/inbound-packages/:id` | `inbound-packages.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customer, shipmentItems |
+| General update | PATCH | `/admin/inbound-packages/:id` | `inbound-packages.controller.ts` | `update()` | inline DTO | ✅ | ✅ Updated | domesticTrackingNo, warehouseReceivedAt, issueNote, adminNote, status (no dimensions) |
+| Assign customer | PATCH | `/admin/inbound-packages/:id/assign-customer` | `inbound-packages.controller.ts` | `assignCustomer()` | inline DTO | ✅ | ✅ Implemented | 409 if already assigned; 404 if code not found |
+| Update status | PATCH | `/admin/inbound-packages/:id/status` | `inbound-packages.controller.ts` | `updateStatus()` | inline DTO | ✅ | ✅ Implemented | Validates against InboundPackageStatus enum |
+| List images | GET | `/admin/inbound-packages/:id/images` | `inbound-packages.controller.ts` | `getImages()` | — | ✅ | ✅ **New** | Returns `{ items: string[] }` |
+| Upload image | POST | `/admin/inbound-packages/:id/images` | `inbound-packages.controller.ts` | `uploadImage()` | multipart/form-data `file` | ✅ | ✅ **New** | Uploads to Supabase Storage; appends URL to imageUrls; returns `{ url, imageUrls }` |
+| Delete image | DELETE | `/admin/inbound-packages/:id/images` | `inbound-packages.controller.ts` | `deleteImage()` | `?imageUrl=<encoded>&confirm=DELETE_HARD` | ✅ | ✅ **Updated** | Query params only; removes from storage and imageUrls; returns `{ deleted, url, imageUrls }` |
+| Hard delete | DELETE | `/admin/inbound-packages/:id` | `inbound-packages.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Implemented | 409 if shipmentItems > 0 |
+
+### CustomerShipment
+
+| Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
+|---|---|---|---|---|---|---|---|---|
+| Create shipment | POST | `/admin/customer-shipments` | `customer-shipments.controller.ts` | `create()` | inline DTO | ✅ | ✅ Updated | Auto GJS{date}{seq} shipmentNo; accepts billing fields on create |
+| List shipments | GET | `/admin/customer-shipments` | `customer-shipments.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, status, paymentStatus, customerId, masterShipmentId, **unbatched=true**; q also searches wechatId |
+| Get shipment detail | GET | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customer, items, masterShipment, transactions |
+| General update | PATCH | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `update()` | inline DTO | ✅ | ✅ Updated | notes, trackingNo, publicTracking, status, paymentStatus, actualWeightKg, volumeFormula, billingRateCnyPerKg, billingWeightKg |
+| Cancel shipment | PATCH | `/admin/customer-shipments/:id/cancel` | `customer-shipments.controller.ts` | `cancel()` | — | ✅ | ✅ **Added** | Blocked if SENT_TO_OVERSEAS+; restores packages to CLAIMED |
+| Update status | PATCH | `/admin/customer-shipments/:id/status` | `customer-shipments.controller.ts` | `updateStatus()` | inline DTO | ✅ | ✅ Implemented | Auto fills sentToOverseasAt etc.; no overwrite if set |
+| Update payment status | PATCH | `/admin/customer-shipments/:id/payment-status` | `customer-shipments.controller.ts` | `updatePaymentStatus()` | inline DTO | ✅ | ✅ Implemented | Enum validation; no online payment |
+| Add item | POST | `/admin/customer-shipments/:id/items` | `customer-shipments.controller.ts` | `addItem()` | inline DTO | ✅ | ✅ Implemented | Customer match check; 409 if in another shipment |
+| Remove item | DELETE | `/admin/customer-shipments/:id/items/:itemId` | `customer-shipments.controller.ts` | `removeItem()` | — | ✅ | ✅ Implemented | 409 if SENT_TO_OVERSEAS+; restores package to CLAIMED |
+| List images | GET | `/admin/customer-shipments/:id/images` | `customer-shipments.controller.ts` | `getImages()` | — | ✅ | ✅ **New** | Returns `{ items: string[] }` |
+| Upload image | POST | `/admin/customer-shipments/:id/images` | `customer-shipments.controller.ts` | `uploadImage()` | multipart/form-data `file` | ✅ | ✅ **New** | Uploads to Supabase Storage; appends URL to imageUrls; returns `{ url, imageUrls }` |
+| Delete image | DELETE | `/admin/customer-shipments/:id/images` | `customer-shipments.controller.ts` | `deleteImage()` | `?imageUrl=<encoded>&confirm=DELETE_HARD` | ✅ | ✅ **Updated** | Query params only; removes from storage and imageUrls; returns `{ deleted, url, imageUrls }` |
+| Hard delete shipment | DELETE | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Implemented | 409 if in-transit/completed, masterShipmentId set, or transactions > 0; cascades item cleanup |
+
+### CustomerShipmentItem
+
+| Capability | Method | Path | Controller | Service | Admin Guard | Status | Notes |
+|---|---|---|---|---|---|---|---|
+| Add item to shipment | POST | `/admin/customer-shipments/:id/items` | `customer-shipments.controller.ts` | `addItem()` | ✅ | ✅ Implemented | — |
+| Remove item from shipment | DELETE | `/admin/customer-shipments/:id/items/:itemId` | `customer-shipments.controller.ts` | `removeItem()` | ✅ | ✅ Implemented | — |
+
+### MasterShipment
+
+| Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
+|---|---|---|---|---|---|---|---|---|
+| Create batch | POST | `/admin/master-shipments` | `master-shipments.controller.ts` | `create()` | inline DTO | ✅ | ✅ Updated | Auto GJByyyyMMddNNN batchNo; **vendorName + vendorTrackingNo + customerShipmentIds all required**; atomic transaction; validates no duplicates/already-batched |
+| List batches | GET | `/admin/master-shipments` | `master-shipments.controller.ts` | `findAll()` | query params | ✅ | ✅ Implemented | q, status, publicVisible, page, pageSize |
+| Get batch detail | GET | `/admin/master-shipments/:id` | `master-shipments.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customerShipments summary |
+| General update | PATCH | `/admin/master-shipments/:id` | `master-shipments.controller.ts` | `update()` | inline DTO | ✅ | ✅ **Added** | vendorName, vendorTrackingNo, adminNote, publicTitle, publicSummary, publicStatusText, publicVisible |
+| Update status | PATCH | `/admin/master-shipments/:id/status` | `master-shipments.controller.ts` | `updateStatus()` | inline DTO | ✅ | ✅ Implemented | Auto-fills handedToVendorAt, arrivedOverseasAt, closedAt |
+| Update publication | PATCH | `/admin/master-shipments/:id/publication` | `master-shipments.controller.ts` | `updatePublication()` | inline DTO | ✅ | ✅ Implemented | Sets publicVisible, titles, publishedAt |
+| Add customer shipments | POST | `/admin/master-shipments/:id/customer-shipments` | `master-shipments.controller.ts` | `addCustomerShipments()` | inline DTO | ✅ | ✅ Implemented | Batch link with conflict checks |
+| Remove customer shipment | DELETE | `/admin/master-shipments/:id/customer-shipments/:csId` | `master-shipments.controller.ts` | `removeCustomerShipment()` | — | ✅ | ✅ Implemented | 409 if batch status is advanced |
+| Hard delete batch | DELETE | `/admin/master-shipments/:id` | `master-shipments.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ **Added** | 409 if status != CREATED or customerShipments > 0 |
+
+### TransactionRecord
+
+| Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
+|---|---|---|---|---|---|---|---|---|
+| Create transaction | POST | `/admin/transactions` | `transactions.controller.ts` | `create()` | inline DTO | ✅ | ✅ Updated | **customerShipmentId required**; type: SHIPPING_FEE\|REFUND only; no currency/paymentStatus/description |
+| List transactions | GET | `/admin/transactions` | `transactions.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, customerId, customerShipmentId, type (no paymentStatus filter) |
+| Get transaction detail | GET | `/admin/transactions/:id` | `transactions.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customer and shipment summary |
+| Update transaction | PATCH | `/admin/transactions/:id` | `transactions.controller.ts` | `update()` | inline DTO | ✅ | ✅ Updated | type, amountCents, adminNote, occurredAt only |
+| Hard delete transaction | DELETE | `/admin/transactions/:id` | `transactions.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Implemented | No longer blocked on paymentStatus (field removed) |
+
+### Public Endpoints
+
+| Capability | Method | Path | Controller | Service | Auth | Status | Notes |
+|---|---|---|---|---|---|---|---|
+| Track shipment | GET | `/public/tracking/:shipmentNo` | `public.controller.ts` | `trackShipment()` | None | ✅ Implemented | Returns NO_RECORD if not found/disabled; no PII |
+| List batch updates | GET | `/public/batch-updates` | `public.controller.ts` | `listBatchUpdates()` | None | ✅ Implemented | Only publicVisible=true batches; no vendorTrackingNo |
+| Get batch update | GET | `/public/batch-updates/:batchNo` | `public.controller.ts` | `getBatchUpdate()` | None | ✅ **Added** | 404 if not found or not publicVisible |
+
+---
+
+## Logging / Tracing
+
+| Feature | Implementation | Notes |
+|---|---|---|
+| Request ID | `src/common/middleware/request-id.middleware.ts` | Uses incoming `X-Request-Id` or generates UUID |
+| Request logging | `src/common/interceptors/request-logging.interceptor.ts` | Logs method, path, status, durationMs, userType, userId, role |
+| Error logging | `src/common/filters/http-exception.filter.ts` | 4xx → WARN, 5xx → ERROR with stack (backend only); requestId in response |
+| CORS | `main.ts` | `exposedHeaders: ['x-request-id']` — frontend can read it |
+| Env flags | `API_REQUEST_LOGGING`, `API_DEBUG_BODY_LOGS` | See `docs/deployment.md` |
+
+---
+
 ## Build & Test Status
 
 | Check | Result |
 |---|---|
 | `npx prisma validate` | ✅ |
 | `npx prisma generate` | ✅ |
-| `npm run build` | ✅ 0 errors |
+| `npm run build` | ✅ 0 errors (2026-05-15, session 4 — Phase 2: images, billing, batch) |
 | `GET /api/health` | ✅ 200 |
 | `POST /api/auth/wechat-login` (mock) | ✅ 200 + JWT |
 | `GET /api/warehouse-address` | ✅ 200 + userCode in receiverName |
@@ -215,3 +316,8 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 | `GET /api/orders/:id/shipment` (bad id) | ✅ 404 |
 | `GET /api/public/recommendations` | ✅ 200 |
 | `GET /api/admin/orders` (user token) | ✅ 403 |
+| `GET /api/admin/customers` (no token) | ✅ 401 |
+| `POST /api/admin/customers` (admin token) | ✅ 201 |
+| `GET /api/admin/inbound-packages` (admin token) | ✅ 200 |
+| `GET /api/admin/customer-shipments` (admin token) | ✅ 200 |
+| Response header `x-request-id` present | ✅ |

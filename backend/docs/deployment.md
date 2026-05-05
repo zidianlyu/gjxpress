@@ -1,9 +1,9 @@
 # Backend Deployment Guide — GJXpress Logistic OS
 
-> Scope: Deploy `backend/` NestJS API to AWS EC2 using Docker Compose  
-> Domain: `api.gjxpress.net`  
-> Database: Supabase Postgres  
-> Storage: Supabase Storage  
+> Scope: Deploy `backend/` NestJS API to AWS EC2 using Docker Compose
+> Domain: `api.gjxpress.net`
+> Database: Supabase Postgres
+> Storage: Supabase Storage
 > Process: Docker container behind Nginx HTTPS reverse proxy
 
 ---
@@ -867,7 +867,116 @@ Before considering backend deployed:
 
 ---
 
-## 28. Windsurf Implementation Checklist
+## 28. API Request Logging & Tracing
+
+### 28.1 Environment Variables
+
+Add to `.env` (or `.env.production`):
+
+```bash
+# Enable per-request logging (default: true)
+API_REQUEST_LOGGING=true
+
+# Log redacted request bodies in development only (default: false)
+API_DEBUG_BODY_LOGS=false
+
+# NestJS log level
+LOG_LEVEL=debug
+```
+
+**Security rules:**
+- `API_DEBUG_BODY_LOGS=true` should only be used in development.
+- Body logs automatically redact: `password`, `passwordHash`, `token`, `accessToken`, `refreshToken`, `authorization`, `secret`, `apiKey`.
+- Stack traces are logged to backend console only — **never returned to the frontend**.
+
+### 28.2 What Backend Console Logs
+
+Every request produces one line:
+
+```text
+[API] requestId=abc-123 method=POST path=/api/admin/customers status=201 durationMs=45 userType=admin userId=... role=ADMIN
+```
+
+On 4xx (warning):
+```text
+[API_WARN] requestId=abc-123 method=POST path=/api/admin/customers status=409 durationMs=21 userType=admin userId=... message="Phone number already exists"
+```
+
+On 5xx (error):
+```text
+[API_ERROR] requestId=abc-123 method=POST path=/api/admin/customers status=500 durationMs=12 unauthenticated message="Internal server error"
+<stack trace here — backend only>
+```
+
+### 28.3 X-Request-Id Header
+
+Every response includes:
+
+```text
+X-Request-Id: abc-123-uuid
+```
+
+CORS `exposedHeaders` includes `x-request-id` so browsers can read it.
+
+**Frontend can read it via:**
+```javascript
+const requestId = response.headers.get('x-request-id');
+```
+
+**Error responses always include `requestId`:**
+```json
+{
+  "statusCode": 409,
+  "error": "ConflictException",
+  "message": "Phone number already exists",
+  "requestId": "abc-123-uuid",
+  "timestamp": "2026-05-05T...",
+  "path": "/api/admin/customers"
+}
+```
+
+**Frontend passes its own request ID:**
+```javascript
+fetch('/api/admin/customers', {
+  headers: { 'X-Request-Id': 'my-trace-id' }
+});
+```
+
+### 28.4 Viewing Logs in Production
+
+```bash
+# Follow live Docker logs (use actual service name from docker-compose.production.yml)
+docker compose -f docker-compose.production.yml logs -f backend
+
+# Filter for errors only
+docker compose -f docker-compose.production.yml logs backend | grep '\[API_ERROR\]\|\[REQUEST_ERROR\]'
+
+# Filter by requestId to trace a specific request
+docker compose -f docker-compose.production.yml logs backend | grep 'requestId=abc-123'
+
+# Last 100 lines
+docker compose -f docker-compose.production.yml logs --tail=100 backend
+```
+
+### 28.5 Correlating Frontend DevTools with Backend Logs
+
+1. Open browser DevTools → Network tab.
+2. Click a failed request.
+3. Copy the `x-request-id` from response headers.
+4. Search backend logs: `grep 'requestId=<that-id>'`.
+
+### 28.6 Implementation Files
+
+| File | Purpose |
+|---|---|
+| `src/common/middleware/request-id.middleware.ts` | Assigns/propagates `X-Request-Id` per request |
+| `src/common/interceptors/request-logging.interceptor.ts` | Logs method, path, status, duration, user info |
+| `src/common/filters/http-exception.filter.ts` | Formats error responses with `requestId`; logs 5xx stacks |
+| `src/main.ts` | Wires all three globally; sets `exposedHeaders` in CORS |
+
+---
+
+## 29. Windsurf Implementation Checklist
 
 Ask Windsurf to implement:
 

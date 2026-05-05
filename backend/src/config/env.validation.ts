@@ -56,6 +56,7 @@ export const envValidationSchema = Joi.object({
 
   // Storage
   SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES: Joi.string().default('gjxpress-storage'),
+  SUPABASE_ADMIN_IMAGE_BUCKET: Joi.string().default('gjxpress-admin-images'),
 
   // Server
   PORT: Joi.number().default(3000),

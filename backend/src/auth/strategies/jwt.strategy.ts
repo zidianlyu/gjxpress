@@ -13,8 +13,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; type: string; openid?: string; role?: string }) {
+  async validate(payload: { sub: string; type: string; openid?: string; role?: string; authModel?: string }) {
     if (payload.type === 'ADMIN') {
+      if (payload.authModel === 'AdminAccount') {
+        const account = await this.prisma.adminAccount.findUnique({
+          where: { id: payload.sub },
+        });
+        if (!account || account.status !== 'ACTIVE') throw new UnauthorizedException();
+        return { ...account, type: 'ADMIN' };
+      }
       const admin = await this.prisma.admin.findUnique({
         where: { id: payload.sub },
       });

@@ -116,19 +116,15 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Disclaimer */}
+      {/* Service Scope */}
       <section className="py-16 md:py-24 bg-muted/50">
         <div className="container">
           <div className="mx-auto max-w-3xl">
             <div className="p-6 rounded-lg border bg-card">
-              <h3 className="font-semibold mb-4">服务说明</h3>
+              <h3 className="font-semibold mb-4">服务范围说明</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {SITE_CONFIG.name}提供跨境供应链与物流信息服务，支持仓储入库、包裹确认、
-                发货管理与物流查询。我们致力于为用户提供便捷、透明的物流信息服务体验。
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed mt-4">
-                本网站为 demonstration 用途，展示系统设计与前端实现，
-                非真实商业服务。如需了解真实业务，请联系客服咨询。
+                {SITE_CONFIG.name}提供跨境供应链与物流信息服务，支持仓储入库、包裹状态管理、
+                集运单跟踪与国际批次状态查询。我们致力于为用户提供便捷、透明的物流信息服务体验。
               </p>
             </div>
           </div>

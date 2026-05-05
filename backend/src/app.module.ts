@@ -17,6 +17,12 @@ import { StorageModule } from './storage/storage.module';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './admin/admin.module';
 import { PublicModule } from './public/public.module';
+import { CustomersModule } from './customers/customers.module';
+import { InboundPackagesModule } from './inbound-packages/inbound-packages.module';
+import { CustomerShipmentsModule } from './customer-shipments/customer-shipments.module';
+import { MasterShipmentsModule } from './master-shipments/master-shipments.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { AdminImageModule } from './admin-image/admin-image.module';
 import { envValidationSchema } from './config/env.validation';
 
 @Module({
@@ -42,6 +48,12 @@ import { envValidationSchema } from './config/env.validation';
     HealthModule,
     AdminModule,
     PublicModule,
+    CustomersModule,
+    InboundPackagesModule,
+    CustomerShipmentsModule,
+    MasterShipmentsModule,
+    TransactionsModule,
+    AdminImageModule,
   ],
 })
 export class AppModule {}

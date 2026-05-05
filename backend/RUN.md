@@ -133,3 +133,10 @@ sudo crontab -e
 ```bash
 kill -9 $(lsof -t -i:3000)
 ```
+
+
+## 要跑
+```bash
+npx prisma migrate deploy
+ADMIN_BOOTSTRAP_PHONE_NUMBER=13929035086 ADMIN_BOOTSTRAP_PASSWORD=gjxpress12345 npm run admin:create
+```

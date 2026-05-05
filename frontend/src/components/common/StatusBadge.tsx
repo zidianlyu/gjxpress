@@ -1,55 +1,48 @@
 'use client';
 
 import {
-  ORDER_STATUS_LABELS,
+  INBOUND_PACKAGE_STATUS_LABELS,
+  INBOUND_PACKAGE_STATUS_COLORS,
+  CUSTOMER_SHIPMENT_STATUS_LABELS,
+  CUSTOMER_SHIPMENT_STATUS_COLORS,
+  MASTER_SHIPMENT_STATUS_LABELS,
+  MASTER_SHIPMENT_STATUS_COLORS,
   PAYMENT_STATUS_LABELS,
-  EXCEPTION_STATUS_LABELS,
-  ORDER_STATUS_COLORS,
   PAYMENT_STATUS_COLORS,
-  EXCEPTION_STATUS_COLORS,
 } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
+type BadgeType = 'inboundPackage' | 'customerShipment' | 'masterShipment' | 'payment';
+
 interface StatusBadgeProps {
   status: string;
-  type: 'order' | 'payment' | 'exception' | 'package';
+  type: BadgeType;
   className?: string;
 }
 
-const typeConfig: Record<string, { labels: Record<string, string>; colors: Record<string, string>; defaultColor: string }> = {
-  order: {
-    labels: ORDER_STATUS_LABELS,
-    colors: ORDER_STATUS_COLORS,
-    defaultColor: 'bg-gray-100 text-gray-700',
+const typeConfig: Record<BadgeType, { labels: Record<string, string>; colors: Record<string, string> }> = {
+  inboundPackage: {
+    labels: INBOUND_PACKAGE_STATUS_LABELS,
+    colors: INBOUND_PACKAGE_STATUS_COLORS,
+  },
+  customerShipment: {
+    labels: CUSTOMER_SHIPMENT_STATUS_LABELS,
+    colors: CUSTOMER_SHIPMENT_STATUS_COLORS,
+  },
+  masterShipment: {
+    labels: MASTER_SHIPMENT_STATUS_LABELS,
+    colors: MASTER_SHIPMENT_STATUS_COLORS,
   },
   payment: {
     labels: PAYMENT_STATUS_LABELS,
     colors: PAYMENT_STATUS_COLORS,
-    defaultColor: 'bg-gray-100 text-gray-700',
-  },
-  exception: {
-    labels: EXCEPTION_STATUS_LABELS,
-    colors: EXCEPTION_STATUS_COLORS,
-    defaultColor: 'bg-gray-100 text-gray-700',
-  },
-  package: {
-    labels: {
-      CREATED: '已创建',
-      INBOUNDED: '已入库',
-      USER_CONFIRM_PENDING: '待用户确认',
-      CONFIRMED: '已确认',
-      EXCEPTION: '异常',
-      SHIPPED: '已发货',
-    },
-    colors: ORDER_STATUS_COLORS,
-    defaultColor: 'bg-gray-100 text-gray-700',
   },
 };
 
 export function StatusBadge({ status, type, className }: StatusBadgeProps) {
   const config = typeConfig[type];
   const label = config.labels[status] || status;
-  const colorClass = config.colors[status] || config.defaultColor;
+  const colorClass = config.colors[status] || 'bg-gray-100 text-gray-700';
 
   return (
     <span
@@ -64,19 +57,18 @@ export function StatusBadge({ status, type, className }: StatusBadgeProps) {
   );
 }
 
-// Specialized exports for convenience
-export function OrderStatusBadge({ status, className }: { status: string; className?: string }) {
-  return <StatusBadge status={status} type="order" className={className} />;
+export function InboundPackageStatusBadge({ status, className }: { status: string; className?: string }) {
+  return <StatusBadge status={status} type="inboundPackage" className={className} />;
+}
+
+export function CustomerShipmentStatusBadge({ status, className }: { status: string; className?: string }) {
+  return <StatusBadge status={status} type="customerShipment" className={className} />;
+}
+
+export function MasterShipmentStatusBadge({ status, className }: { status: string; className?: string }) {
+  return <StatusBadge status={status} type="masterShipment" className={className} />;
 }
 
 export function PaymentStatusBadge({ status, className }: { status: string; className?: string }) {
   return <StatusBadge status={status} type="payment" className={className} />;
-}
-
-export function ExceptionStatusBadge({ status, className }: { status: string; className?: string }) {
-  return <StatusBadge status={status} type="exception" className={className} />;
-}
-
-export function PackageStatusBadge({ status, className }: { status: string; className?: string }) {
-  return <StatusBadge status={status} type="package" className={className} />;
 }

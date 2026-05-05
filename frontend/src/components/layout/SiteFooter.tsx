@@ -1,23 +1,22 @@
 import Link from 'next/link';
-import { Package, Phone, Mail, MapPin } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { SITE_CONFIG } from '@/lib/constants';
 
 const footerLinks = {
   services: [
-    { label: '中美集运', href: '/services/china-us-shipping' },
-    { label: '空运服务', href: '/services/air-freight' },
-    { label: '海运服务', href: '/services/sea-freight' },
-    { label: '服务流程', href: '/how-it-works' },
+    { label: '服务介绍', href: '/services' },
+    { label: '物流状态查询', href: '/tracking' },
+    { label: '批次更新', href: '/batch-updates' },
   ],
   company: [
     { label: '关于我们', href: '/about' },
-    { label: '本地推荐', href: '/recommendations' },
-    { label: '联系我们', href: '/contact' },
+    { label: '团队介绍', href: '/team' },
   ],
-  support: [
-    { label: '使用指南', href: '/how-it-works' },
-    { label: '常见问题', href: '/contact' },
+  legal: [
+    { label: '合规说明', href: '/compliance' },
     { label: '隐私政策', href: '/privacy' },
+    { label: '服务条款', href: '/terms' },
+    { label: '免责声明', href: '/disclaimer' },
   ],
 };
 
@@ -26,7 +25,7 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t bg-muted/40">
-      <div className="container py-12 md:py-16">
+      <div className="container py-12 md:py-16 px-4 md:px-6">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="space-y-4">
@@ -40,7 +39,7 @@ export function SiteFooter() {
               </div>
             </Link>
             <p className="text-sm text-muted-foreground">
-              提供中美跨境供应链与物流信息服务，支持入库拍照、包裹确认、发货管理与物流查询。
+              提供跨境供应链与物流信息服务，支持仓储入库、包裹状态查询、集运单状态跟踪与海外仓取件状态管理。
             </p>
           </div>
 
@@ -72,36 +71,26 @@ export function SiteFooter() {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Legal & Contact */}
           <div>
-            <h3 className="mb-4 text-sm font-semibold">联系方式</h3>
-            <ul className="space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                <span>微信客服</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                <span>contact@gjxpress.net</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5" />
-                <span>美国本地服务</span>
-              </li>
+            <h3 className="mb-4 text-sm font-semibold">法律与合规</h3>
+            <ul className="space-y-3 text-sm">
+              {footerLinks.legal.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
 
         {/* Bottom */}
         <div className="mt-12 pt-8 border-t">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-muted-foreground">
-              &copy; {currentYear} {SITE_CONFIG.name}. All rights reserved.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              仅供 demonstration，非真实商业服务
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground text-center">
+            &copy; {currentYear} {SITE_CONFIG.name}
+          </p>
         </div>
       </div>
     </footer>

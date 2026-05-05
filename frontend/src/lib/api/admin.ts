@@ -1,344 +1,264 @@
-// Admin API client with JWT authentication
-import { ApiResponse, PaginatedResponse } from './client';
+// Admin API endpoints for Web Logistics Phase 1
+// Uses adminApiFetch from admin-auth.ts which auto-attaches Bearer token
 
-// Get admin token from localStorage
-function getAdminToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('admin_token');
-}
+import { adminApiFetch } from './admin-auth';
+import type { PaginatedResponse } from '@/types/api';
+import type {
+  Customer,
+  CreateCustomerPayload,
+  UpdateCustomerPayload,
+  InboundPackage,
+  CreateInboundPackagePayload,
+  CustomerShipment,
+  CreateCustomerShipmentPayload,
+  UpdateCustomerShipmentPayload,
+  MasterShipment,
+  CreateMasterShipmentPayload,
+  TransactionRecord,
+  CreateTransactionPayload,
+  UpdateTransactionPayload,
+  DeleteResponse,
+} from '@/types/admin';
 
-// Admin API fetch wrapper
-export async function adminApiFetch<T>(
+// File upload helper — uses FormData, skips JSON Content-Type
+async function adminApiUpload<T>(
   path: string,
-  options: RequestInit = {}
-): Promise<ApiResponse<T>> {
+  file: File,
+  fieldName = 'file'
+): Promise<T> {
+  const { getAdminToken, clearAdminToken } = await import('./admin-auth');
+  const { getApiBaseUrl } = await import('@/lib/env');
+  const { ApiError } = await import('./client');
+
   const token = getAdminToken();
-
   if (!token) {
-    throw new Error('未登录，请先登录');
+    if (typeof window !== 'undefined') window.location.href = '/admin/login';
+    throw new ApiError('UNAUTHORIZED', '未登录，请先登录', 401);
   }
 
-  const headers = {
-    ...options.headers,
-    Authorization: `Bearer ${token}`,
-  };
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  const requestId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
+  const formData = new FormData();
+  formData.append(fieldName, file);
+
+  const debug = process.env.NODE_ENV === 'development';
+  if (debug) {
+    console.log('[API:upload]', { requestId, path, fileName: file.name, fileSize: file.size });
+  }
+
+  let response: Response;
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gjxpress.net';
-    const response = await fetch(`${baseUrl}${path}`, {
-      ...options,
+    response = await fetch(url, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        ...headers,
+        'Authorization': `Bearer ${token}`,
+        'X-Request-Id': requestId,
       },
+      body: formData,
     });
-
-    // Handle 401 - token expired or invalid
-    if (response.status === 401) {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_user');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/admin/login';
-      }
-      throw new Error('登录已过期，请重新登录');
-    }
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      const errorMessage = data?.error?.message || `API Error: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-
-    if (!data || !data.success) {
-      const errorMessage = data?.error?.message || '请求失败';
-      throw new Error(errorMessage);
-    }
-
-    return data;
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('网络错误，请稍后重试');
+  } catch {
+    throw new ApiError('NETWORK_ERROR', '网络连接失败，请检查网络后重试', 0, undefined, requestId);
   }
-}
 
-// Admin authentication
-export const adminAuth = {
-  login: async (username: string, password: string) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gjxpress.net';
-    const response = await fetch(`${baseUrl}/auth/admin-login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
-    });
+  if (response.status === 401) {
+    clearAdminToken();
+    if (typeof window !== 'undefined') window.location.href = '/admin/login';
+    throw new ApiError('UNAUTHORIZED', '未登录', 401, undefined, requestId);
+  }
 
-    const data = await response.json();
+  const data = await response.json().catch(() => null);
+  const backendRequestId = response.headers.get('x-request-id') || undefined;
 
-    if (!response.ok || !data.success) {
-      throw new Error(data?.error?.message || '登录失败');
+  if (!response.ok) {
+    const msg = data?.error?.message || data?.message || `上传失败 (${response.status})`;
+    throw new ApiError(data?.error?.code || `HTTP_${response.status}`, msg, response.status, data?.error?.details, requestId, backendRequestId);
+  }
+
+  if (data && typeof data.success === 'boolean') {
+    if (!data.success) {
+      throw new ApiError(data.error?.code || 'API_ERROR', data.error?.message || '上传失败', response.status, data.error?.details, requestId, backendRequestId);
     }
-
-    // Store token
-    localStorage.setItem('admin_token', data.data.token);
-    localStorage.setItem('admin_user', JSON.stringify(data.data.admin));
-
     return data.data;
-  },
+  }
+  return data as T;
+}
 
-  logout: () => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_user');
-    if (typeof window !== 'undefined') {
-      window.location.href = '/admin/login';
+// Re-export auth utilities for backward compatibility
+export {
+  adminLogin,
+  adminLogout,
+  getAdminToken,
+  getAdminUser,
+  isAdminAuthenticated,
+  clearAdminToken,
+} from './admin-auth';
+
+// Helper to build query string
+function buildQuery(params: Record<string, string | number | boolean | undefined | null>): string {
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value != null && value !== '') {
+      sp.set(key, String(value));
     }
-  },
+  }
+  const qs = sp.toString();
+  return qs ? `?${qs}` : '';
+}
 
-  getUser: () => {
-    if (typeof window === 'undefined') return null;
-    const userJson = localStorage.getItem('admin_user');
-    if (!userJson) return null;
-    try {
-      return JSON.parse(userJson) as AdminUser;
-    } catch {
-      return null;
-    }
-  },
-
-  isAuthenticated: () => {
-    if (typeof window === 'undefined') return false;
-    return !!localStorage.getItem('admin_token');
-  },
-};
-
-// Admin API endpoints
 export const adminApi = {
-  // Dashboard
-  getDashboardSummary: () =>
-    adminApiFetch<DashboardSummary>('/admin/dashboard/summary'),
+  // === Customers ===
+  getCustomers: (params?: { q?: string; status?: string; page?: number; pageSize?: number }) =>
+    adminApiFetch<PaginatedResponse<Customer>>(
+      `/admin/customers${buildQuery(params || {})}`
+    ),
 
-  // Orders
-  getOrders: (params?: OrderListParams) => {
-    const searchParams = new URLSearchParams();
-    if (params?.status) searchParams.set('status', params.status);
-    if (params?.paymentStatus) searchParams.set('paymentStatus', params.paymentStatus);
-    if (params?.userCode) searchParams.set('userCode', params.userCode);
-    if (params?.orderNo) searchParams.set('orderNo', params.orderNo);
-    if (params?.page) searchParams.set('page', String(params.page));
-    if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize));
-    const query = searchParams.toString();
-    return adminApiFetch<PaginatedResponse<Order>>(`/admin/orders${query ? `?${query}` : ''}`);
-  },
+  getCustomerById: (id: string) =>
+    adminApiFetch<Customer>(`/admin/customers/${id}`),
 
-  getOrderById: (id: string) =>
-    adminApiFetch<Order>(`/admin/orders/${id}`),
+  createCustomer: (data: CreateCustomerPayload) =>
+    adminApiFetch<Customer>('/admin/customers', { method: 'POST', body: data }),
 
-  createOrder: (data: CreateOrderRequest) =>
-    adminApiFetch<Order>('/admin/orders', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+  updateCustomer: (id: string, data: UpdateCustomerPayload) =>
+    adminApiFetch<Customer>(`/admin/customers/${id}`, { method: 'PATCH', body: data }),
 
-  updateOrderStatus: (id: string, data: UpdateOrderStatusRequest) =>
-    adminApiFetch<Order>(`/admin/orders/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
+  disableCustomer: (id: string) =>
+    adminApiFetch<Customer>(`/admin/customers/${id}/disable`, { method: 'PATCH' }),
 
-  updatePaymentStatus: (id: string, data: UpdatePaymentStatusRequest) =>
-    adminApiFetch<Order>(`/admin/orders/${id}/payment-status`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
+  // === Inbound Packages ===
+  getInboundPackages: (params?: { q?: string; status?: string; customerId?: string; page?: number; pageSize?: number }) =>
+    adminApiFetch<PaginatedResponse<InboundPackage>>(
+      `/admin/inbound-packages${buildQuery(params || {})}`
+    ),
 
-  // Packages
-  inboundPackage: (data: InboundPackageRequest) =>
-    adminApiFetch<{ package: Package; inboundRecord: InboundRecord }>('/admin/packages/inbound', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+  getInboundPackageById: (id: string) =>
+    adminApiFetch<InboundPackage>(`/admin/inbound-packages/${id}`),
 
-  // Exceptions
-  getExceptions: (params?: ExceptionListParams) => {
-    const searchParams = new URLSearchParams();
-    if (params?.status) searchParams.set('status', params.status);
-    if (params?.type) searchParams.set('type', params.type);
-    if (params?.userCode) searchParams.set('userCode', params.userCode);
-    if (params?.page) searchParams.set('page', String(params.page));
-    if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize));
-    const query = searchParams.toString();
-    return adminApiFetch<PaginatedResponse<ExceptionCase>>(`/admin/exceptions${query ? `?${query}` : ''}`);
-  },
+  createInboundPackage: (data: CreateInboundPackagePayload) =>
+    adminApiFetch<InboundPackage>('/admin/inbound-packages', { method: 'POST', body: data }),
 
-  updateException: (id: string, data: UpdateExceptionRequest) =>
-    adminApiFetch<ExceptionCase>(`/admin/exceptions/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
+  updateInboundPackage: (id: string, data: Partial<{
+    domesticTrackingNo: string;
+    warehouseReceivedAt: string;
+    adminNote: string;
+    issueNote: string;
+    status: string;
+  }>) =>
+    adminApiFetch<InboundPackage>(`/admin/inbound-packages/${id}`, { method: 'PATCH', body: data }),
 
-  // Logs
-  getActionLogs: (params?: LogListParams) => {
-    const searchParams = new URLSearchParams();
-    if (params?.adminId) searchParams.set('adminId', params.adminId);
-    if (params?.targetType) searchParams.set('targetType', params.targetType);
-    if (params?.targetId) searchParams.set('targetId', params.targetId);
-    if (params?.page) searchParams.set('page', String(params.page));
-    if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize));
-    const query = searchParams.toString();
-    return adminApiFetch<PaginatedResponse<ActionLog>>(`/admin/action-logs${query ? `?${query}` : ''}`);
-  },
+  assignCustomerToPackage: (id: string, data: { customerCode: string }) =>
+    adminApiFetch<InboundPackage>(`/admin/inbound-packages/${id}/assign-customer`, { method: 'PATCH', body: data }),
+
+  updateInboundPackageStatus: (id: string, data: { status: string }) =>
+    adminApiFetch<InboundPackage>(`/admin/inbound-packages/${id}/status`, { method: 'PATCH', body: data }),
+
+  // Inbound Package images
+  listInboundPackageImages: (id: string) =>
+    adminApiFetch<string[]>(`/admin/inbound-packages/${id}/images`),
+
+  uploadInboundPackageImage: (id: string, file: File) =>
+    adminApiUpload<{ url: string }>(`/admin/inbound-packages/${id}/images`, file),
+
+  deleteInboundPackageImage: (id: string, imageUrl: string) =>
+    adminApiFetch<{ deleted: boolean }>(`/admin/inbound-packages/${id}/images?imageUrl=${encodeURIComponent(imageUrl)}&confirm=DELETE_HARD`, { method: 'DELETE' }),
+
+  // === Customer Shipments ===
+  getCustomerShipments: (params?: { q?: string; status?: string; paymentStatus?: string; customerId?: string; masterShipmentId?: string; unbatched?: boolean; page?: number; pageSize?: number }) =>
+    adminApiFetch<PaginatedResponse<CustomerShipment>>(
+      `/admin/customer-shipments${buildQuery(params || {})}`
+    ),
+
+  getCustomerShipmentById: (id: string) =>
+    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}`),
+
+  createCustomerShipment: (data: CreateCustomerShipmentPayload) =>
+    adminApiFetch<CustomerShipment>('/admin/customer-shipments', { method: 'POST', body: data }),
+
+  updateCustomerShipment: (id: string, data: UpdateCustomerShipmentPayload) =>
+    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}`, { method: 'PATCH', body: data }),
+
+  cancelCustomerShipment: (id: string) =>
+    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}/cancel`, { method: 'PATCH' }),
+
+  updateCustomerShipmentStatus: (id: string, data: { status: string }) =>
+    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}/status`, { method: 'PATCH', body: data }),
+
+  updateCustomerShipmentPaymentStatus: (id: string, data: { paymentStatus: string }) =>
+    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}/payment-status`, { method: 'PATCH', body: data }),
+
+  addItemToShipment: (id: string, data: { inboundPackageId: string }) =>
+    adminApiFetch<unknown>(`/admin/customer-shipments/${id}/items`, { method: 'POST', body: data }),
+
+  removeItemFromShipment: (shipmentId: string, itemId: string) =>
+    adminApiFetch<unknown>(`/admin/customer-shipments/${shipmentId}/items/${itemId}`, { method: 'DELETE' }),
+
+  // Customer Shipment images
+  listCustomerShipmentImages: (id: string) =>
+    adminApiFetch<string[]>(`/admin/customer-shipments/${id}/images`),
+
+  uploadCustomerShipmentImage: (id: string, file: File) =>
+    adminApiUpload<{ url: string }>(`/admin/customer-shipments/${id}/images`, file),
+
+  deleteCustomerShipmentImage: (id: string, imageUrl: string) =>
+    adminApiFetch<{ deleted: boolean }>(`/admin/customer-shipments/${id}/images?imageUrl=${encodeURIComponent(imageUrl)}&confirm=DELETE_HARD`, { method: 'DELETE' }),
+
+  // === Master Shipments ===
+  getMasterShipments: (params?: { q?: string; status?: string; publicVisible?: boolean; page?: number; pageSize?: number }) =>
+    adminApiFetch<PaginatedResponse<MasterShipment>>(
+      `/admin/master-shipments${buildQuery(params || {})}`
+    ),
+
+  getMasterShipmentById: (id: string) =>
+    adminApiFetch<MasterShipment>(`/admin/master-shipments/${id}`),
+
+  createMasterShipment: (data: CreateMasterShipmentPayload) =>
+    adminApiFetch<MasterShipment>('/admin/master-shipments', { method: 'POST', body: data }),
+
+  updateMasterShipmentStatus: (id: string, data: { status: string }) =>
+    adminApiFetch<MasterShipment>(`/admin/master-shipments/${id}/status`, { method: 'PATCH', body: data }),
+
+  addCustomerShipmentsToMaster: (id: string, data: { customerShipmentIds: string[] }) =>
+    adminApiFetch<unknown>(`/admin/master-shipments/${id}/customer-shipments`, { method: 'POST', body: data }),
+
+  removeCustomerShipmentFromMaster: (masterId: string, csId: string) =>
+    adminApiFetch<unknown>(`/admin/master-shipments/${masterId}/customer-shipments/${csId}`, { method: 'DELETE' }),
+
+  updateMasterShipmentPublication: (id: string, data: { publicVisible: boolean; publicTitle?: string; publicSummary?: string; publicStatusText?: string }) =>
+    adminApiFetch<MasterShipment>(`/admin/master-shipments/${id}/publication`, { method: 'PATCH', body: data }),
+
+  // === Transactions ===
+  getTransactions: (params?: { q?: string; customerId?: string; customerShipmentId?: string; type?: string; page?: number; pageSize?: number }) =>
+    adminApiFetch<PaginatedResponse<TransactionRecord>>(
+      `/admin/transactions${buildQuery(params || {})}`
+    ),
+
+  getTransactionById: (id: string) =>
+    adminApiFetch<TransactionRecord>(`/admin/transactions/${id}`),
+
+  createTransaction: (data: CreateTransactionPayload) =>
+    adminApiFetch<TransactionRecord>('/admin/transactions', { method: 'POST', body: data }),
+
+  updateTransaction: (id: string, data: UpdateTransactionPayload) =>
+    adminApiFetch<TransactionRecord>(`/admin/transactions/${id}`, { method: 'PATCH', body: data }),
+
+  // === Master Shipment extended ===
+  updateMasterShipment: (id: string, data: Partial<{ vendorName: string; vendorTrackingNo: string; adminNote: string }>) =>
+    adminApiFetch<MasterShipment>(`/admin/master-shipments/${id}`, { method: 'PATCH', body: data }),
+
+  // === Hard Delete ===
+  hardDeleteCustomer: (id: string) =>
+    adminApiFetch<DeleteResponse>(`/admin/customers/${id}?confirm=DELETE_HARD`, { method: 'DELETE' }),
+
+  hardDeleteInboundPackage: (id: string) =>
+    adminApiFetch<DeleteResponse>(`/admin/inbound-packages/${id}?confirm=DELETE_HARD`, { method: 'DELETE' }),
+
+  hardDeleteCustomerShipment: (id: string) =>
+    adminApiFetch<DeleteResponse>(`/admin/customer-shipments/${id}?confirm=DELETE_HARD`, { method: 'DELETE' }),
+
+  hardDeleteMasterShipment: (id: string) =>
+    adminApiFetch<DeleteResponse>(`/admin/master-shipments/${id}?confirm=DELETE_HARD`, { method: 'DELETE' }),
+
+  hardDeleteTransaction: (id: string) =>
+    adminApiFetch<DeleteResponse>(`/admin/transactions/${id}?confirm=DELETE_HARD`, { method: 'DELETE' }),
 };
-
-// Types
-export interface AdminUser {
-  id: string;
-  username: string;
-  displayName: string;
-  role: string;
-}
-
-export interface DashboardSummary {
-  todayInboundCount: number;
-  pendingUserConfirmCount: number;
-  pendingPaymentCount: number;
-  readyToShipCount: number;
-  shippedTodayCount: number;
-  openExceptionCount: number;
-}
-
-export interface OrderListParams {
-  status?: string;
-  paymentStatus?: string;
-  userCode?: string;
-  orderNo?: string;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface Order {
-  id: string;
-  orderNo: string;
-  userId: string;
-  user?: {
-    id: string;
-    userCode: string;
-    nickname: string;
-  };
-  status: string;
-  paymentStatus: string;
-  packageCount: number;
-  totalActualWeight: number;
-  totalVolumeWeight: number;
-  chargeableWeight: number;
-  estimatedPrice: number;
-  finalPrice: number;
-  currency: string;
-  manualOverride: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateOrderRequest {
-  userCode: string;
-  remark?: string;
-}
-
-export interface UpdateOrderStatusRequest {
-  status: string;
-  override?: boolean;
-  reason?: string;
-}
-
-export interface UpdatePaymentStatusRequest {
-  paymentStatus: string;
-  paymentMethod?: string;
-  amount?: number;
-  remark?: string;
-  reason?: string;
-}
-
-export interface Package {
-  id: string;
-  packageNo: string;
-  orderId: string;
-  domesticTrackingNo: string;
-  sourcePlatform: string;
-  status: string;
-  actualWeight: number;
-  lengthCm: number;
-  widthCm: number;
-  heightCm: number;
-  volumeWeight: number;
-  inboundAt: string;
-}
-
-export interface InboundRecord {
-  id: string;
-  packageId: string;
-  inboundTime: string;
-  operatorAdminId: string;
-  checkResult: string;
-  remark: string;
-}
-
-export interface InboundPackageRequest {
-  userCode: string;
-  orderId?: string;
-  domesticTrackingNo: string;
-  sourcePlatform: string;
-  actualWeight: number;
-  lengthCm: number;
-  widthCm: number;
-  heightCm: number;
-  remark?: string;
-}
-
-export interface ExceptionCase {
-  id: string;
-  type: string;
-  status: string;
-  description: string;
-  orderNo: string;
-  packageNo: string;
-  userCode: string;
-  createdAt: string;
-  resolvedAt?: string;
-}
-
-export interface ExceptionListParams {
-  status?: string;
-  type?: string;
-  userCode?: string;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface UpdateExceptionRequest {
-  status: string;
-  resolutionNote?: string;
-}
-
-export interface ActionLog {
-  id: string;
-  adminId: string;
-  adminName: string;
-  targetType: string;
-  targetId: string;
-  action: string;
-  beforeState: Record<string, unknown>;
-  afterState: Record<string, unknown>;
-  reason?: string;
-  createdAt: string;
-}
-
-export interface LogListParams {
-  adminId?: string;
-  targetType?: string;
-  targetId?: string;
-  page?: number;
-  pageSize?: number;
-}

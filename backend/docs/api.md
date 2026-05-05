@@ -1,9 +1,9 @@
 # Backend API Contract — GJXpress Logistic OS
 
-> Scope: `backend/` API specification  
-> Base API domain: `https://api.gjxpress.net`  
-> Local dev base URL: `http://localhost:3000`  
-> API style: REST JSON  
+> Scope: `backend/` API specification
+> Base API domain: `https://api.gjxpress.net`
+> Local dev base URL: `http://localhost:3000`
+> API style: REST JSON
 > Auth: JWT Bearer token
 
 ---
@@ -1555,3 +1555,693 @@ No version prefix initially.
 ```
 
 Add versioning later when external clients depend on API.
+
+---
+
+## 23. Web Logistics Phase 1 — Admin Core CRUD APIs
+
+> Auth: All endpoints require `Authorization: Bearer <ADMIN_TOKEN>`.
+> No token → 401. Non-admin token → 403.
+> Every response includes header: `X-Request-Id: <uuid>`
+> Error responses include `requestId` in body.
+
+---
+
+## 23.1 Customer API
+
+### POST /api/admin/customers
+
+Create a new customer. `customerCode` is auto-generated (format: `GJ####`, e.g. `GJ0427`). Not a login credential.
+
+**Request:**
+```json
+{
+  "phoneCountryCode": "+86",
+  "phoneNumber": "13800000000",
+  "displayName": "张三",
+  "notes": "内部备注"
+}
+```
+
+**Response 201:**
+```json
+{
+  "id": "uuid",
+  "customerCode": "GJ0427",
+  "phoneCountryCode": "+86",
+  "phoneNumber": "13800000000",
+  "displayName": "张三",
+  "notes": "内部备注",
+  "status": "ACTIVE",
+  "createdAt": "...",
+  "updatedAt": "..."
+}
+```
+
+**Errors:** 409 if phone number already exists.
+
+---
+
+### GET /api/admin/customers
+
+List customers with search and pagination.
+
+**Query params:** `q`, `status` (`ACTIVE`|`DISABLED`), `page`, `pageSize`
+
+`q` searches: `customerCode`, `phoneNumber`, `displayName`
+
+**Response 200:**
+```json
+{
+  "data": [...],
+  "pagination": { "page": 1, "pageSize": 20, "total": 42, "totalPages": 3 }
+}
+```
+
+---
+
+### GET /api/admin/customers/:id
+
+Get customer detail including recent packages, shipments, and counts.
+
+**Response 200:** Full customer object + `inboundPackages[]` (last 20) + `customerShipments[]` (last 10) + `_count`.
+
+**Errors:** 404 if not found.
+
+---
+
+### PATCH /api/admin/customers/:id
+
+Update customer fields. Cannot change `customerCode`.
+
+**Request (all optional):**
+```json
+{
+  "phoneCountryCode": "+1",
+  "phoneNumber": "4155550000",
+  "displayName": "李四",
+  "notes": "更新备注",
+  "status": "ACTIVE"
+}
+```
+
+**Errors:** 404 if not found. 409 if new phone conflicts.
+
+---
+
+### PATCH /api/admin/customers/:id/disable
+
+Soft-disable customer. Sets `status = DISABLED`. **No hard delete.** Customers with associated packages/shipments must never be hard deleted.
+
+**Response 200:**
+```json
+{
+  "data": { "id": "...", "customerCode": "GJ0427", "status": "DISABLED", "updatedAt": "..." }
+}
+```
+
+**Errors:** 404 if not found.
+
+---
+
+## 23.2 InboundPackage API
+
+### POST /api/admin/inbound-packages
+
+Create an inbound package record.
+
+**Request:**
+```json
+{
+  "domesticTrackingNo": "YT123456789",
+  "customerCode": "GJ0427",
+  "warehouseReceivedAt": "2026-05-05T10:00:00.000Z",
+  "weightKg": "1.230",
+  "lengthCm": "20",
+  "widthCm": "15",
+  "heightCm": "10",
+  "labelImageUrl": "https://...",
+  "packageImageUrls": ["https://..."],
+  "adminNote": "内部备注"
+}
+```
+
+**Rules:**
+- If `customerCode` provided and not found → **404** (not silent; do not create as UNCLAIMED silently).
+- If `customerCode` omitted → status defaults to `UNCLAIMED`.
+- `volumeCm3` auto-calculated from `lengthCm * widthCm * heightCm`.
+
+**Response 201:** Package object including `customer` summary.
+
+**Errors:** 404 if customerCode not found. 409 if `domesticTrackingNo` duplicate.
+
+---
+
+### GET /api/admin/inbound-packages
+
+**Query params:** `q`, `status`, `customerId`, `page`, `pageSize`
+
+`q` searches: `domesticTrackingNo`, `customerCode` (via relation)
+
+---
+
+### GET /api/admin/inbound-packages/:id
+
+Returns package detail including `customer`, `shipmentItems` (with shipment info), measurements, and image URLs.
+
+---
+
+### PATCH /api/admin/inbound-packages/:id
+
+General update. All fields optional. If any dimension changes, `volumeCm3` is recalculated.
+
+**Request (all optional):**
+```json
+{
+  "domesticTrackingNo": "...",
+  "warehouseReceivedAt": "...",
+  "weightKg": "...",
+  "lengthCm": "...",
+  "widthCm": "...",
+  "heightCm": "...",
+  "labelImageUrl": "...",
+  "packageImageUrls": ["..."],
+  "issueNote": "...",
+  "adminNote": "...",
+  "status": "ARRIVED_WAREHOUSE"
+}
+```
+
+**Errors:** 404 if not found. 409 if `domesticTrackingNo` conflicts.
+
+---
+
+### PATCH /api/admin/inbound-packages/:id/assign-customer
+
+Bind an unclaimed package to a customer.
+
+**Request:**
+```json
+{ "customerCode": "GJ0427" }
+```
+
+**Rules:** 409 if already assigned. 404 if customerCode not found. Status changes from `UNCLAIMED` → `CLAIMED` (unless `INBOUND_EXCEPTION`).
+
+---
+
+### PATCH /api/admin/inbound-packages/:id/status
+
+Update status only.
+
+**Request:**
+```json
+{ "status": "ARRIVED_WAREHOUSE" }
+```
+
+Valid values: `UNCLAIMED`, `CLAIMED`, `PREALERTED_NOT_ARRIVED`, `ARRIVED_WAREHOUSE`, `PENDING_CONFIRMATION`, `CONFIRMED`, `ISSUE_REPORTED`, `CONSOLIDATED`, `INBOUND_EXCEPTION`
+
+**Errors:** 400 for invalid status.
+
+---
+
+### PATCH /api/admin/inbound-packages/:id/measurements
+
+Update weight/dimensions. Partial update supported. `volumeCm3` auto-recalculated.
+
+**Request (all optional):**
+```json
+{
+  "weightKg": "1.500",
+  "lengthCm": "25",
+  "widthCm": "20",
+  "heightCm": "15"
+}
+```
+
+---
+
+## 23.3 CustomerShipment API
+
+### POST /api/admin/customer-shipments
+
+Create a customer shipment (集运单).
+
+**Request:**
+```json
+{
+  "customerId": "uuid",
+  "inboundPackageIds": ["uuid1", "uuid2"],
+  "notes": "内部备注"
+}
+```
+
+**Rules:**
+- `shipmentNo` auto-generated: `GJS{yyyyMMdd}{3-digit-rand}` e.g. `GJS20260505001`.
+- Packages must belong to same customer.
+- Packages already in another shipment → 409.
+- Packages added → their status set to `CONSOLIDATED`.
+- Default `status=DRAFT`, `paymentStatus=UNPAID`.
+
+---
+
+### GET /api/admin/customer-shipments
+
+**Query params:** `q`, `status`, `paymentStatus`, `customerId`, `masterShipmentId`, `page`, `pageSize`
+
+`q` searches: `shipmentNo`, `customerCode`, `phoneNumber`
+
+---
+
+### GET /api/admin/customer-shipments/:id
+
+Returns shipment with `customer`, `items` (with package details), `masterShipment`, `transactions`.
+
+---
+
+### PATCH /api/admin/customer-shipments/:id
+
+General update.
+
+**Request (all optional):**
+```json
+{
+  "notes": "...",
+  "internationalTrackingNo": "...",
+  "publicTrackingEnabled": true,
+  "status": "PACKED",
+  "paymentStatus": "PAID"
+}
+```
+
+If `status` is set, timestamp fields are auto-populated (see status endpoint rules). If a timestamp is already set, it is not overwritten.
+
+---
+
+### PATCH /api/admin/customer-shipments/:id/cancel
+
+Cancel a shipment (soft cancel). Sets status to `EXCEPTION`. Restores all package statuses to `CLAIMED`.
+
+**Rules:** Cannot cancel if status is `SENT_TO_OVERSEAS` or later.
+
+**Response 200:**
+```json
+{ "data": { "id": "...", "status": "EXCEPTION", "cancelled": true } }
+```
+
+**Errors:** 409 if already in transit/completed.
+
+---
+
+### PATCH /api/admin/customer-shipments/:id/status
+
+Update status with automatic timestamp population.
+
+**Request:**
+```json
+{ "status": "SENT_TO_OVERSEAS", "forcedAt": "2026-05-05T10:00:00.000Z" }
+```
+
+Auto-populated timestamps (only if not already set):
+
+| Status | Field set |
+|---|---|
+| `SENT_TO_OVERSEAS` | `sentToOverseasAt` |
+| `ARRIVED_OVERSEAS` | `arrivedOverseasAt` |
+| `LOCAL_DELIVERY_REQUESTED` | `localDeliveryRequestedAt` |
+| `PICKED_UP` | `pickedUpAt` |
+| `COMPLETED` | `completedAt` |
+
+`forcedAt` (optional) overrides the timestamp value. **Errors:** 400 for invalid status.
+
+---
+
+### PATCH /api/admin/customer-shipments/:id/payment-status
+
+Update payment status only. **No online payment integration.** Manual record only.
+
+**Request:**
+```json
+{ "paymentStatus": "PAID" }
+```
+
+Valid values: `UNPAID`, `PROCESSING`, `PENDING`, `PAID`, `WAIVED`, `REFUNDED`
+
+---
+
+### POST /api/admin/customer-shipments/:id/items
+
+Add an inbound package to the shipment.
+
+**Request:**
+```json
+{ "inboundPackageId": "uuid" }
+```
+
+**Rules:** Package must belong to same customer. 409 if already in another shipment. Package status set to `CONSOLIDATED`.
+
+---
+
+### DELETE /api/admin/customer-shipments/:id/items/:itemId
+
+Remove a package from the shipment.
+
+**Rules:** Cannot remove if shipment status is `SENT_TO_OVERSEAS` or later → 409. Package status restored to `CLAIMED`.
+
+---
+
+## 23.4 Delete / Archive Policy
+
+| Resource | Hard Delete | Soft Disable/Cancel | Reason |
+|---|---|---|---|
+| Customer | ❌ Never | ✅ `PATCH /:id/disable` (status=DISABLED) | Has packages/shipments |
+| InboundPackage | ❌ Never | ❌ Not implemented (no `archivedAt` in schema) | Avoid business record loss |
+| CustomerShipment | ❌ Never | ✅ `PATCH /:id/cancel` (status=EXCEPTION) | Cannot delete in-transit |
+| CustomerShipmentItem | N/A | ✅ `DELETE /:id/items/:itemId` (blocked if in transit) | Restores package to CLAIMED |
+
+---
+
+## 23.5 Error Response Shape
+
+All error responses from admin APIs:
+
+```json
+{
+  "statusCode": 409,
+  "error": "ConflictException",
+  "message": "Phone number already exists",
+  "requestId": "abc-123-uuid",
+  "timestamp": "2026-05-05T10:00:00.000Z",
+  "path": "/api/admin/customers"
+}
+```
+
+- `requestId` matches the `X-Request-Id` response header.
+- Stack traces never returned to client.
+- 400: validation/bad enum. 401: no token. 403: user token on admin route. 404: entity not found. 409: conflict (duplicate/locked).
+
+---
+
+## 23.6 curl Quick Reference
+
+```bash
+ADMIN_TOKEN="<ADMIN_TOKEN>"
+BASE="http://localhost:3000/api"
+
+# Customers
+curl -s -X POST "$BASE/admin/customers" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber":"13800000001","displayName":"测试客户"}'
+
+curl -s "$BASE/admin/customers?q=GJ&page=1&pageSize=10" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+curl -s "$BASE/admin/customers/<id>" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+curl -s -X PATCH "$BASE/admin/customers/<id>" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"displayName":"新名字"}'
+
+curl -s -X PATCH "$BASE/admin/customers/<id>/disable" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# InboundPackages
+curl -s -X POST "$BASE/admin/inbound-packages" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"domesticTrackingNo":"YT999","customerCode":"GJ0001","weightKg":"1.5","lengthCm":"20","widthCm":"15","heightCm":"10"}'
+
+curl -s "$BASE/admin/inbound-packages?status=UNCLAIMED" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+curl -s -X PATCH "$BASE/admin/inbound-packages/<id>" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"adminNote":"已确认重量"}'
+
+curl -s -X PATCH "$BASE/admin/inbound-packages/<id>/assign-customer" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"customerCode":"GJ0001"}'
+
+# CustomerShipments
+curl -s -X POST "$BASE/admin/customer-shipments" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"customerId":"<uuid>","inboundPackageIds":["<pkg-uuid>"]}'
+
+curl -s "$BASE/admin/customer-shipments?status=DRAFT" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+curl -s -X PATCH "$BASE/admin/customer-shipments/<id>/status" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"PACKED"}'
+
+curl -s -X PATCH "$BASE/admin/customer-shipments/<id>/payment-status" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"paymentStatus":"PAID"}'
+
+# Check X-Request-Id in response
+curl -si "$BASE/admin/customers" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | grep -i x-request-id
+```
+
+---
+
+## 24. Web Logistics Phase 2 — Images, Billing & Batch Management
+
+> Auth: All endpoints require admin JWT.
+> Image uploads use `multipart/form-data` (field name: `file`).
+> Max image size: **10 MB**. Allowed MIME: `image/jpeg`, `image/png`, `image/webp`, `image/heic`.
+> Images stored in Supabase Storage (`SUPABASE_ADMIN_IMAGE_BUCKET`). Public URLs are stable and stored in `imageUrls[]`.
+
+---
+
+## 24.1 InboundPackage — Image Endpoints
+
+### GET /api/admin/inbound-packages/:id/images
+
+List image URLs for an inbound package.
+
+**Response 200:**
+```json
+{ "items": ["https://storage.url/..."] }
+```
+
+---
+
+### POST /api/admin/inbound-packages/:id/images
+
+Upload a new image. Multipart form-data, field `file`.
+
+**Response 201:**
+```json
+{ "url": "https://storage.url/...", "imageUrls": ["https://..."] }
+```
+
+**Errors:** 400 for missing file, unsupported MIME type, or file > 10 MB. 404 if package not found.
+
+---
+
+### DELETE /api/admin/inbound-packages/:id/images?imageUrl=<encoded-url>&confirm=DELETE_HARD
+
+Delete an image. Removes from Supabase Storage and from `imageUrls[]`.
+
+**Query params:**
+| Param | Required | Description |
+|---|---|---|
+| `imageUrl` | yes | Full public URL of the image to delete |
+| `confirm` | yes | Must be `DELETE_HARD` |
+
+**Response 200:**
+```json
+{ "deleted": true, "url": "https://...", "imageUrls": ["https://..."] }
+```
+
+**Errors:** 400 if `confirm` missing or invalid, `imageUrl` missing, or URL not in package. 404 if package not found.
+
+---
+
+## 24.2 CustomerShipment — Image Endpoints
+
+### GET /api/admin/customer-shipments/:id/images
+
+List image URLs for a customer shipment.
+
+**Response 200:**
+```json
+{ "items": ["https://storage.url/..."] }
+```
+
+---
+
+### POST /api/admin/customer-shipments/:id/images
+
+Upload a new image. Multipart form-data, field `file`.
+
+**Response 201:**
+```json
+{ "url": "https://storage.url/...", "imageUrls": ["https://..."] }
+```
+
+**Errors:** 400 for missing file, unsupported MIME type, or file > 10 MB. 404 if shipment not found.
+
+---
+
+### DELETE /api/admin/customer-shipments/:id/images?imageUrl=<encoded-url>&confirm=DELETE_HARD
+
+Delete an image. Removes from Supabase Storage and from `imageUrls[]`.
+
+**Query params:**
+| Param | Required | Description |
+|---|---|---|
+| `imageUrl` | yes | Full public URL of the image to delete |
+| `confirm` | yes | Must be `DELETE_HARD` |
+
+**Response 200:**
+```json
+{ "deleted": true, "url": "https://...", "imageUrls": ["https://..."] }
+```
+
+---
+
+## 24.3 CustomerShipment — Billing Fields
+
+Billing fields can be set on **create** (`POST`) and **update** (`PATCH`). All are optional strings (store as text to avoid float precision issues on client side).
+
+| Field | Description |
+|---|---|
+| `actualWeightKg` | Measured weight in kg |
+| `volumeFormula` | Formula string e.g. `"30x20x15/6000"` |
+| `billingRateCnyPerKg` | Rate per kg in CNY e.g. `"28.5"` |
+| `billingWeightKg` | Chargeable weight after formula e.g. `"2.1"` |
+
+**Create example:**
+```json
+{
+  "customerId": "uuid",
+  "inboundPackageIds": ["uuid"],
+  "actualWeightKg": "1.800",
+  "volumeFormula": "30x20x15/6000",
+  "billingRateCnyPerKg": "28.5",
+  "billingWeightKg": "2.1"
+}
+```
+
+**Update example:**
+```json
+{
+  "actualWeightKg": "2.100",
+  "billingWeightKg": "2.1",
+  "billingRateCnyPerKg": "30.0"
+}
+```
+
+---
+
+## 24.4 CustomerShipment — Unbatched Filter
+
+Get shipments not yet associated with any `MasterShipment`:
+
+```http
+GET /api/admin/customer-shipments?unbatched=true
+```
+
+Combine with other filters: `status`, `paymentStatus`, `customerId`, `q`, `page`, `pageSize`.
+
+---
+
+## 24.5 MasterShipment — Create with Batch
+
+### POST /api/admin/master-shipments
+
+Create a batch and atomically link customer shipments.
+
+**Request:**
+```json
+{
+  "vendorName": "DHL",
+  "vendorTrackingNo": "DHL1234567890",
+  "customerShipmentIds": ["uuid1", "uuid2"],
+  "adminNote": "First batch of May"
+}
+```
+
+**Rules:**
+- `vendorName`, `vendorTrackingNo`, `customerShipmentIds` are all **required**.
+- `customerShipmentIds` must be non-empty.
+- No duplicate IDs in the array → 400.
+- All IDs must exist → 404 with list of missing IDs.
+- None of the shipments may already belong to another batch → 409 with conflicting IDs.
+- Creation and linking happen in a single database transaction.
+
+**Response 201:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "batchNo": "GJB20260515001",
+    "vendorName": "DHL",
+    "vendorTrackingNo": "DHL1234567890",
+    "status": "CREATED",
+    "adminNote": "First batch of May",
+    "customerShipments": [
+      {
+        "id": "uuid1",
+        "shipmentNo": "GJS20260515001",
+        "status": "DRAFT",
+        "paymentStatus": "UNPAID",
+        "customer": { "id": "...", "customerCode": "GJ0001", "wechatId": "wx123" }
+      }
+    ],
+    "createdAt": "...",
+    "updatedAt": "..."
+  }
+}
+```
+
+**Errors:** 400 for missing/empty fields or duplicate IDs. 404 for unknown shipment IDs. 409 for already-batched shipments.
+
+---
+
+## 24.6 curl Quick Reference — Phase 2
+
+```bash
+ADMIN_TOKEN="<ADMIN_TOKEN>"
+BASE="http://localhost:3000/api"
+PKG_ID="<inbound-package-id>"
+CS_ID="<customer-shipment-id>"
+
+# Upload image to inbound package
+curl -s -X POST "$BASE/admin/inbound-packages/$PKG_ID/images" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -F "file=@/tmp/package_photo.jpg"
+
+# List images of inbound package
+curl -s "$BASE/admin/inbound-packages/$PKG_ID/images" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# Delete image from inbound package
+IMAGE_URL="https://...supabase.co/storage/v1/object/public/..."
+curl -s -X DELETE "$BASE/admin/inbound-packages/$PKG_ID/images?imageUrl=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$IMAGE_URL")&confirm=DELETE_HARD" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# Upload image to customer shipment
+curl -s -X POST "$BASE/admin/customer-shipments/$CS_ID/images" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -F "file=@/tmp/shipment_label.jpg"
+
+# List unbatched customer shipments
+curl -s "$BASE/admin/customer-shipments?unbatched=true&status=PACKED" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# Create master shipment batch
+curl -s -X POST "$BASE/admin/master-shipments" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"vendorName":"DHL","vendorTrackingNo":"DHL123456","customerShipmentIds":["<uuid1>","<uuid2>"]}'
+```

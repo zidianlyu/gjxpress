@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Package, Loader2 } from 'lucide-react';
-import { adminAuth } from '@/lib/api/admin';
+import { adminLogin } from '@/lib/api/admin';
+import { ApiError } from '@/lib/api/client';
 import { SITE_CONFIG } from '@/lib/constants';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
+  const [phoneCountryCode, setPhoneCountryCode] = useState('+86');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -20,10 +22,14 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      await adminAuth.login(username, password);
-      router.push('/admin/dashboard');
+      await adminLogin({ phoneCountryCode, phoneNumber, password });
+      router.push('/admin');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '登录失败');
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('登录失败，请稍后重试');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -50,18 +56,28 @@ export default function AdminLoginPage() {
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="username" className="block text-sm font-medium mb-1.5">
-            用户名
+          <label htmlFor="phone" className="block text-sm font-medium mb-1.5">
+            手机号
           </label>
-          <input
-            id="username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            className="w-full px-3 py-2 rounded-md border bg-background"
-            placeholder="请输入用户名"
-          />
+          <div className="flex gap-2">
+            <select
+              value={phoneCountryCode}
+              onChange={(e) => setPhoneCountryCode(e.target.value)}
+              className="w-20 px-2 py-2 rounded-md border bg-background text-sm"
+            >
+              <option value="+86">+86</option>
+              <option value="+1">+1</option>
+            </select>
+            <input
+              id="phone"
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              required
+              className="flex-1 px-3 py-2 rounded-md border bg-background"
+              placeholder="请输入手机号"
+            />
+          </div>
         </div>
 
         <div>

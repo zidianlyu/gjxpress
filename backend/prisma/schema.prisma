@@ -46,9 +46,68 @@ enum PackageStatus {
 enum PaymentStatus {
   UNPAID
   PROCESSING
+  PENDING
   PAID
   REFUNDED
   WAIVED
+}
+
+enum AdminRole {
+  OWNER
+  ADMIN
+  WAREHOUSE_STAFF
+  US_STAFF
+  VIEWER
+}
+
+enum AdminStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum CustomerStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum InboundPackageStatus {
+  UNCLAIMED
+  CLAIMED
+  PREALERTED_NOT_ARRIVED
+  ARRIVED_WAREHOUSE
+  PENDING_CONFIRMATION
+  CONFIRMED
+  ISSUE_REPORTED
+  CONSOLIDATED
+  INBOUND_EXCEPTION
+}
+
+enum CustomerShipmentStatus {
+  DRAFT
+  PACKED
+  SENT_TO_OVERSEAS
+  ARRIVED_OVERSEAS
+  READY_FOR_PICKUP
+  LOCAL_DELIVERY_REQUESTED
+  LOCAL_DELIVERY_IN_PROGRESS
+  PICKED_UP
+  COMPLETED
+  EXCEPTION
+}
+
+enum MasterShipmentStatus {
+  CREATED
+  HANDED_TO_VENDOR
+  IN_TRANSIT
+  TRANSFER_OR_CUSTOMS_PROCESSING
+  ARRIVED_OVERSEAS
+  CLOSED
+  EXCEPTION
+}
+
+enum TransactionType {
+  SHIPPING_FEE
+  REFUND
 }
 
 enum SourcePlatform {
@@ -150,7 +209,7 @@ model User {
   addressUsages AddressUsage[]
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userCode])
   @@index([createdAt])
@@ -170,7 +229,7 @@ model Admin {
   shipments      Shipment[]
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([role])
   @@index([isActive])
@@ -186,11 +245,11 @@ model Order {
   status        OrderStatus   @default(UNINBOUND)
   paymentStatus PaymentStatus @default(UNPAID) @map("payment_status")
 
-  totalActualWeight Decimal? @db.Decimal(10, 2) @map("total_actual_weight")
-  totalVolumeWeight Decimal? @db.Decimal(10, 2) @map("total_volume_weight")
-  chargeableWeight  Decimal? @db.Decimal(10, 2) @map("chargeable_weight")
-  estimatedPrice    Decimal? @db.Decimal(10, 2) @map("estimated_price")
-  finalPrice        Decimal? @db.Decimal(10, 2) @map("final_price")
+  totalActualWeight Decimal? @map("total_actual_weight") @db.Decimal(10, 2)
+  totalVolumeWeight Decimal? @map("total_volume_weight") @db.Decimal(10, 2)
+  chargeableWeight  Decimal? @map("chargeable_weight") @db.Decimal(10, 2)
+  estimatedPrice    Decimal? @map("estimated_price") @db.Decimal(10, 2)
+  finalPrice        Decimal? @map("final_price") @db.Decimal(10, 2)
   currency          String   @default("USD")
 
   manualOverride Boolean @default(false) @map("manual_override")
@@ -205,7 +264,7 @@ model Order {
   statusLogs     OrderStatusLog[]
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
   @@index([orderNo])
@@ -225,11 +284,11 @@ model Package {
   sourcePlatform     SourcePlatform @default(OTHER) @map("source_platform")
   status             PackageStatus  @default(CREATED)
 
-  actualWeight Decimal? @db.Decimal(10, 2) @map("actual_weight")
-  lengthCm     Decimal? @db.Decimal(10, 2) @map("length_cm")
-  widthCm      Decimal? @db.Decimal(10, 2) @map("width_cm")
-  heightCm     Decimal? @db.Decimal(10, 2) @map("height_cm")
-  volumeWeight Decimal? @db.Decimal(10, 2) @map("volume_weight")
+  actualWeight Decimal? @map("actual_weight") @db.Decimal(10, 2)
+  lengthCm     Decimal? @map("length_cm") @db.Decimal(10, 2)
+  widthCm      Decimal? @map("width_cm") @db.Decimal(10, 2)
+  heightCm     Decimal? @map("height_cm") @db.Decimal(10, 2)
+  volumeWeight Decimal? @map("volume_weight") @db.Decimal(10, 2)
 
   inboundAt       DateTime? @map("inbound_at")
   userConfirmedAt DateTime? @map("user_confirmed_at")
@@ -241,7 +300,7 @@ model Package {
   exceptions     ExceptionCase[]
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([orderId])
   @@index([packageNo])
@@ -263,7 +322,7 @@ model GoodsItem {
   remark                String?
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([packageId])
   @@index([category])
@@ -312,7 +371,7 @@ model InboundRecord {
   inboundTime DateTime @default(now()) @map("inbound_time")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([packageId])
   @@index([operatorAdminId])
@@ -335,7 +394,7 @@ model PaymentRecord {
   confirmedAt        DateTime?     @map("confirmed_at")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([orderId])
   @@index([paymentStatus])
@@ -360,7 +419,7 @@ model Shipment {
   events LogisticsTrackingEvent[]
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([provider])
   @@index([trackingNumber])
@@ -413,12 +472,12 @@ model QrScanLog {
   qrCodeId String @map("qr_code_id")
   qrCode   QrCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
 
-  scanUserId   String?  @map("scan_user_id")
-  scanUser     User?    @relation(fields: [scanUserId], references: [id])
-  isAuthorized Boolean  @map("is_authorized")
+  scanUserId   String? @map("scan_user_id")
+  scanUser     User?   @relation(fields: [scanUserId], references: [id])
+  isAuthorized Boolean @map("is_authorized")
   result       String?
-  ipAddress    String?  @map("ip_address")
-  userAgent    String?  @map("user_agent")
+  ipAddress    String? @map("ip_address")
+  userAgent    String? @map("user_agent")
 
   scannedAt DateTime @default(now()) @map("scanned_at")
 
@@ -441,12 +500,12 @@ model ExceptionCase {
   description String?
   resolution  String?
 
-  createdByUserId  String? @map("created_by_user_id")
-  createdByAdminId String? @map("created_by_admin_id")
+  createdByUserId  String?   @map("created_by_user_id")
+  createdByAdminId String?   @map("created_by_admin_id")
   resolvedAt       DateTime? @map("resolved_at")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([orderId])
   @@index([packageId])
@@ -464,11 +523,11 @@ model AdminActionLog {
   targetType  AdminActionTargetType @map("target_type")
   targetId    String                @map("target_id")
   action      String
-  beforeState Json?   @map("before_state")
-  afterState  Json?   @map("after_state")
+  beforeState Json?                 @map("before_state")
+  afterState  Json?                 @map("after_state")
   reason      String?
-  ipAddress   String? @map("ip_address")
-  userAgent   String? @map("user_agent")
+  ipAddress   String?               @map("ip_address")
+  userAgent   String?               @map("user_agent")
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -526,7 +585,7 @@ model WarehouseAddress {
   remark       String?
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([isActive])
   @@map("warehouse_addresses")
@@ -554,11 +613,11 @@ model Notification {
 }
 
 model Recommendation {
-  id      String @id @default(cuid())
-  slug    String @unique
-  title   String
-  summary String?
-  body    String?
+  id       String   @id @default(cuid())
+  slug     String   @unique
+  title    String
+  summary  String?
+  body     String?
   category String?
   city     String?
   tags     String[] @default([])
@@ -569,7 +628,7 @@ model Recommendation {
 
   publishedAt DateTime? @map("published_at")
   createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt      @map("updated_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@index([slug])
   @@index([status])
@@ -577,4 +636,183 @@ model Recommendation {
   @@index([city])
   @@index([publishedAt])
   @@map("recommendations")
+}
+
+// ─── Web Logistics Phase 1 Models ─────────────────────────────────────────────
+
+model AdminAccount {
+  id               String      @id @default(uuid()) @db.Uuid
+  phoneCountryCode String      @default("+86") @map("phone_country_code") @db.VarChar(8)
+  phoneNumber      String      @map("phone_number") @db.VarChar(32)
+  passwordHash     String      @map("password_hash")
+  role             AdminRole   @default(ADMIN)
+  status           AdminStatus @default(ACTIVE)
+  displayName      String?     @map("display_name") @db.VarChar(64)
+  lastLoginAt      DateTime?   @map("last_login_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  @@unique([phoneCountryCode, phoneNumber], map: "admin_accounts_phone_unique")
+  @@index([role])
+  @@index([status])
+  @@map("admin_accounts")
+}
+
+model Customer {
+  id               String         @id @default(uuid()) @db.Uuid
+  customerCode     String         @unique @map("customer_code") @db.VarChar(16)
+  phoneCountryCode String         @default("+86") @map("phone_country_code") @db.VarChar(8)
+  phoneNumber      String         @map("phone_number") @db.VarChar(32)
+  wechatId         String?        @map("wechat_id") @db.VarChar(64)
+  notes            String?
+  status           CustomerStatus @default(ACTIVE)
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  inboundPackages   InboundPackage[]
+  customerShipments CustomerShipment[]
+  transactions      TransactionRecord[]
+
+  @@unique([phoneCountryCode, phoneNumber], map: "customers_phone_unique")
+  @@index([customerCode])
+  @@index([phoneNumber])
+  @@index([wechatId])
+  @@index([status])
+  @@map("customers")
+}
+
+model InboundPackage {
+  id                 String               @id @default(uuid()) @db.Uuid
+  domesticTrackingNo String?              @unique @map("domestic_tracking_no") @db.VarChar(64)
+  customerId         String?              @map("customer_id") @db.Uuid
+  customer           Customer?            @relation(fields: [customerId], references: [id])
+  status             InboundPackageStatus @default(UNCLAIMED)
+
+  warehouseReceivedAt DateTime? @map("warehouse_received_at")
+  imageUrls           String[]  @default([]) @map("image_urls")
+  issueNote           String?   @map("issue_note")
+  adminNote           String?   @map("admin_note")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  shipmentItems CustomerShipmentItem[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([domesticTrackingNo])
+  @@map("inbound_packages")
+}
+
+model CustomerShipment {
+  id         String @id @default(uuid()) @db.Uuid
+  shipmentNo String @unique @map("shipment_no") @db.VarChar(32)
+
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  masterShipmentId String?         @map("master_shipment_id") @db.Uuid
+  masterShipment   MasterShipment? @relation(fields: [masterShipmentId], references: [id])
+
+  status        CustomerShipmentStatus @default(DRAFT)
+  paymentStatus PaymentStatus          @default(UNPAID) @map("payment_status")
+
+  internationalTrackingNo String? @map("international_tracking_no") @db.VarChar(128)
+  publicTrackingEnabled   Boolean @default(true) @map("public_tracking_enabled")
+
+  sentToOverseasAt         DateTime? @map("sent_to_overseas_at")
+  arrivedOverseasAt        DateTime? @map("arrived_overseas_at")
+  localDeliveryRequestedAt DateTime? @map("local_delivery_requested_at")
+  pickedUpAt               DateTime? @map("picked_up_at")
+  completedAt              DateTime? @map("completed_at")
+
+  actualWeightKg      Decimal? @map("actual_weight_kg") @db.Decimal(10, 3)
+  volumeFormula       String?  @map("volume_formula") @db.VarChar(128)
+  billingRateCnyPerKg Decimal? @map("billing_rate_cny_per_kg") @db.Decimal(10, 2)
+  billingWeightKg     Decimal? @map("billing_weight_kg") @db.Decimal(10, 3)
+  imageUrls           String[] @default([]) @map("image_urls")
+
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  items        CustomerShipmentItem[]
+  transactions TransactionRecord[]
+
+  @@index([customerId])
+  @@index([masterShipmentId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@map("customer_shipments")
+}
+
+model CustomerShipmentItem {
+  id                 String @id @default(uuid()) @db.Uuid
+  customerShipmentId String @map("customer_shipment_id") @db.Uuid
+  inboundPackageId   String @map("inbound_package_id") @db.Uuid
+
+  customerShipment CustomerShipment @relation(fields: [customerShipmentId], references: [id])
+  inboundPackage   InboundPackage   @relation(fields: [inboundPackageId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([inboundPackageId])
+  @@unique([customerShipmentId, inboundPackageId])
+  @@index([customerShipmentId])
+  @@map("customer_shipment_items")
+}
+
+model MasterShipment {
+  id      String @id @default(uuid()) @db.Uuid
+  batchNo String @unique @map("batch_no") @db.VarChar(32)
+
+  vendorName       String @map("vendor_name") @db.VarChar(64)
+  vendorTrackingNo String @map("vendor_tracking_no") @db.VarChar(128)
+
+  status MasterShipmentStatus @default(CREATED)
+
+  publicVisible    Boolean   @default(false) @map("public_visible")
+  publicTitle      String?   @map("public_title") @db.VarChar(128)
+  publicSummary    String?   @map("public_summary")
+  publicStatusText String?   @map("public_status_text") @db.VarChar(128)
+  publishedAt      DateTime? @map("published_at")
+
+  handedToVendorAt  DateTime? @map("handed_to_vendor_at")
+  arrivedOverseasAt DateTime? @map("arrived_overseas_at")
+  closedAt          DateTime? @map("closed_at")
+  adminNote         String?   @map("admin_note")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  customerShipments CustomerShipment[]
+
+  @@index([status])
+  @@index([publicVisible])
+  @@index([batchNo])
+  @@map("master_shipments")
+}
+
+model TransactionRecord {
+  id String @id @default(uuid()) @db.Uuid
+
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  customerShipmentId String           @map("customer_shipment_id") @db.Uuid
+  customerShipment   CustomerShipment @relation(fields: [customerShipmentId], references: [id])
+
+  type        TransactionType @default(REFUND)
+  amountCents Int             @map("amount_cents")
+
+  adminNote  String?  @map("admin_note")
+  occurredAt DateTime @default(now()) @map("occurred_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([customerId])
+  @@index([customerShipmentId])
+  @@index([occurredAt])
+  @@map("transaction_records")
 }
