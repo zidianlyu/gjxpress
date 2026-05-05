@@ -1,3 +1,22 @@
+/* 品牌区域 - 补充样式 */
+.brand-row {
+  display: flex;
+  align-items: center;
+}
+
+.brand-logo {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 20rpx;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.brand-text {
+  flex: 1;
+}
+
 .loading {
   display: flex;
   justify-content: center;

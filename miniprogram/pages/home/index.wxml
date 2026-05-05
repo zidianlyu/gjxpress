@@ -1,8 +1,18 @@
 <view class="page-container">
   <!-- 品牌区域 -->
   <view class="brand-section">
-    <view class="brand-name">广骏供应链服务</view>
-    <view class="brand-slogan">看得见的跨境物流</view>
+    <view class="brand-row">
+      <image
+        class="brand-logo"
+        src="/assets/images/logo-gj.jpg"
+        mode="aspectFill"
+        lazy-load
+      />
+      <view class="brand-text">
+        <view class="brand-name">广骏供应链服务</view>
+        <view class="brand-slogan">看得见的跨境物流</view>
+      </view>
+    </view>
   </view>
 
   <!-- 加载状态 -->
