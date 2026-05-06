@@ -1,23 +1,22 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Ship, Scale, Package, DollarSign, CheckCircle } from 'lucide-react';
-import { SITE_CONFIG } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: '中美海运服务',
-  description: `了解${SITE_CONFIG.brandDisplayName}的中美海运服务：适合大件重货，经济实惠，支持合单，入库拍照确认。`,
+  title: '海运服务｜广骏国际快运',
+  description: '了解广骏国际快运的中美海运服务：适合大件重货，支持合箱出库，入库拍照记录。',
 };
 
 const features = [
   {
     icon: DollarSign,
     title: '经济实惠',
-    description: '相比空运，海运价格更实惠，适合大件重货',
+    description: '相比空运，海运费用参考价更低，适合大件重货',
   },
   {
     icon: Package,
     title: '支持合单',
-    description: '多个包裹可以合并为一个订单发货，节省运费',
+    description: '多个包裹可以合箱整理后一起出库，可能节省费用',
   },
   {
     icon: Scale,
@@ -45,7 +44,7 @@ export default function SeaFreightPage() {
     <>
       {/* Header */}
       <section className="py-16 md:py-24 bg-gradient-to-b from-amber-50 to-white">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 mx-auto mb-6">
               <Ship className="h-8 w-8 text-amber-600" />
@@ -60,7 +59,7 @@ export default function SeaFreightPage() {
 
       {/* Features */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature) => (
               <div key={feature.title} className="flex flex-col items-center text-center p-6">
@@ -77,7 +76,7 @@ export default function SeaFreightPage() {
 
       {/* Suitable For */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-12">适合哪些包裹</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -94,13 +93,13 @@ export default function SeaFreightPage() {
 
       {/* Package Consolidation */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-12">包裹合单服务</h2>
             <div className="p-8 rounded-lg border bg-card">
               <p className="text-muted-foreground mb-6">
-                海运服务支持包裹合单，您可以在国内电商平台多次下单，
-                包裹到达国内仓后先暂存，待所有包裹到齐后合并为一个订单发货。
+                海运服务支持包裹合箱整理，您可以在国内电商平台多次下单，
+                包裹到达国内仓后先暂存，待所有包裹到齐后合箱整理并安排出库。
               </p>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -126,8 +125,8 @@ export default function SeaFreightPage() {
                     3
                   </div>
                   <div>
-                    <p className="font-medium">确认合单</p>
-                    <p className="text-sm text-muted-foreground">在小程序中确认所有包裹无误后申请合单发货</p>
+                    <p className="font-medium">确认合箱</p>
+                    <p className="text-sm text-muted-foreground">工作人员确认所有包裹无误后安排合箱整理</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -135,8 +134,8 @@ export default function SeaFreightPage() {
                     4
                   </div>
                   <div>
-                    <p className="font-medium">合并发货</p>
-                    <p className="text-sm text-muted-foreground">仓库将多个包裹合并打包，按总重量计费发货</p>
+                    <p className="font-medium">合箱出库</p>
+                    <p className="text-sm text-muted-foreground">仓库将多个包裹合箱打包，按计费重量确认费用</p>
                   </div>
                 </div>
               </div>
@@ -147,7 +146,7 @@ export default function SeaFreightPage() {
 
       {/* Chargeable Weight */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-12">计费重量说明</h2>
             <div className="space-y-4">
@@ -165,8 +164,8 @@ export default function SeaFreightPage() {
             </div>
             <div className="mt-8 p-6 rounded-lg bg-amber-50 border border-amber-200">
               <p className="text-sm text-amber-800">
-                <strong>提示：</strong> 海运同样按照计费重量收费。
-                合单后按总重量计费，相比单独发货可以节省费用。
+                <strong>提示：</strong> 海运同样按照计费重量确认费用。
+                合箱后按总计费重量确认，可能相比单独发货更经济。
               </p>
             </div>
           </div>
@@ -175,7 +174,7 @@ export default function SeaFreightPage() {
 
       {/* Workflow */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-3xl font-bold tracking-tight mb-8">海运流程</h2>
             <div className="text-left space-y-6">
@@ -193,8 +192,8 @@ export default function SeaFreightPage() {
                   2
                 </div>
                 <div>
-                  <h3 className="font-semibold">确认所有包裹</h3>
-                  <p className="text-sm text-muted-foreground">在小程序查看所有包裹照片并确认</p>
+                  <h3 className="font-semibold">确认包裹信息</h3>
+                  <p className="text-sm text-muted-foreground">工作人员核对包裹信息并确认</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -202,8 +201,8 @@ export default function SeaFreightPage() {
                   3
                 </div>
                 <div>
-                  <h3 className="font-semibold">申请合单</h3>
-                  <p className="text-sm text-muted-foreground">确认合单发货并支付</p>
+                  <h3 className="font-semibold">合箱整理与费用确认</h3>
+                  <p className="text-sm text-muted-foreground">合箱打包后确认计费重量和费用</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -211,8 +210,8 @@ export default function SeaFreightPage() {
                   4
                 </div>
                 <div>
-                  <h3 className="font-semibold">仓库合单打包</h3>
-                  <p className="text-sm text-muted-foreground">将多个包裹合并打包</p>
+                  <h3 className="font-semibold">安排海运出库</h3>
+                  <p className="text-sm text-muted-foreground">安排海运并记录物流状态</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -229,8 +228,8 @@ export default function SeaFreightPage() {
                   6
                 </div>
                 <div>
-                  <h3 className="font-semibold">收货确认</h3>
-                  <p className="text-sm text-muted-foreground">包裹到达后扫码确认收货</p>
+                  <h3 className="font-semibold">美国段取货</h3>
+                  <p className="text-sm text-muted-foreground">到达美国后根据通知安排取货</p>
                 </div>
               </div>
             </div>
@@ -240,11 +239,11 @@ export default function SeaFreightPage() {
 
       {/* CTA */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight">了解更多</h2>
             <p className="mt-4 text-muted-foreground">
-              联系客服获取海运服务的详细信息
+              了解其他服务或查看合规说明
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -254,10 +253,10 @@ export default function SeaFreightPage() {
                 查看空运服务
               </Link>
               <Link
-                href="/contact"
-                className="inline-flex items-center justify-center rounded-md bg-amber-600 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-amber-700"
+                href="/services"
+                className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                联系客服
+                返回服务介绍
               </Link>
             </div>
           </div>

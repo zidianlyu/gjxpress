@@ -124,11 +124,162 @@ SEO goal:
 - Brand trust
 - Service discovery
 
-Suggested metadata:
+Implemented metadata:
 
 ```text
-Title: 广骏供应链服务 | 看得见的中美跨境物流
-Description: 广骏供应链服务提供中美跨境供应链与物流信息服务，支持国内仓入库拍照、包裹确认、发货管理与物流查询。
+Title: 广骏国际快运｜看得见的跨境物流
+Description: 广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务，支持入库记录、包裹拍照、合箱整理、物流状态查询与美国段取货状态管理。
+```
+
+---
+
+## 4.1b Services Index Page
+
+Route:
+
+```text
+/services
+```
+
+SEO goal:
+
+- Service discovery and pricing reference
+
+Implemented metadata:
+
+```text
+Title: 服务介绍｜广骏国际快运
+Description: 了解广骏国际快运的中国到美国跨境物流信息服务，包括入库记录、包裹拍照、合箱出库、费用参考、计费说明和时效说明。
+```
+
+---
+
+## 4.1c Register Page
+
+Route: `/register`
+
+Implemented metadata:
+
+```text
+Title: 新客户注册｜广骏国际快运
+Description: 填写新客户联系信息，提交后生成客户编号，工作人员审核通过后用于后续包裹归属。
+```
+
+---
+
+## 4.1c-2 Tracking Page
+
+Route: `/tracking`
+
+Implemented metadata:
+
+```text
+Title: 物流状态查询｜广骏国际快运
+Description: 输入集运单号查询包裹当前物流状态，结果仅显示物流信息，不包含个人隐私信息。
+```
+
+---
+
+## 4.1c-3 Batch Updates Page
+
+Route: `/batch-updates`
+
+Implemented metadata:
+
+```text
+Title: 批次更新｜广骏国际快运
+Description: 查看公开的国际批次运输状态更新，了解批次运输进度。
+```
+
+---
+
+## 4.1c-4 About Page
+
+Route: `/about`
+
+Implemented metadata:
+
+```text
+Title: 关于我们｜广骏国际快运
+Description: 了解广骏国际快运的品牌故事、服务理念与核心价值。
+```
+
+---
+
+## 4.1c-5 Team Page
+
+Route: `/team`
+
+Implemented metadata:
+
+```text
+Title: 团队介绍｜广骏国际快运
+Description: 了解广骏国际快运的服务团队与分工，包括国内仓储、海外仓管理和系统客服团队。
+```
+
+---
+
+## 4.1d Privacy Policy Page
+
+Route: `/privacy`
+
+Implemented metadata:
+
+```text
+Title: 隐私政策｜广骏国际快运
+Description: 了解广骏国际快运如何处理联系方式、客户编号、包裹记录、图片、交易记录和注册申请信息。
+```
+
+---
+
+## 4.1e Compliance Page
+
+Route: `/compliance`
+
+Implemented metadata:
+
+```text
+Title: 合规说明｜广骏国际快运
+Description: 了解广骏国际快运的品类说明、用户责任、时效边界和暂不承接物品说明。
+```
+
+---
+
+## 4.1f Terms Page
+
+Route: `/terms`
+
+Implemented metadata:
+
+```text
+Title: 服务条款｜广骏国际快运
+Description: 了解广骏国际快运的费用说明、计费规则、时效说明、客户责任和异常处理规则。
+```
+
+---
+
+## 4.1g Compensation Page
+
+Route: `/compensation`
+
+Implemented metadata:
+
+```text
+Title: 异常与赔付说明｜广骏国际快运
+Description: 了解包裹异常、少件、破损、延误和承运商异常情况下的处理原则与反馈要求。
+```
+
+---
+
+## 4.1h Disclaimer Page
+
+Route: `/disclaimer`
+
+Implemented metadata:
+
+```text
+Title: 免责声明｜广骏国际快运
+Description: 了解广骏国际快运页面信息、费用、时效和状态查询的免责声明。
 ```
 
 ---
@@ -148,8 +299,8 @@ SEO goal:
 Suggested metadata:
 
 ```text
-Title: 中美跨境物流服务 | 广骏国际快运
-Description: 了解广骏国际快运的中美跨境物流流程：国内仓收货、入库拍照、用户确认、空运/海运发货与物流查询。
+Title: 中美跨境物流服务｜广骏国际快运
+Description: 了解广骏国际快运的中美跨境物流流程：国内仓收货、入库拍照、合箱整理、空运/海运出库与物流状态查询。
 ```
 
 Content outline:
@@ -180,8 +331,8 @@ SEO goal:
 Suggested metadata:
 
 ```text
-Title: 中美空运服务说明 | 广骏国际快运
-Description: 了解中美空运适合的包裹类型、计费重量、入库确认和发货流程。
+Title: 空运服务｜广骏国际快运
+Description: 了解广骏国际快运的中美空运服务：时效相对更快，支持入库记录、包裹拍照和物流状态查询。
 ```
 
 ---
@@ -201,8 +352,8 @@ SEO goal:
 Suggested metadata:
 
 ```text
-Title: 中美海运服务说明 | 广骏国际快运
-Description: 了解中美海运适合的大件和重货场景，以及包裹合单、入库确认和物流查询流程。
+Title: 海运服务｜广骏国际快运
+Description: 了解广骏国际快运的中美海运服务：适合大件重货，支持合箱出库，入库拍照记录。
 ```
 
 ---

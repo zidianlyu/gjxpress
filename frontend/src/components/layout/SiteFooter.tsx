@@ -9,15 +9,15 @@ const footerLinks = {
     { label: '批次更新', href: '/batch-updates' },
     { label: '新客户注册', href: '/register' },
   ],
-  company: [
-    { label: '关于我们', href: '/about' },
-    { label: '团队介绍', href: '/team' },
-  ],
   legal: [
     { label: '合规说明', href: '/compliance' },
     { label: '隐私政策', href: '/privacy' },
     { label: '服务条款', href: '/terms' },
+    { label: '异常与赔付说明', href: '/compensation' },
     { label: '免责声明', href: '/disclaimer' },
+  ],
+  management: [
+    { label: '管理员入口', href: '/admin/login' },
   ],
 };
 
@@ -26,11 +26,11 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t bg-muted/40">
-      <div className="container py-12 md:py-16 px-4 md:px-6">
+      <div className="mx-auto max-w-7xl py-12 md:py-16 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="space-y-4">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2" aria-label="返回首页">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                 <Package className="h-5 w-5 text-primary-foreground" />
               </div>
@@ -41,6 +41,9 @@ export function SiteFooter() {
             </Link>
             <p className="text-sm text-muted-foreground">
               提供跨境供应链与物流信息服务，支持仓储入库、包裹状态查询、集运单状态跟踪与海外仓取件状态管理。
+            </p>
+            <p className="text-xs text-muted-foreground">
+              请联系工作人员获取最新联系方式。
             </p>
           </div>
 
@@ -58,11 +61,11 @@ export function SiteFooter() {
             </ul>
           </div>
 
-          {/* Company */}
+          {/* Legal */}
           <div>
-            <h3 className="mb-4 text-sm font-semibold">公司</h3>
+            <h3 className="mb-4 text-sm font-semibold">说明</h3>
             <ul className="space-y-3 text-sm">
-              {footerLinks.company.map((link) => (
+              {footerLinks.legal.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
                     {link.label}
@@ -72,11 +75,11 @@ export function SiteFooter() {
             </ul>
           </div>
 
-          {/* Legal & Contact */}
+          {/* Management */}
           <div>
-            <h3 className="mb-4 text-sm font-semibold">法律与合规</h3>
+            <h3 className="mb-4 text-sm font-semibold">管理</h3>
             <ul className="space-y-3 text-sm">
-              {footerLinks.legal.map((link) => (
+              {footerLinks.management.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
                     {link.label}

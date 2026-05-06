@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
-import { AlertCircle } from 'lucide-react';
-import { SITE_CONFIG } from '@/lib/constants';
+import Link from 'next/link';
+import { AlertCircle, Info } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: '免责声明',
-  description: `${SITE_CONFIG.brandDisplayName}免责声明。`,
+  title: '免责声明｜广骏国际快运',
+  description: '了解广骏国际快运页面信息、费用、时效和状态查询的免责声明。',
 };
 
 export default function DisclaimerPage() {
   return (
-    <div className="container px-4 md:px-6 py-12 md:py-20">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
       <div className="mx-auto max-w-3xl">
         <div className="text-center mb-12">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mx-auto mb-4">
@@ -20,47 +20,62 @@ export default function DisclaimerPage() {
         </div>
 
         <div className="space-y-6">
+          {/* 1. Page Info */}
           <div className="p-6 rounded-lg border bg-card">
-            <h2 className="text-lg font-semibold mb-3">服务性质</h2>
+            <h2 className="text-lg font-semibold mb-3">页面信息</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {SITE_CONFIG.name}提供物流信息管理与状态查询服务。我们不直接从事货物运输，
-              实际运输由第三方承运商完成。我们对承运商的运输行为和服务质量不承担连带责任。
+              本网站页面内容仅作服务说明和参考，不构成法律合同、承运承诺或固定报价。
             </p>
           </div>
 
+          {/* 2. Fees & Scope Changes */}
           <div className="p-6 rounded-lg border bg-card">
-            <h2 className="text-lg font-semibold mb-3">信息准确性</h2>
+            <h2 className="text-lg font-semibold mb-3">费用与承接范围</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              虽然我们尽力确保系统中物流状态信息的准确性和时效性，但因信息来源于多方系统，
-              我们不保证所有信息在任何时刻都是100%准确的。如发现信息不一致，请联系客服核实。
+              页面展示的费用、时效和承接范围可能根据承运商、监管要求和实际运营情况调整，恕不另行通知。实际费用和服务内容以工作人员确认和订单记录为准。
             </p>
           </div>
 
+          {/* 3. Timing */}
           <div className="p-6 rounded-lg border bg-card">
-            <h2 className="text-lg font-semibold mb-3">货物风险</h2>
+            <h2 className="text-lg font-semibold mb-3">时效参考</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              包裹在运输过程中可能面临损坏、丢失或延误的风险。我们建议客户：
-            </p>
-            <ul className="mt-2 list-disc list-inside text-sm text-muted-foreground space-y-1">
-              <li>避免运输高价值物品时不购买保险</li>
-              <li>确保物品包装完好</li>
-              <li>在入库确认阶段仔细核对包裹信息</li>
-            </ul>
-          </div>
-
-          <div className="p-6 rounded-lg border bg-card">
-            <h2 className="text-lg font-semibold mb-3">责任限制</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              在法律允许的最大范围内，{SITE_CONFIG.name}对因使用或无法使用本服务而导致的任何间接、
-              附带、特殊、后果性或惩罚性损害不承担责任。
+              页面展示的时效均为参考，不构成固定到达时间承诺。实际时效可能受承运商处理、航班/船期、查验、天气、节假日、运输安排和其他不可控因素影响。
             </p>
           </div>
 
+          {/* 4. Tracking Status */}
           <div className="p-6 rounded-lg border bg-card">
-            <h2 className="text-lg font-semibold mb-3">联系方式</h2>
+            <h2 className="text-lg font-semibold mb-3">物流状态查询</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              如有任何疑问或需要帮助，请通过微信联系我们的客服团队。
+              物流状态查询的结果来源于系统记录和承运商数据，可能存在延迟或不完整的情况。如发现状态与实际不符，请联系工作人员核实。
             </p>
+          </div>
+
+          {/* 5. Restricted Items */}
+          <div className="p-6 rounded-lg border bg-card">
+            <h2 className="text-lg font-semibold mb-3">禁止与限制品类</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              对法律法规、监管部门、承运商或服务商禁止或限制运输的品类，不提供承接承诺。详细品类说明请参阅<Link href="/compliance" className="text-primary hover:underline">合规说明</Link>。
+            </p>
+          </div>
+
+          {/* 6. Final Authority */}
+          <div className="flex items-start gap-3 p-5 rounded-lg border border-blue-200 bg-blue-50">
+            <Info className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+            <div>
+              <h2 className="font-semibold text-blue-900 mb-2">服务确认</h2>
+              <p className="text-sm text-blue-800 leading-relaxed">
+                具体服务内容、费用、时效和限制条件以实际订单记录及工作人员确认为准。
+              </p>
+            </div>
+          </div>
+
+          {/* Related Links */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <Link href="/compliance" className="text-sm text-primary hover:underline">查看合规说明 &rarr;</Link>
+            <Link href="/terms" className="text-sm text-primary hover:underline">查看服务条款 &rarr;</Link>
+            <Link href="/compensation" className="text-sm text-primary hover:underline">查看异常与赔付说明 &rarr;</Link>
           </div>
         </div>
       </div>

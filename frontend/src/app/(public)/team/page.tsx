@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
 import { Users } from 'lucide-react';
-import { SITE_CONFIG } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: '团队介绍',
-  description: `${SITE_CONFIG.brandDisplayName}团队介绍，了解我们的服务团队与分工。`,
+  title: '团队介绍｜广骏国际快运',
+  description: '了解广骏国际快运的服务团队与分工，包括国内仓储、海外仓管理和系统客服团队。',
 };
 
 export default function TeamPage() {
   return (
-    <div className="container px-4 md:px-6 py-12 md:py-20">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
       <div className="mx-auto max-w-3xl">
         <div className="text-center mb-12">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mx-auto mb-4">

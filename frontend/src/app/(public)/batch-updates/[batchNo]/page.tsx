@@ -49,7 +49,7 @@ export default function BatchUpdateDetailPage() {
 
   if (error) {
     return (
-      <div className="container px-4 md:px-6 py-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <Link href="/batch-updates" className="text-primary hover:underline inline-flex items-center gap-1">
@@ -64,7 +64,7 @@ export default function BatchUpdateDetailPage() {
   if (!data) return null;
 
   return (
-    <div className="container px-4 md:px-6 py-12 md:py-20">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
       <div className="mx-auto max-w-2xl">
         <Link href="/batch-updates" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="h-4 w-4" />

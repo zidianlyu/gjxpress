@@ -3,15 +3,15 @@ import { Package, Eye, Heart, Globe } from 'lucide-react';
 import { SITE_CONFIG } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: '关于我们',
-  description: `了解${SITE_CONFIG.brandDisplayName}的品牌故事、服务理念与核心价值。`,
+  title: '关于我们｜广骏国际快运',
+  description: '了解广骏国际快运的品牌故事、服务理念与核心价值。',
 };
 
 const values = [
   {
     icon: Eye,
     title: '透明可信',
-    description: '入库拍照、全程追踪，让物流看得见',
+    description: '入库拍照、物流状态记录，让物流看得见',
   },
   {
     icon: Heart,
@@ -30,7 +30,7 @@ export default function AboutPage() {
     <>
       {/* Header */}
       <section className="py-16 md:py-24 bg-gradient-to-b from-blue-50 to-white">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary mx-auto mb-6">
               <Package className="h-8 w-8 text-primary-foreground" />
@@ -43,7 +43,7 @@ export default function AboutPage() {
 
       {/* Brand Story */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-12">品牌故事</h2>
             <div className="prose prose-gray mx-auto">
@@ -53,9 +53,9 @@ export default function AboutPage() {
               </p>
               <p className="text-muted-foreground leading-relaxed mt-4">
                 基于&quot;看得见的跨境物流&quot;这一理念，我们建立了透明的物流服务体系：
-                每个包裹入库时都会拍照存档，用户可以实时查看货物状态；
-                精准的称重计费系统，让费用透明无隐藏；
-                全程物流追踪，让等待变得安心。
+                每个包裹入库时进行拍照记录，便于后续核对；
+                称重和计费重量记录清晰；
+                物流状态在系统中记录更新，支持自助查询。
               </p>
               <p className="text-muted-foreground leading-relaxed mt-4">
                 我们提供的服务包括仓储入库、包裹确认、发货管理与物流查询，
@@ -68,7 +68,7 @@ export default function AboutPage() {
 
       {/* Values */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold tracking-tight text-center mb-12">核心价值</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {values.map((value) => (
@@ -86,7 +86,7 @@ export default function AboutPage() {
 
       {/* Service Philosophy */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-12">服务理念</h2>
             <div className="space-y-8">
@@ -100,15 +100,15 @@ export default function AboutPage() {
               <div className="p-6 rounded-lg border bg-card">
                 <h3 className="font-semibold mb-2">提高效率</h3>
                 <p className="text-muted-foreground text-sm">
-                  通过标准化的入库、确认、支付、发货和异常处理流程，
-                  减少人工沟通成本，提高整体服务效率。
+                  通过标准化的入库、整理、出库和异常处理流程，
+                  减少沟通成本，提高服务效率。
                 </p>
               </div>
               <div className="p-6 rounded-lg border bg-card">
                 <h3 className="font-semibold mb-2">提供性价比</h3>
                 <p className="text-muted-foreground text-sm">
-                  通过精准的计重、计体积、合单功能，以及透明的费用展示，
-                  帮助客户理解费用构成，获得更好的性价比。
+                  通过计费重量记录和合箱整理服务，
+                  帮助客户了解费用构成，费用参考以实际打包和工作人员确认为准。
                 </p>
               </div>
             </div>
@@ -118,7 +118,7 @@ export default function AboutPage() {
 
       {/* Service Scope */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <div className="p-6 rounded-lg border bg-card">
               <h3 className="font-semibold mb-4">服务范围说明</h3>

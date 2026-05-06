@@ -1,51 +1,50 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Package, Plane, Ship, Camera, Scale, CheckCircle, Users } from 'lucide-react';
-import { SITE_CONFIG } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: '中美跨境物流服务',
-  description: `了解${SITE_CONFIG.brandDisplayName}的中美跨境物流流程：国内仓收货、入库拍照、用户确认、空运/海运发货与物流查询。`,
+  title: '中美跨境物流服务｜广骏国际快运',
+  description: '了解广骏国际快运的中美跨境物流流程：国内仓收货、入库拍照、合箱整理、空运/海运出库与物流状态查询。',
 };
 
 const features = [
   {
     icon: Camera,
     title: '入库拍照',
-    description: '每个包裹到达国内仓后，我们会拍摄外包装、面单和内部物品照片',
+    description: '每个包裹到达国内仓后进行拍照记录，便于后续核对',
   },
   {
     icon: Scale,
-    title: '精准称重',
-    description: '记录实际重量和体积重量，取较大者计费，费用透明',
+    title: '称重记录',
+    description: '记录实际重量和体积重量，取较大值作为计费重量',
   },
   {
     icon: Package,
-    title: '包裹合单',
-    description: '多个包裹可以合并发货，节省运费',
+    title: '合箱整理',
+    description: '多个包裹可以合箱整理后一起出库',
   },
   {
     icon: CheckCircle,
-    title: '全程追踪',
-    description: '从入库到收货，全程可查物流状态',
+    title: '状态可查',
+    description: '物流状态在系统中记录更新，支持自助查询',
   },
 ];
 
 const whoIsFor = [
   '在美国生活的华人',
   '需要从国内电商平台购物的用户',
-  '希望享受国内价格优势的消费者',
+  '需要将国内购买的商品运到美国的用户',
   '需要邮寄个人物品到美国的用户',
   '小型跨境电商卖家',
 ];
 
 const workflowSteps = [
-  { title: '获取仓库地址', description: '在小程序中获取您的专属国内仓地址' },
-  { title: '电商平台下单', description: '将商品寄到国内仓，备注您的用户ID' },
+  { title: '注册获取客户编号', description: '提交注册信息，获取专属客户编号' },
+  { title: '电商平台下单', description: '将商品寄到国内仓，备注客户编号' },
   { title: '包裹入库拍照', description: '仓库收货后拍照、称重、入库' },
-  { title: '用户确认', description: '在小程序查看照片并确认包裹' },
-  { title: '国际发货', description: '确认后安排空运或海运' },
-  { title: '物流追踪', description: '全程追踪直至收货确认' },
+  { title: '整理与合箱出库', description: '工作人员协助整理打包并安排出库' },
+  { title: '国际运输', description: '安排空运或海运，物流状态在系统中记录' },
+  { title: '美国段取货', description: '到达美国后根据通知安排取货' },
 ];
 
 export default function ChinaUsShippingPage() {
@@ -53,7 +52,7 @@ export default function ChinaUsShippingPage() {
     <>
       {/* Header */}
       <section className="py-16 md:py-24 bg-gradient-to-b from-blue-50 to-white">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <h1 className="text-4xl font-bold tracking-tight">中美跨境物流服务</h1>
             <p className="mt-4 text-lg text-muted-foreground">
@@ -65,7 +64,7 @@ export default function ChinaUsShippingPage() {
 
       {/* Who is this for */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-12">适合哪些用户</h2>
             <div className="flex items-start gap-4 mb-8">
@@ -73,7 +72,7 @@ export default function ChinaUsShippingPage() {
                 <Users className="h-6 w-6 text-primary" />
               </div>
               <p className="text-muted-foreground">
-                我们的服务面向在美国生活的华人用户，帮助您将国内购买的商品安全、便捷地运送到美国。
+                服务面向在美国生活的华人用户，协助将国内购买的商品转运到美国。
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -90,7 +89,7 @@ export default function ChinaUsShippingPage() {
 
       {/* Features */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold tracking-tight text-center mb-12">服务特色</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature) => (
@@ -108,7 +107,7 @@ export default function ChinaUsShippingPage() {
 
       {/* Workflow */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold tracking-tight text-center mb-12">服务流程</h2>
           <div className="mx-auto max-w-4xl">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -128,7 +127,7 @@ export default function ChinaUsShippingPage() {
 
       {/* Shipping Options */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold tracking-tight text-center mb-12">运输方式选择</h2>
           <div className="mx-auto max-w-4xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -139,7 +138,7 @@ export default function ChinaUsShippingPage() {
                   </div>
                   <h3 className="text-xl font-semibold mb-2">空运服务</h3>
                   <p className="text-muted-foreground mb-4">
-                    适合紧急包裹，时效更快，全程可追踪。推荐用于小件、贵重或急需的物品。
+                    时效相对更快，支持物流状态查询。适合小件商品和对时效有一定要求的包裹。
                   </p>
                   <span className="inline-flex items-center text-primary group-hover:underline">
                     了解空运详情 <ArrowRight className="ml-1 h-4 w-4" />
@@ -153,7 +152,7 @@ export default function ChinaUsShippingPage() {
                   </div>
                   <h3 className="text-xl font-semibold mb-2">海运服务</h3>
                   <p className="text-muted-foreground mb-4">
-                    适合大件重货，经济实惠。推荐用于大件商品、批量采购等不急需的物品。
+                    适合大件重货，费用参考价相对更低。适合大件商品和对时效要求不高的包裹。
                   </p>
                   <span className="inline-flex items-center text-primary group-hover:underline">
                     了解海运详情 <ArrowRight className="ml-1 h-4 w-4" />
@@ -167,25 +166,24 @@ export default function ChinaUsShippingPage() {
 
       {/* Trust */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight mb-6">为什么选择我们</h2>
+            <h2 className="text-3xl font-bold tracking-tight mb-6">服务特点</h2>
             <p className="text-muted-foreground mb-8">
-              我们相信，透明的物流体验才能建立信任。通过入库拍照、精准称重、全程追踪，
-              让您随时掌握包裹状态，安心等待收货。
+              通过入库拍照、称重记录、物流状态查询，帮助客户清楚了解包裹处理进度。
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div className="p-4">
-                <div className="text-3xl font-bold text-primary mb-2">100%</div>
-                <p className="text-sm text-muted-foreground">包裹入库拍照</p>
+                <div className="text-3xl font-bold text-primary mb-2">拍照</div>
+                <p className="text-sm text-muted-foreground">包裹入库拍照记录</p>
               </div>
               <div className="p-4">
-                <div className="text-3xl font-bold text-primary mb-2">透明</div>
-                <p className="text-sm text-muted-foreground">计费重量计算</p>
+                <div className="text-3xl font-bold text-primary mb-2">称重</div>
+                <p className="text-sm text-muted-foreground">计费重量记录</p>
               </div>
               <div className="p-4">
-                <div className="text-3xl font-bold text-primary mb-2">全程</div>
-                <p className="text-sm text-muted-foreground">物流状态追踪</p>
+                <div className="text-3xl font-bold text-primary mb-2">查询</div>
+                <p className="text-sm text-muted-foreground">物流状态自助查询</p>
               </div>
             </div>
           </div>
@@ -194,24 +192,25 @@ export default function ChinaUsShippingPage() {
 
       {/* CTA */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight">准备开始了吗？</h2>
+            <h2 className="text-3xl font-bold tracking-tight">开始使用</h2>
             <p className="mt-4 text-muted-foreground">
-              了解更多详情或咨询客服
+              注册成为客户或查询现有包裹状态
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                href="/how-it-works"
-                className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-3 text-base font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                查看使用流程
-              </Link>
-              <Link
-                href="/contact"
+                href="/register"
                 className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                联系客服
+                新客户注册
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+              <Link
+                href="/tracking"
+                className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-3 text-base font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                查询物流状态
               </Link>
             </div>
           </div>

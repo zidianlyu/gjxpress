@@ -57,8 +57,13 @@ docker build -t zidianlyuaws/gjxpress-backend:latest .
 ```
 
 ## AWS ECR push （Mac执行，后续代码更新需要）
-
 ```bash
+## 简化 one liner（记得开Docker！！）
+aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 919333998053.dkr.ecr.us-west-1.amazonaws.com &&\
+docker build -t gjxpress-backend . &&\
+docker tag gjxpress-backend:latest 919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest &&\
+docker push 919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest
+
 # 登陆ECR
 aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 919333998053.dkr.ecr.us-west-1.amazonaws.com
 
@@ -77,6 +82,14 @@ docker push 919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest
 ```bash
 # 进入EC2
 ssh -i ~/.ssh/gjxpress-backend-key.pem ubuntu@54.215.255.83
+cd ~/gjxpress/backend
+
+# 简化 one liner（后续）
+aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 919333998053.dkr.ecr.us-west-1.amazonaws.com &&\
+docker compose -f docker-compose.production.yml pull &&\
+docker compose -f docker-compose.production.yml up -d &&\
+docker ps
+
 
 # 进入目录（后续）
 cd ~/gjxpress/backend
@@ -138,5 +151,5 @@ kill -9 $(lsof -t -i:3000)
 ## 要跑
 ```bash
 npx prisma migrate deploy
-ADMIN_BOOTSTRAP_PHONE_NUMBER=13818111736 ADMIN_BOOTSTRAP_PASSWORD=1234 npm run admin:create
+ADMIN_BOOTSTRAP_PHONE_NUMBER=18318111736 ADMIN_BOOTSTRAP_PASSWORD=1234 npm run admin:create
 ```

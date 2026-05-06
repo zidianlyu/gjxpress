@@ -1,23 +1,22 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Plane, Clock, Shield, Package, CheckCircle } from 'lucide-react';
-import { SITE_CONFIG } from '@/lib/constants';
+import { Plane, Clock, Search, Package, CheckCircle } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: '中美空运服务',
-  description: `了解${SITE_CONFIG.brandDisplayName}的中美空运服务：适合紧急包裹，时效快，全程可追踪，入库拍照确认。`,
+  title: '空运服务｜广骏国际快运',
+  description: '了解广骏国际快运的中美空运服务：时效相对更快，支持入库记录、包裹拍照和物流状态查询。',
 };
 
 const features = [
   {
     icon: Clock,
-    title: '时效更快',
-    description: '相比海运，空运时效更快，适合紧急包裹',
+    title: '时效相对更快',
+    description: '相比海运，空运时效相对更快，具体以实际线路和承运商处理为准',
   },
   {
-    icon: Shield,
-    title: '安全可靠',
-    description: '全程物流追踪，包裹状态实时可查',
+    icon: Search,
+    title: '状态可查',
+    description: '物流状态在系统中记录更新，支持自助查询',
   },
   {
     icon: Package,
@@ -27,11 +26,10 @@ const features = [
 ];
 
 const suitableFor = [
-  '紧急需要的物品',
   '小件商品',
-  '贵重物品',
-  '时效敏感的商品',
-  '样品或急件',
+  '对时效有一定要求的商品',
+  '样品',
+  '普通日用品',
 ];
 
 const chargeableWeightInfo = [
@@ -45,14 +43,14 @@ export default function AirFreightPage() {
     <>
       {/* Header */}
       <section className="py-16 md:py-24 bg-gradient-to-b from-green-50 to-white">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100 mx-auto mb-6">
               <Plane className="h-8 w-8 text-green-600" />
             </div>
             <h1 className="text-4xl font-bold tracking-tight">中美空运服务</h1>
             <p className="mt-4 text-lg text-muted-foreground">
-              适合紧急包裹，时效更快，全程可追踪
+              时效相对更快，支持入库记录、包裹拍照和物流状态查询
             </p>
           </div>
         </div>
@@ -60,7 +58,7 @@ export default function AirFreightPage() {
 
       {/* Features */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature) => (
               <div key={feature.title} className="flex flex-col items-center text-center p-6">
@@ -77,7 +75,7 @@ export default function AirFreightPage() {
 
       {/* Suitable For */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-12">适合哪些包裹</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -94,7 +92,7 @@ export default function AirFreightPage() {
 
       {/* Chargeable Weight */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-12">计费重量说明</h2>
             <div className="space-y-4">
@@ -123,7 +121,7 @@ export default function AirFreightPage() {
 
       {/* Workflow */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-3xl font-bold tracking-tight mb-8">空运流程</h2>
             <div className="text-left space-y-6">
@@ -141,8 +139,8 @@ export default function AirFreightPage() {
                   2
                 </div>
                 <div>
-                  <h3 className="font-semibold">用户确认包裹</h3>
-                  <p className="text-sm text-muted-foreground">在小程序查看照片并确认</p>
+                  <h3 className="font-semibold">整理与合箱出库</h3>
+                  <p className="text-sm text-muted-foreground">工作人员协助整理打包并安排出库</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -150,8 +148,8 @@ export default function AirFreightPage() {
                   3
                 </div>
                 <div>
-                  <h3 className="font-semibold">确认支付</h3>
-                  <p className="text-sm text-muted-foreground">完成支付后安排发货</p>
+                  <h3 className="font-semibold">费用确认</h3>
+                  <p className="text-sm text-muted-foreground">根据计费重量和线路确认费用</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -168,8 +166,8 @@ export default function AirFreightPage() {
                   5
                 </div>
                 <div>
-                  <h3 className="font-semibold">收货确认</h3>
-                  <p className="text-sm text-muted-foreground">包裹到达后扫码确认收货</p>
+                  <h3 className="font-semibold">美国段取货</h3>
+                  <p className="text-sm text-muted-foreground">到达美国后根据通知安排取货</p>
                 </div>
               </div>
             </div>
@@ -179,11 +177,11 @@ export default function AirFreightPage() {
 
       {/* CTA */}
       <section className="py-16 md:py-24">
-        <div className="container">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight">了解更多</h2>
             <p className="mt-4 text-muted-foreground">
-              联系客服获取空运服务的详细信息
+              了解其他服务或查看合规说明
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -193,10 +191,10 @@ export default function AirFreightPage() {
                 查看海运服务
               </Link>
               <Link
-                href="/contact"
-                className="inline-flex items-center justify-center rounded-md bg-green-600 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-green-700"
+                href="/services"
+                className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                联系客服
+                返回服务介绍
               </Link>
             </div>
           </div>

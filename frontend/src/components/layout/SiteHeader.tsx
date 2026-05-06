@@ -11,25 +11,25 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 max-w-screen-2xl items-center px-4 md:px-6">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="mr-6 flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="返回首页">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <Package className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold leading-tight">{SITE_CONFIG.brandDisplayName}</span>
-            <span className="text-xs text-muted-foreground leading-tight">{SITE_CONFIG.slogan}</span>
+            <span className="hidden sm:block text-xs text-muted-foreground leading-tight">{SITE_CONFIG.slogan}</span>
           </div>
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex flex-1 items-center gap-6 text-sm">
+        <nav className="hidden md:flex items-center gap-6 text-sm">
           {PUBLIC_NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-foreground/60 transition-colors hover:text-foreground"
+              className="text-foreground/60 transition-colors hover:text-foreground whitespace-nowrap"
             >
               {link.label}
             </Link>
@@ -38,7 +38,7 @@ export function SiteHeader() {
 
         {/* Mobile Menu Button */}
         <button
-          className="md:hidden ml-auto p-2"
+          className="md:hidden p-2"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
         >
@@ -57,7 +57,7 @@ export function SiteHeader() {
           mobileMenuOpen ? 'block' : 'hidden'
         )}
       >
-        <nav className="container flex flex-col gap-4 py-4 px-4">
+        <nav className="mx-auto flex max-w-7xl flex-col gap-4 py-4 px-4 sm:px-6 lg:px-8">
           {PUBLIC_NAV_LINKS.map((link) => (
             <Link
               key={link.href}

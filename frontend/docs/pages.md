@@ -144,76 +144,46 @@ components/admin/AdminConfirmDialog.tsx
 
 ## 5.1 Home Page
 
-Route:
+Route: `/`
+File: `src/app/(public)/page.tsx`
 
-```text
-/
-```
+Metadata:
 
-File:
-
-```text
-src/app/(public)/page.tsx
-```
+- title: `广骏国际快运｜看得见的跨境物流`
+- description: 广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务...
 
 Sections:
 
-1. Hero
-   - Brand: 广骏供应链服务
-   - Display brand: 广骏国际快运
-   - Slogan: 看得见的跨境物流
-   - CTA: 查看服务流程 / 联系客服
+1. **Hero** — H1: "中国到美国，包裹状态看得见"，副标题描述入库/拍照/合箱/出库/查询/取货。CTA: 查询物流状态(/tracking), 新客户注册(/register), 查看服务介绍(/services)
+2. **服务流程** — 6-step timeline: 新客户注册 → 电商下单 → 国内仓入库 → 整理合箱出库 → 国际运输状态记录 → 美国段取货确认
+3. **核心优势** — 4 cards: 包裹入库可记录, 图片辅助确认, 合箱出库流程清晰, 状态查询减少沟通成本
+4. **费用与时效提示** — amber info card: 费用/时效仅作参考，以实际打包和工作人员确认为准
+5. **CTA** — 立即注册客户信息(/register), 查询包裹状态(/tracking)
 
-2. Value Props
-   - 入库拍照
-   - 全程透明
-   - 空运/海运效率提升
-   - 更高性价比
-
-3. How It Works Preview
-   - 4-step summary
-
-4. Service Cards
-   - 中美跨境物流
-   - 空运
-   - 海运
-   - 包裹入库确认
-
-5. Recommendation Entry
-   - Link to `/recommendations`
-
-6. FAQ
-
-7. Contact CTA
-
-Data:
-
-- Static content initially.
-- No backend dependency required for first version.
+Data: Static content, no backend dependency.
 
 ---
 
 ## 5.2 Services Index Page
 
-Route:
+Route: `/services`
+File: `src/app/(public)/services/page.tsx`
 
-```text
-/services
-```
+Metadata:
 
-File:
-
-```text
-src/app/(public)/services/page.tsx
-```
+- title: `服务介绍｜广骏国际快运`
+- description: 了解广骏国际快运的中国到美国跨境物流信息服务...
 
 Sections:
 
-- Page header
-- Service overview
-- Service cards
-- Link to China-US shipping, air freight, sea freight
-- CTA
+1. **Hero** — H1: "服务介绍"，副标题描述中国到美国跨境物流信息与转运协助
+2. **中国→美国线路服务** — 文案说明 + 空运/海运 link cards
+3. **基础服务包含** — 7-item icon grid: 咨询与线路建议, 国内仓入库记录, 包裹拍照, 拆箱与整理, 合箱出库, 物流状态记录, 异常协助 (注: 非"免费服务", 以实际订单和工作人员确认为准)
+4. **费用参考** — 3 pricing cards (参考价/起): 空运普通¥70/kg起, 空运需确认¥80/kg起, 海运普通¥25/kg起 + amber disclaimer
+5. **计费说明** — 实际重量 vs 体积重, 取较大值, 进位计算, 附计费示例 (2kg实际 vs 2.548kg体积重 → 按3kg)
+6. **时效说明** — 空运/海运卡片 + blue info card: 时效均为参考, 不承接急单
+7. **美国取货地址** — 2615 El Camino Real, Santa Clara, CA 95051 + 取货提示
+8. **CTA** — 新客户注册(/register), 查询物流状态(/tracking), 查看合规说明(/compliance)
 
 ---
 
@@ -925,13 +895,42 @@ No recommendations found.
 
 Route: `/register`
 File: `src/app/(public)/register/page.tsx`
+Metadata: `src/app/(public)/register/layout.tsx` — title: `新客户注册｜广骏国际快运`
 
-Features:
-- Form fields: phoneCountryCode, phoneNumber, wechatId, domesticReturnAddress, notes
-- Privacy consent checkbox (links to /privacy)
-- On success: shows customerCode with copy button and "待审核" notice
-- No PII exposure from other customers
-- Mobile responsive
+Layout:
+
+- PC: left form card + right info sidebar (280px)
+- Mobile: single column, form then info
+
+Form fields:
+
+- 区号 (default +86)
+- 手机号 (required)
+- 微信号 (optional)
+- 国内退货地址 (optional, textarea, helper text)
+- 备注 (optional, textarea, helper text)
+- 隐私确认 checkbox (required, links to /privacy)
+
+Info sidebar:
+
+- "注册后会发生什么？" 3-step process (提交信息 → 工作人员审核 → 审核通过)
+- Info notes: 客户编号用途、信息用途、审核通知
+
+Success card:
+
+- 注册信息已提交
+- 客户编号 (large, bold, with copy button)
+- 当前状态：待审核
+- "客户编号不是登录密码，也不代表已开通登录账户"
+- 返回首页 + 查看服务介绍 buttons
+
+Error handling:
+
+- 400: form validation error
+- 409: duplicate registration prompt
+- Network failure: shows requestId
+
+Not included: User Portal login, SMS verification, payment
 
 API: `POST /public/customer-registrations`
 
@@ -978,7 +977,128 @@ APIs:
 
 ---
 
-## 14. Deployment Pages Checklist
+## 13.5 Privacy Policy Page
+
+Route: `/privacy`
+File: `src/app/(public)/privacy/page.tsx`
+Metadata: title: `隐私政策｜广骏供应链服务`
+
+Sections (7 cards):
+
+1. **我们收集的信息** — 联系方式(区号/手机号/微信号), 客户编号, 国内退货地址, 国内快递单号, 包裹图片, 集运单信息, 交易记录, 注册申请信息, 设备和访问日志
+2. **我们如何使用信息** — 客户联系, 包裹归属, 入库/出库记录, 物流状态查询, 异常处理, 系统安全
+3. **Public 页面不会展示的信息** — blue highlight card: 手机号, 微信号, 国内退货地址, 客户姓名, 包裹图片, 交易记录, 管理员备注, 其他客户资料
+4. **新客户注册说明** — 注册≠开通, 客户编号≠登录密码, 无 User Portal
+5. **数据安全** — 前端不直接访问 DB, 后端 API 管理资料, 管理员需登录, HTTPS
+6. **信息共享** — 不出售, 仅承运商和法律要求
+7. **联系我们**
+
+Not mentioned: 身份证, 银行卡, 人脸, 精准定位, 通讯录 (系统不使用)
+
+---
+
+## 13.6 Public Policy Pages
+
+### /compliance 合规说明
+
+File: `src/app/(public)/compliance/page.tsx`
+Metadata: title: `合规说明｜广骏供应链服务`
+
+Sections:
+
+1. **服务定位** — 跨境物流信息与转运协助, 不构成法律意见
+2. **普通品类** — green card: 衣物, 鞋帽, 家居, 饰品, 日用品
+3. **需提前确认** — amber card: 带电, 液体/膏体, 化妆品, 食品, 药品, 品牌, 高价值, 易碎品
+4. **暂不承接** — red card: 危险品, 受管制, 活体动物, 果蔬, 酒类烟草, 冷藏, 违禁物
+5. **用户责任** — blue info card
+6. **时效边界** — amber warning card
+
+### /terms 服务条款
+
+File: `src/app/(public)/terms/page.tsx`
+Metadata: title: `服务条款｜广骏供应链服务`
+
+Sections:
+
+1. **页面用途** — 使用规则/费用确认/时效参考/异常处理/客户责任
+2. **费用说明** — 参考价, 以实际打包和工作人员确认为准
+3. **计费重量** — 实际重量 vs 体积重, 取较大值, 进位计算
+4. **时效说明** — 参考, 不承接急单
+5. **客户资料** — 确保信息真实准确可联系
+6. **异常处理** — 及时联系, 提供可核验信息, 链接 /compensation
+7. **取货与保管** — 按通知取货, 超期可能产生费用
+8. **服务变更** — 线路/费用/时效可能调整
+
+### /compensation 异常与赔付说明 (新增)
+
+File: `src/app/(public)/compensation/page.tsx`
+Metadata: title: `异常与赔付说明｜广骏供应链服务`
+
+Sections:
+
+1. **处理原则** — 根据入库记录/出库照片/承运商状态协助核查
+2. **反馈时限** — 建议一周内, 提供照片/视频/订单号
+3. **仓库阶段异常** — 出库前查找, 以实际记录和责任认定为准
+4. **出库后运输阶段异常** — 结合承运商状态/批次记录/签收信息处理
+5. **部分少件** — 提供开箱照片/视频/出库对比
+6. **易碎品和特殊品类** — 运输风险更高, 责任需结合实际判断
+7. **显示签收但未收到** — 结合派送记录/承运商调查处理
+8. **不适用或限制赔付情形** — amber card: 7 项排除条件
+9. **CTA** — 合规说明 + 服务条款
+
+Not included: 具体金额赔付标准 (待业务确认后单独添加)
+
+### /disclaimer 免责声明
+
+File: `src/app/(public)/disclaimer/page.tsx`
+Metadata: title: `免责声明｜广骏供应链服务`
+
+Sections:
+
+1. **页面信息** — 仅作服务说明和参考
+2. **费用与承接范围** — 可能调整
+3. **时效参考** — 不构成固定承诺
+4. **物流状态查询** — 可能有延迟
+5. **禁止与限制品类** — 不提供承接承诺, 链接 /compliance
+6. **服务确认** — blue info card: 以实际订单记录及工作人员确认为准
+
+Not used: "最终解释权归公司"
+
+---
+
+## 14. Public Layout & Navigation Conventions
+
+### 14.1 Container Centering
+
+All public page sections use `mx-auto max-w-7xl px-4 sm:px-6 lg:px-8` for consistent centering. The Tailwind CSS v4 `container` utility only sets `width: 100%` and does NOT auto-center, so we avoid using it directly. Inner content areas may further constrain width with `max-w-3xl`, `max-w-2xl`, etc.
+
+### 14.2 Public Navbar
+
+- Logo (left) links to `/` with `aria-label="返回首页"` — serves as the Home button
+- **No "首页" tab** — Logo is the sole home link, avoiding redundancy
+- Nav items (right): 服务, 查询, 批次更新, 新客户注册, 合规, 隐私, 管理员
+- **"Admin" renamed to "管理员"** for consistent Chinese language
+- Layout: `justify-between` — Logo on the left, nav links on the right
+- Desktop: horizontal nav items
+- Mobile: hamburger menu with same nav items (no 首页, uses 管理员)
+- Sticky header preserved
+
+### 14.3 Footer
+
+- Uses same `mx-auto max-w-7xl px-4 sm:px-6 lg:px-8` container
+- Four columns (PC): Brand, 服务, 说明, 管理
+- Mobile: stacked layout
+- 说明 column: 合规说明, 隐私政策, 服务条款, 异常与赔付说明, 免责声明
+- No fake phone numbers — uses "请联系工作人员获取最新联系方式"
+- 管理员入口 links to `/admin/login`
+
+### 14.4 Public Pages Updated
+
+All public pages use centered layout: /, /about, /services, /services/china-us-shipping, /services/air-freight, /services/sea-freight, /tracking, /batch-updates, /batch-updates/[batchNo], /register, /compliance, /privacy, /terms, /compensation, /disclaimer, /team.
+
+---
+
+## 15. Deployment Pages Checklist
 
 Before deploying to Vercel:
 

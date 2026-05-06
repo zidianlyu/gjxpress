@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Copy, Check, ArrowLeft } from 'lucide-react';
+import { Loader2, Copy, Check, ArrowLeft, ArrowRight, UserPlus, ClipboardCheck, Search as SearchIcon } from 'lucide-react';
 import { publicApi } from '@/lib/api/public';
 import { ApiError } from '@/lib/api/client';
 
@@ -62,7 +62,6 @@ export default function RegisterPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback
       const input = document.createElement('input');
       input.value = success.customerCode;
       document.body.appendChild(input);
@@ -76,45 +75,54 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md rounded-xl border bg-white p-6 shadow-sm space-y-5">
-          <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 mb-2">
-              <Check className="h-6 w-6 text-green-600" />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+        <div className="mx-auto max-w-md">
+          <div className="rounded-xl border bg-card p-6 shadow-sm space-y-5">
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 mb-2">
+                <Check className="h-6 w-6 text-green-600" />
+              </div>
+              <h2 className="text-xl font-bold">注册信息已提交</h2>
             </div>
-            <h2 className="text-xl font-bold">注册信息已提交</h2>
-          </div>
 
-          <div className="rounded-lg bg-muted/50 p-4 text-center space-y-2">
-            <p className="text-sm text-muted-foreground">您的客户编号</p>
-            <p className="text-3xl font-bold tracking-wider text-primary">{success.customerCode}</p>
-            <button
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm hover:bg-muted transition-colors"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? '已复制' : '复制编号'}
-            </button>
-          </div>
+            <div className="rounded-lg bg-muted/50 p-4 text-center space-y-2">
+              <p className="text-sm text-muted-foreground">您的客户编号</p>
+              <p className="text-3xl font-bold tracking-wider text-primary">{success.customerCode}</p>
+              <button
+                onClick={handleCopy}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm hover:bg-muted transition-colors"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? '已复制' : '复制客户编号'}
+              </button>
+            </div>
 
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 space-y-1">
-            <p className="font-medium">当前状态：待审核</p>
-            <p>请保存该编号。工作人员审核通过后，该编号将用于包裹归属。</p>
-            <p>客户编号不是登录密码，仅用于识别您的包裹。</p>
-          </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 space-y-2">
+              <p className="font-medium">当前状态：待审核</p>
+              <p>请保存该编号。工作人员审核通过后，该编号将用于包裹归属。</p>
+              <p>客户编号不是登录密码，也不代表已开通登录账户。</p>
+            </div>
 
-          <p className="text-xs text-muted-foreground text-center">
-            如信息有误，请联系工作人员。
-          </p>
+            <p className="text-xs text-muted-foreground text-center">
+              如信息有误，请联系工作人员修改。
+            </p>
 
-          <div className="flex justify-center">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md border text-sm hover:bg-muted transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              返回首页
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                返回首页
+              </Link>
+              <Link
+                href="/services"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                查看服务介绍
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -122,113 +130,166 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">新客户注册</h1>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            请填写基础联系信息。提交后系统会生成客户编号，工作人员审核通过后，该编号可用于后续包裹归属。
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+      <div className="mx-auto max-w-2xl">
+        {/* Page Header */}
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold tracking-tight">新客户注册</h1>
+          <p className="mt-3 text-muted-foreground max-w-lg mx-auto">
+            填写基本联系信息，提交后系统生成客户编号，工作人员审核通过后，该编号用于后续包裹归属。
           </p>
         </div>
 
-        {error && (
-          <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm">
-            <p>{error}</p>
-            {errorRequestId && (
-              <p className="text-xs mt-1 text-red-500 break-all">Request ID: {errorRequestId}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8">
+          {/* Form Card */}
+          <div className="rounded-xl border bg-card p-6 shadow-sm">
+            {error && (
+              <div className="mb-5 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm">
+                <p>{error}</p>
+                {errorRequestId && (
+                  <p className="text-xs mt-1 text-red-500 break-all">Request ID: {errorRequestId}</p>
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Phone */}
-          <div className="grid grid-cols-[80px_1fr] gap-2">
-            <div>
-              <label className="block text-xs font-medium mb-1">区号</label>
-              <input
-                type="text"
-                value={form.phoneCountryCode}
-                onChange={(e) => setForm(f => ({ ...f, phoneCountryCode: e.target.value }))}
-                placeholder="+86"
-                className="w-full px-3 py-2 rounded-md border bg-background text-sm"
-              />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Phone */}
+              <div className="grid grid-cols-[90px_1fr] gap-2">
+                <div>
+                  <label className="block text-xs font-medium mb-1.5">区号</label>
+                  <input
+                    type="text"
+                    value={form.phoneCountryCode}
+                    onChange={(e) => setForm(f => ({ ...f, phoneCountryCode: e.target.value }))}
+                    placeholder="+86"
+                    className="w-full px-3 py-2.5 rounded-md border bg-background text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5">手机号 <span className="text-red-500">*</span></label>
+                  <input
+                    type="tel"
+                    value={form.phoneNumber}
+                    onChange={(e) => setForm(f => ({ ...f, phoneNumber: e.target.value }))}
+                    placeholder="请输入手机号"
+                    className="w-full px-3 py-2.5 rounded-md border bg-background text-sm"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* WeChat */}
+              <div>
+                <label className="block text-xs font-medium mb-1.5">微信号</label>
+                <input
+                  type="text"
+                  value={form.wechatId}
+                  onChange={(e) => setForm(f => ({ ...f, wechatId: e.target.value }))}
+                  placeholder="可选"
+                  className="w-full px-3 py-2.5 rounded-md border bg-background text-sm"
+                />
+              </div>
+
+              {/* Domestic Return Address */}
+              <div>
+                <label className="block text-xs font-medium mb-1.5">国内退货地址</label>
+                <textarea
+                  value={form.domesticReturnAddress}
+                  onChange={(e) => setForm(f => ({ ...f, domesticReturnAddress: e.target.value }))}
+                  placeholder="可选"
+                  rows={2}
+                  className="w-full px-3 py-2.5 rounded-md border bg-background text-sm resize-none"
+                />
+                <p className="text-xs text-muted-foreground mt-1">用于特殊情况下协助处理退回需求，可不填。</p>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-medium mb-1.5">备注</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="可选"
+                  rows={2}
+                  className="w-full px-3 py-2.5 rounded-md border bg-background text-sm resize-none"
+                />
+                <p className="text-xs text-muted-foreground mt-1">可填写其他需要工作人员注意的信息。</p>
+              </div>
+
+              {/* Privacy Checkbox */}
+              <label htmlFor="privacy-consent" className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+                <input
+                  type="checkbox"
+                  id="privacy-consent"
+                  checked={privacyChecked}
+                  onChange={(e) => setPrivacyChecked(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 shrink-0"
+                />
+                <span className="text-sm text-muted-foreground leading-relaxed">
+                  我确认提交的信息用于客户联系、包裹归属和服务沟通，并已阅读
+                  <Link href="/privacy" className="text-primary hover:underline" target="_blank" onClick={(e) => e.stopPropagation()}>隐私政策</Link>。
+                </span>
+              </label>
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={submitting || !privacyChecked}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {submitting ? '提交中...' : '提交注册信息'}
+              </button>
+            </form>
+          </div>
+
+          {/* Info Sidebar */}
+          <div className="space-y-4">
+            {/* What happens after */}
+            <div className="rounded-xl border bg-card p-5 shadow-sm">
+              <h3 className="text-sm font-semibold mb-4">注册后会发生什么？</h3>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">1</div>
+                  <div>
+                    <p className="text-sm font-medium">提交信息</p>
+                    <p className="text-xs text-muted-foreground">系统生成客户编号</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">2</div>
+                  <div>
+                    <p className="text-sm font-medium">工作人员审核</p>
+                    <p className="text-xs text-muted-foreground">核实联系信息</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">3</div>
+                  <div>
+                    <p className="text-sm font-medium">审核通过</p>
+                    <p className="text-xs text-muted-foreground">客户编号可用于包裹归属</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">手机号 *</label>
-              <input
-                type="tel"
-                value={form.phoneNumber}
-                onChange={(e) => setForm(f => ({ ...f, phoneNumber: e.target.value }))}
-                placeholder="请输入手机号"
-                className="w-full px-3 py-2 rounded-md border bg-background text-sm"
-                required
-              />
+
+            {/* Info notes */}
+            <div className="rounded-xl border bg-muted/30 p-5 space-y-3">
+              <div className="flex items-start gap-2">
+                <UserPlus className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground">客户编号用于包裹归属识别</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <ClipboardCheck className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground">信息仅用于服务沟通和包裹处理</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <SearchIcon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground">审核通过后工作人员会联系确认</p>
+              </div>
             </div>
           </div>
-
-          {/* WeChat */}
-          <div>
-            <label className="block text-xs font-medium mb-1">微信号</label>
-            <input
-              type="text"
-              value={form.wechatId}
-              onChange={(e) => setForm(f => ({ ...f, wechatId: e.target.value }))}
-              placeholder="可选"
-              className="w-full px-3 py-2 rounded-md border bg-background text-sm"
-            />
-          </div>
-
-          {/* Domestic Return Address */}
-          <div>
-            <label className="block text-xs font-medium mb-1">国内退货地址</label>
-            <textarea
-              value={form.domesticReturnAddress}
-              onChange={(e) => setForm(f => ({ ...f, domesticReturnAddress: e.target.value }))}
-              placeholder="可选"
-              rows={2}
-              className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
-            />
-            <p className="text-xs text-muted-foreground mt-1">用于特殊情况下协助处理退回需求，可不填。</p>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-medium mb-1">备注</label>
-            <textarea
-              value={form.notes}
-              onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="可选"
-              rows={2}
-              className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
-            />
-            <p className="text-xs text-muted-foreground mt-1">可填写其他需要工作人员注意的信息。</p>
-          </div>
-
-          {/* Privacy Checkbox */}
-          <div className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              id="privacy-consent"
-              checked={privacyChecked}
-              onChange={(e) => setPrivacyChecked(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-gray-300"
-            />
-            <label htmlFor="privacy-consent" className="text-sm text-muted-foreground leading-tight">
-              我确认提交的信息用于客户联系、包裹归属和服务沟通，并已阅读
-              <Link href="/privacy" className="text-primary hover:underline" target="_blank">隐私政策</Link>。
-            </label>
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={submitting || !privacyChecked}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {submitting ? '提交中...' : '提交注册信息'}
-          </button>
-        </form>
+        </div>
       </div>
     </div>
   );
