@@ -8,6 +8,7 @@ const footerLinks = {
     { label: '物流状态查询', href: '/tracking' },
     { label: '批次更新', href: '/batch-updates' },
     { label: '新客户注册', href: '/register' },
+    { label: '常见问题', href: '/faq' },
   ],
   legal: [
     { label: '合规说明', href: '/compliance' },

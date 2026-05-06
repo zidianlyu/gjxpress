@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { buildMetadata } from '@/lib/seo';
 
 interface BatchUpdateLayoutProps {
   children: React.ReactNode;
@@ -11,14 +12,12 @@ export async function generateMetadata({
   params,
 }: BatchUpdateLayoutProps): Promise<Metadata> {
   const { batchNo } = await params;
-  
-  return {
+
+  return buildMetadata({
     title: `批次 ${batchNo} 详情｜广骏国际快运`,
     description: `查看批次 ${batchNo} 的详细运输状态更新信息。`,
-    alternates: {
-      canonical: `/batch-updates/${batchNo}`,
-    },
-  };
+    path: `/batch-updates/${batchNo}`,
+  });
 }
 
 export default function BatchUpdateLayout({ children }: BatchUpdateLayoutProps) {

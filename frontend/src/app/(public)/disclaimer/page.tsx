@@ -1,18 +1,25 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AlertCircle, Info } from 'lucide-react';
+import { buildMetadata } from '@/lib/seo';
+import JsonLd from '@/components/seo/JsonLd';
+import { buildBreadcrumbJsonLd } from '@/lib/structured-data';
 
-export const metadata: Metadata = {
-  title: '免责声明｜广骏国际快运',
-  description: '了解广骏国际快运页面信息、费用、时效和状态查询的免责声明。',
-  alternates: {
-    canonical: '/disclaimer',
-  },
-};
+export const metadata: Metadata = buildMetadata({
+  title: '免责声明｜广骏供应链服务',
+  description: '了解广骏供应链服务页面信息、费用、时效和状态查询的免责声明。',
+  path: '/disclaimer',
+});
 
 export default function DisclaimerPage() {
+  const breadcrumbData = buildBreadcrumbJsonLd([
+    { name: '首页', path: '/' },
+    { name: '免责声明', path: '/disclaimer' },
+  ]);
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+    <>
+      <JsonLd data={breadcrumbData} />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
       <div className="mx-auto max-w-3xl">
         <div className="text-center mb-12">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mx-auto mb-4">
@@ -83,5 +90,6 @@ export default function DisclaimerPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

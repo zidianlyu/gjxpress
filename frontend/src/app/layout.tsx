@@ -2,6 +2,8 @@ import type {Metadata} from "next";
 import {Geist, Geist_Mono} from "next/font/google";
 import "./globals.css";
 import {SITE_CONFIG} from "@/lib/constants";
+import JsonLd from "@/components/seo/JsonLd";
+import { buildOrganizationJsonLd, buildLocalBusinessJsonLd } from "@/lib/structured-data";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,12 +53,34 @@ export const metadata: Metadata = {
     siteName: SITE_CONFIG.name,
     title: `${SITE_CONFIG.name} | ${SITE_CONFIG.slogan}`,
     description: siteDescription,
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: '广骏供应链服务 - 看得见的中美跨境物流与供应链服务',
+      },
+    ],
   },
 
   twitter: {
     card: "summary_large_image",
     title: `${SITE_CONFIG.name} | ${SITE_CONFIG.slogan}`,
     description: siteDescription,
+    images: [
+      {
+        url: '/twitter-image.png',
+        width: 1200,
+        height: 600,
+        alt: '广骏供应链服务 - 看得见的中美跨境物流与供应链服务',
+      },
+    ],
+  },
+
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
   },
 
   verification: {
@@ -74,7 +98,11 @@ export default function RootLayout({
       lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <JsonLd data={buildOrganizationJsonLd()} />
+        <JsonLd data={buildLocalBusinessJsonLd()} />
+        {children}
+      </body>
     </html>
   );
 }

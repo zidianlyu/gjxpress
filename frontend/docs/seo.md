@@ -67,7 +67,438 @@ sea freight
 
 ---
 
-## 3. Domain and URL Strategy
+## 3. Technical SEO Infrastructure
+
+### 3.1 Unified Site Configuration
+
+All site configuration is centralized in `lib/site-config.ts`:
+
+```typescript
+export const siteConfig = {
+  name: '广骏国际快运',
+  legalName: '广骏供应链服务',
+  englishName: 'GJXpress',
+  slogan: '看得见的跨境物流',
+  domain: 'gjxpress.net',
+  url: 'https://gjxpress.net',
+  description: '广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务...',
+  locale: 'zh_CN',
+  address: {
+    streetAddress: '2615 El Camino Real',
+    addressLocality: 'Santa Clara',
+    addressRegion: 'CA',
+    postalCode: '95051',
+    addressCountry: 'US',
+  },
+}
+```
+
+### 3.2 Metadata Helper
+
+Standardized metadata generation via `lib/seo.ts`:
+
+```typescript
+import { buildMetadata } from '@/lib/seo';
+
+export const metadata: Metadata = buildMetadata({
+  title: '页面标题｜广骏国际快运',
+  description: '页面描述...',
+  path: '/page-path',
+  noIndex: false, // optional
+  image: '/og-image.png', // optional
+  type: 'website', // optional, defaults to 'website'
+});
+```
+
+The helper automatically generates:
+- `title` with site name suffix
+- `description`
+- `alternates.canonical`
+- `openGraph.*` (title, description, url, siteName, locale, type, images)
+- `twitter.*` (card, title, description, images)
+- `robots` (when `noIndex: true`)
+
+### 3.3 Canonical URLs
+
+Every public page has a canonical URL set via the metadata helper. Route group names like `(public)` and `(admin)` are excluded from URLs.
+
+### 3.4 Admin NoIndex
+
+All admin routes are set to `noindex, nofollow` via `app/(admin)/layout.tsx`:
+```typescript
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
+};
+```
+
+### 3.5 Sitemap Configuration
+
+`app/sitemap.ts` includes only public pages:
+- ✅ Includes: /, /services, /tracking, /batch-updates, /register, policy pages
+- ❌ Excludes: /admin/*, /api/*, dynamic query pages like /tracking?query=xxx
+
+### 3.6 Robots Configuration
+
+`app/robots.ts` rules:
+```text
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Sitemap: https://gjxpress.net/sitemap.xml
+```
+
+### 3.7 SEO Risk Boundaries
+
+Content must avoid:
+- 包税、保证送达、保证通关、100%安全
+- 绝对承诺和保证
+- 虚假电话或营业时间
+- 未经验证的邮箱地址
+
+---
+
+## 4. Structured Data (JSON-LD)
+
+### 4.1 Organization JSON-LD
+
+Global Organization schema added to root layout:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "广骏国际快运",
+  "alternateName": "GJXpress",
+  "url": "https://gjxpress.net",
+  "description": "广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务...",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "2615 El Camino Real",
+    "addressLocality": "Santa Clara",
+    "addressRegion": "CA",
+    "postalCode": "95051",
+    "addressCountry": "US"
+  }
+}
+```
+
+### 4.2 LocalBusiness JSON-LD
+
+LocalBusiness schema for search visibility:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "广骏国际快运",
+  "alternateName": "GJXpress",
+  "url": "https://gjxpress.net",
+  "description": "广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务...",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "2615 El Camino Real",
+    "addressLocality": "Santa Clara",
+    "addressRegion": "CA",
+    "postalCode": "95051",
+    "addressCountry": "US"
+  },
+  "areaServed": ["Santa Clara", "Bay Area", "United States", "China"],
+  "knowsAbout": [
+    "中国到美国跨境物流信息服务",
+    "包裹入库记录",
+    "合箱整理",
+    "物流状态查询"
+  ]
+}
+```
+
+### 4.3 BreadcrumbList JSON-LD
+
+All public pages include breadcrumb navigation:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "首页",
+      "item": "https://gjxpress.net"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "页面名称",
+      "item": "https://gjxpress.net/page-path"
+    }
+  ]
+}
+```
+
+**Pages with breadcrumbs:**
+- `/services` - 首页 > 服务介绍
+- `/tracking` - 首页 > 物流状态查询
+- `/batch-updates` - 首页 > 批次更新
+- `/register` - 首页 > 新客户注册
+- `/compliance` - 首页 > 合规说明
+- `/privacy` - 首页 > 隐私政策
+- `/terms` - 首页 > 服务条款
+- `/compensation` - 首页 > 异常与赔付说明
+- `/disclaimer` - 首页 > 免责声明
+
+### 4.4 FAQ JSON-LD (Implemented)
+
+FAQPage schema now implemented and used on FAQ page and key service pages:
+
+```typescript
+buildFaqJsonLd([
+  { question: "问题", answer: "答案" }
+])
+```
+
+**Usage rules:**
+- Only use for visible FAQ content on the page
+- Do not generate for hidden or non-existent FAQ sections
+- FAQ content must match exactly what users can see on the page
+- Used on `/faq` page with all categories
+- Used on `/services`, `/register`, `/compliance`, `/compensation` with selected FAQs
+
+**FAQ Pages with JSON-LD:**
+- `/faq` - All 20 FAQs across 8 categories
+- `/services` - 5 selected FAQs about services and pricing
+- `/register` - 4 selected FAQs about registration
+- `/compliance` - 2 selected FAQs about compliance
+- `/compensation` - 2 selected FAQs about compensation
+
+### 4.5 Structured Data Implementation
+
+**Files:**
+- `components/seo/JsonLd.tsx` - JSON-LD component
+- `lib/structured-data.ts` - Structured data helpers
+- `app/layout.tsx` - Global Organization/LocalBusiness schemas
+- Individual pages - Breadcrumb schemas
+
+**Risk boundaries:**
+- ❌ No `telephone` (no stable public phone)
+- ❌ No `openingHours` (no confirmed hours)
+- ❌ No `aggregateRating` (no real ratings)
+- ❌ No `review` (no real reviews)
+- ❌ No `priceRange` (not confirmed)
+- ✅ All structured data matches visible page content
+- ✅ Address matches siteConfig and page content
+
+---
+
+## 5. Visual SEO & Semantic Structure
+
+### 5.1 Icons & Favicon
+
+**Current Status:**
+- ✅ Created `/public/icon.svg` - Simple blue square with package icon
+- ✅ Updated `app/manifest.ts` to reference existing icon.svg
+- ✅ Added icons metadata to `app/layout.tsx`
+- ❌ No favicon.ico (using icon.svg as fallback)
+- ❌ No apple-touch-icon.png (using icon.svg as fallback)
+
+**Implementation:**
+```typescript
+// app/layout.tsx
+icons: {
+  icon: '/icon.svg',
+  shortcut: '/icon.svg',
+  apple: '/icon.svg',
+}
+
+// app/manifest.ts
+icons: [
+  {
+    src: "/icon.svg",
+    sizes: "any",
+    type: "image/svg+xml",
+  },
+]
+```
+
+### 5.2 Open Graph & Twitter Images
+
+**Current Status:**
+- ✅ Static OG image exists: `/opengraph-image.png`
+- ✅ Static Twitter image exists: `/twitter-image.png`
+- ✅ Added proper image metadata to layout
+- ✅ Fallback images in SEO helper for all pages
+
+**Image Metadata:**
+```typescript
+// app/layout.tsx
+openGraph: {
+  images: [
+    {
+      url: '/opengraph-image.png',
+      width: 1200,
+      height: 630,
+      alt: '广骏供应链服务 - 看得见的中美跨境物流与供应链服务',
+    },
+  ],
+}
+
+twitter: {
+  card: "summary_large_image",
+  images: [
+    {
+      url: '/twitter-image.png',
+      width: 1200,
+      height: 600,
+      alt: '广骏供应链服务 - 看得见的中美跨境物流与供应链服务',
+    },
+  ],
+}
+```
+
+### 5.3 Image Alt Text Guidelines
+
+**Current Status:**
+- ✅ Logo uses icon components (no alt needed)
+- ✅ Navigation links have proper aria-label
+- ✅ No missing alt attributes found
+- ✅ Decorative icons use Lucide React components
+
+**Guidelines:**
+- Logo: Use icon components with aria-label on parent link
+- Real images: Always provide descriptive alt text
+- Decorative icons: Use Lucide React components or alt=""
+- Avoid keyword stuffing in alt text
+
+### 5.4 Heading Structure
+
+**Current Status:**
+- ✅ Each page has exactly one H1
+- ✅ Proper H2/H3 hierarchy maintained
+- ✅ No heading skips detected
+- ✅ FAQ questions use H3 (appropriate)
+
+**Structure Rules:**
+- H1: Page title (one per page)
+- H2: Main section titles
+- H3: Subsections, card titles, FAQ questions
+- No heading elements in navigation/footer
+- Semantic heading hierarchy maintained
+
+---
+
+## 6. Indexability & Crawlability
+
+### 6.1 Indexable Pages
+
+**Public Content Pages (Indexable):**
+- `/` - Homepage
+- `/services` - Service introduction
+- `/faq` - FAQ page
+- `/compliance` - Compliance information
+- `/privacy` - Privacy policy
+- `/terms` - Terms of service
+- `/compensation` - Compensation policy
+- `/disclaimer` - Disclaimer
+- `/register` - Customer registration
+- `/tracking` - Tracking tool (indexable, but query results not in sitemap)
+
+**Non-Indexable Pages:**
+- `/admin/*` - All admin pages (noindex)
+- `/api/*` - API endpoints (disallow in robots.txt)
+
+### 6.2 Tracking & Register Boundaries
+
+**Tracking Page:**
+- ✅ Page itself is indexable (`/tracking`)
+- ❌ Query results not indexed (no `/tracking/[id]` pages)
+- ❌ No phone numbers/addresses in URLs
+- ✅ Tool page, not content page
+
+**Register Page:**
+- ✅ Page is indexable (`/register`)
+- ❌ Success state not indexed (client-side only)
+- ❌ No personal data in URLs
+- ✅ Form submission handled via API
+
+**Implementation:**
+```typescript
+// robots.ts
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: ['/admin/', '/api/'],
+      },
+    ],
+    sitemap: `${siteConfig.url}/sitemap.xml`,
+  };
+}
+
+// admin/layout.tsx
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+```
+
+### 6.3 Internal Linking Strategy
+
+**RelatedLinks Component Usage:**
+- Consistent internal linking across all public pages
+- Natural anchor text (no keyword stuffing)
+- Logical flow between related content
+- Improved crawlability and user navigation
+
+**Link Distribution:**
+- Homepage → Services, Register, Tracking, Compliance
+- Services → Register, Tracking, Compliance, Compensation, FAQ
+- Register → Privacy, Services, Compliance, FAQ
+- Compliance → Terms, Compensation, Register
+- FAQ → Services, Register, Tracking, Compliance
+
+**SEO Benefits:**
+- Distributed page authority
+- Improved crawl depth
+- Reduced bounce rate
+- Better user experience
+
+### 6.4 Core Web Vitals Foundation
+
+**Performance Optimizations:**
+- Server Components reduce JavaScript bundle
+- Minimal client-side JavaScript for public pages
+- No image loading issues (icons only)
+- Efficient font loading with Geist
+- Responsive mobile layouts prevent CLS
+
+**Mobile Experience:**
+- Responsive grid layouts (`grid-cols-1 sm:grid-cols-2`)
+- Touch-friendly button sizes
+- No horizontal overflow
+- Proper sticky header height
+- Mobile-optimized form layouts
+
+**Technical Implementation:**
+- No external analytics scripts
+- Optimized font subsets
+- Proper image dimensions (where applicable)
+- Efficient CSS with Tailwind
+
+---
+
+## 7. Domain and URL Strategy
 
 ### 3.1 Primary Domain
 

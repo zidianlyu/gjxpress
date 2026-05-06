@@ -4,14 +4,14 @@ import {
   ArrowRight, Search, UserPlus, Warehouse, Camera, PackageOpen,
   Truck, MapPin, CheckCircle, Info,
 } from 'lucide-react';
+import { buildMetadata } from '@/lib/seo';
+import { RelatedLinks } from '@/components/public/RelatedLinks';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: '广骏国际快运｜看得见的跨境物流',
   description: '广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务，支持入库记录、包裹拍照、合箱整理、物流状态查询与美国段取货状态管理。',
-  alternates: {
-    canonical: '/',
-  },
-};
+  path: '/',
+});
 
 const workflowSteps = [
   {
@@ -207,6 +207,22 @@ export default function HomePage() {
                 查询包裹状态
               </Link>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Related Links */}
+      <section className="py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl">
+            <RelatedLinks
+              links={[
+                { label: "服务介绍", href: "/services" },
+                { label: "新客户注册", href: "/register" },
+                { label: "物流状态查询", href: "/tracking" },
+                { label: "合规说明", href: "/compliance" },
+              ]}
+            />
           </div>
         </div>
       </section>

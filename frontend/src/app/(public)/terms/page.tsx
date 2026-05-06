@@ -1,18 +1,26 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { FileText, DollarSign, Scale, Clock, User, AlertTriangle, MapPin, RefreshCw } from 'lucide-react';
+import { buildMetadata } from '@/lib/seo';
+import JsonLd from '@/components/seo/JsonLd';
+import { buildBreadcrumbJsonLd } from '@/lib/structured-data';
+import { RelatedLinks } from '@/components/public/RelatedLinks';
 
-export const metadata: Metadata = {
-  title: '服务条款｜广骏国际快运',
-  description: '了解广骏国际快运的费用说明、计费规则、时效说明、客户责任和异常处理规则。',
-  alternates: {
-    canonical: '/terms',
-  },
-};
+export const metadata: Metadata = buildMetadata({
+  title: '服务条款｜广骏供应链服务',
+  description: '了解广骏供应链服务的费用说明、计费规则、时效说明、客户责任和异常处理规则。',
+  path: '/terms',
+});
 
 export default function TermsPage() {
+  const breadcrumbData = buildBreadcrumbJsonLd([
+    { name: '首页', path: '/' },
+    { name: '服务条款', path: '/terms' },
+  ]);
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+    <>
+      <JsonLd data={breadcrumbData} />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
       <div className="mx-auto max-w-3xl">
         <div className="text-center mb-12">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mx-auto mb-4">
@@ -109,13 +117,16 @@ export default function TermsPage() {
           </div>
 
           {/* Related Links */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <Link href="/compliance" className="text-sm text-primary hover:underline">查看合规说明 &rarr;</Link>
-            <Link href="/compensation" className="text-sm text-primary hover:underline">查看异常与赔付说明 &rarr;</Link>
-            <Link href="/disclaimer" className="text-sm text-primary hover:underline">查看免责声明 &rarr;</Link>
-          </div>
+          <RelatedLinks
+            links={[
+              { label: "合规说明", href: "/compliance" },
+              { label: "异常与赔付说明", href: "/compensation" },
+              { label: "隐私政策", href: "/privacy" },
+            ]}
+          />
         </div>
       </div>
     </div>
+    </>
   );
 }

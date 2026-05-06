@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { Loader2, Copy, Check, ArrowLeft, ArrowRight, UserPlus, ClipboardCheck, Search as SearchIcon } from 'lucide-react';
 import { publicApi } from '@/lib/api/public';
 import { ApiError } from '@/lib/api/client';
+import FaqSection from '@/components/public/FaqSection';
+import { RelatedLinks } from '@/components/public/RelatedLinks';
+import { registerFaqs } from '@/lib/faq';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -154,26 +157,24 @@ export default function RegisterPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Phone */}
-              <div className="grid grid-cols-[90px_1fr] gap-2">
-                <div>
-                  <label className="block text-xs font-medium mb-1.5">区号</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  手机号
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={form.phoneCountryCode}
-                    onChange={(e) => setForm(f => ({ ...f, phoneCountryCode: e.target.value }))}
+                    onChange={(e) => setForm({ ...form, phoneCountryCode: e.target.value })}
+                    className="w-full sm:w-20 px-3 py-2.5 rounded-md border bg-background text-sm"
                     placeholder="+86"
-                    className="w-full px-3 py-2.5 rounded-md border bg-background text-sm"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1.5">手机号 <span className="text-red-500">*</span></label>
                   <input
                     type="tel"
                     value={form.phoneNumber}
-                    onChange={(e) => setForm(f => ({ ...f, phoneNumber: e.target.value }))}
-                    placeholder="请输入手机号"
+                    onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-md border bg-background text-sm"
-                    required
+                    placeholder="请输入手机号"
                   />
                 </div>
               </div>
@@ -289,6 +290,31 @@ export default function RegisterPage() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* FAQ Section */}
+      <div className="mt-16 pt-16 border-t">
+        <div className="mx-auto max-w-4xl">
+          <FaqSection
+            title="注册常见问题"
+            description="关于新客户注册和客户编号的常见问题"
+            faqs={registerFaqs}
+          />
+        </div>
+      </div>
+
+      {/* Related Links */}
+      <div className="mt-16 pt-16 border-t">
+        <div className="mx-auto max-w-4xl">
+          <RelatedLinks
+            links={[
+              { label: "隐私政策", href: "/privacy" },
+              { label: "服务介绍", href: "/services" },
+              { label: "合规说明", href: "/compliance" },
+              { label: "常见问题", href: "/faq" },
+            ]}
+          />
         </div>
       </div>
     </div>

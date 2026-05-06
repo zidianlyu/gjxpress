@@ -5,14 +5,18 @@ import {
   PackageOpen, Package, Truck, AlertTriangle, Info,
   Scale, Clock, MapPin,
 } from 'lucide-react';
+import { buildMetadata } from '@/lib/seo';
+import JsonLd from '@/components/seo/JsonLd';
+import { buildBreadcrumbJsonLd, buildFaqJsonLd } from '@/lib/structured-data';
+import FaqSection from '@/components/public/FaqSection';
+import { RelatedLinks } from '@/components/public/RelatedLinks';
+import { servicesFaqs } from '@/lib/faq';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: '服务介绍｜广骏国际快运',
   description: '了解广骏国际快运的中国到美国跨境物流信息服务，包括入库记录、包裹拍照、合箱出库、费用参考、计费说明和时效说明。',
-  alternates: {
-    canonical: '/services',
-  },
-};
+  path: '/services',
+});
 
 const baseServices = [
   { icon: MessageCircle, label: '咨询与线路建议' },
@@ -52,8 +56,17 @@ const pricingItems = [
 ];
 
 export default function ServicesPage() {
+  const breadcrumbData = buildBreadcrumbJsonLd([
+    { name: '首页', path: '/' },
+    { name: '服务介绍', path: '/services' },
+  ]);
+
+  const faqJsonLdData = buildFaqJsonLd(servicesFaqs);
+
   return (
     <>
+      <JsonLd data={breadcrumbData} />
+      <JsonLd data={faqJsonLdData} />
       {/* Hero */}
       <section className="py-16 md:py-24 bg-gradient-to-b from-blue-50 to-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -294,6 +307,36 @@ export default function ServicesPage() {
                 查看合规说明
               </Link>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-16 md:py-24 bg-muted/30">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-4xl">
+            <FaqSection
+              title="服务常见问题"
+              description="关于服务流程、费用计算和时效参考的常见问题"
+              faqs={servicesFaqs}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Related Links */}
+      <section className="py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-4xl">
+            <RelatedLinks
+              links={[
+                { label: "新客户注册", href: "/register" },
+                { label: "物流状态查询", href: "/tracking" },
+                { label: "合规说明", href: "/compliance" },
+                { label: "异常与赔付说明", href: "/compensation" },
+                { label: "常见问题", href: "/faq" },
+              ]}
+            />
           </div>
         </div>
       </section>

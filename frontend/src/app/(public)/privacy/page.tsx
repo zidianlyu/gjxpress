@@ -1,17 +1,25 @@
 import type { Metadata } from 'next';
 import { Lock, Eye, EyeOff, Shield, UserPlus, Share2 } from 'lucide-react';
+import { buildMetadata } from '@/lib/seo';
+import JsonLd from '@/components/seo/JsonLd';
+import { buildBreadcrumbJsonLd } from '@/lib/structured-data';
+import { RelatedLinks } from '@/components/public/RelatedLinks';
 
-export const metadata: Metadata = {
-  title: '隐私政策｜广骏国际快运',
-  description: '了解广骏国际快运如何处理联系方式、客户编号、包裹记录、图片、交易记录和注册申请信息。',
-  alternates: {
-    canonical: '/privacy',
-  },
-};
+export const metadata: Metadata = buildMetadata({
+  title: '隐私政策｜广骏供应链服务',
+  description: '了解广骏供应链服务如何处理联系方式、客户编号、包裹记录、图片、交易记录和注册申请信息。',
+  path: '/privacy',
+});
 
 export default function PrivacyPage() {
+  const breadcrumbData = buildBreadcrumbJsonLd([
+    { name: '首页', path: '/' },
+    { name: '隐私政策', path: '/privacy' },
+  ]);
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+    <>
+      <JsonLd data={breadcrumbData} />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
       <div className="mx-auto max-w-3xl">
         <div className="text-center mb-12">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mx-auto mb-4">
@@ -142,5 +150,18 @@ export default function PrivacyPage() {
         </div>
       </div>
     </div>
+
+    {/* Related Links */}
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+      <div className="mx-auto max-w-3xl">
+        <RelatedLinks
+          links={[
+            { label: "新客户注册", href: "/register" },
+            { label: "服务条款", href: "/terms" },
+          ]}
+        />
+      </div>
+    </div>
+    </>
   );
 }

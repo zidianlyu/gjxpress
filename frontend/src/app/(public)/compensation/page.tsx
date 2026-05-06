@@ -4,18 +4,32 @@ import {
   ShieldAlert, Search, Warehouse, Truck, PackageMinus,
   GlassWater, PackageCheck, XCircle, ArrowRight,
 } from 'lucide-react';
+import { buildMetadata } from '@/lib/seo';
+import JsonLd from '@/components/seo/JsonLd';
+import { buildBreadcrumbJsonLd, buildFaqJsonLd } from '@/lib/structured-data';
+import FaqSection from '@/components/public/FaqSection';
+import { RelatedLinks } from '@/components/public/RelatedLinks';
+import { compensationFaqs } from '@/lib/faq';
 
-export const metadata: Metadata = {
-  title: '异常与赔付说明｜广骏国际快运',
+export const metadata: Metadata = buildMetadata({
+  title: '异常与赔付说明｜广骏供应链服务',
   description: '了解包裹异常、少件、破损、延误和承运商异常情况下的处理原则与反馈要求。',
-  alternates: {
-    canonical: '/compensation',
-  },
-};
+  path: '/compensation',
+});
 
 export default function CompensationPage() {
+  const breadcrumbData = buildBreadcrumbJsonLd([
+    { name: '首页', path: '/' },
+    { name: '异常与赔付说明', path: '/compensation' },
+  ]);
+
+  const faqJsonLdData = buildFaqJsonLd(compensationFaqs);
+
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+    <>
+      <JsonLd data={breadcrumbData} />
+      <JsonLd data={faqJsonLdData} />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
       <div className="mx-auto max-w-3xl">
         <div className="text-center mb-12">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mx-auto mb-4">
@@ -142,5 +156,28 @@ export default function CompensationPage() {
         </div>
       </div>
     </div>
+
+        {/* FAQ Section */}
+        <div className="mt-16 pt-16 border-t">
+          <FaqSection
+            title="异常处理常见问题"
+            description="关于包裹异常和反馈要求的常见问题"
+            faqs={compensationFaqs}
+          />
+        </div>
+
+        {/* Related Links */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+          <div className="mx-auto max-w-3xl">
+            <RelatedLinks
+              links={[
+                { label: "合规说明", href: "/compliance" },
+                { label: "服务条款", href: "/terms" },
+                { label: "新客户注册", href: "/register" },
+              ]}
+            />
+          </div>
+        </div>
+    </>
   );
 }
