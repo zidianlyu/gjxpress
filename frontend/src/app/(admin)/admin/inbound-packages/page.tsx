@@ -10,6 +10,7 @@ import type { InboundPackage } from '@/types/admin';
 import { ImagePicker, LocalImageList } from '@/components/admin/ImageManager';
 import { Pagination } from '@/components/common/Pagination';
 import { InboundPackageStatusBadge } from '@/components/common/StatusBadge';
+import { TrackingBarcodeScanner } from '@/components/admin/TrackingBarcodeScanner';
 
 export default function InboundPackagesPage() {
   const router = useRouter();
@@ -252,7 +253,10 @@ export default function InboundPackagesPage() {
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium mb-1">国内快递单号 *</label>
-                <input type="text" value={createForm.domesticTrackingNo} onChange={(e) => setCreateForm(f => ({ ...f, domesticTrackingNo: e.target.value }))} placeholder="必填" className="w-full px-3 py-2 rounded-md border bg-background text-sm" required />
+                <div className="relative">
+                  <input type="text" value={createForm.domesticTrackingNo} onChange={(e) => setCreateForm(f => ({ ...f, domesticTrackingNo: e.target.value }))} placeholder="必填" className="w-full px-3 py-2 pr-10 rounded-md border bg-background text-sm" required />
+                  <TrackingBarcodeScanner onConfirm={(value) => setCreateForm(f => ({ ...f, domesticTrackingNo: value }))} />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1">客户编号</label>

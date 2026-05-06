@@ -709,40 +709,27 @@ PATCH /admin/orders/:id/status
 
 ---
 
-## 8.5 Package Inbound Page
+## 8.5 Inbound Packages Page
 
-Route:
+Route: `/admin/inbound-packages`
 
-```text
-/admin/packages/inbound
-```
+File: `src/app/(admin)/admin/inbound-packages/page.tsx`
 
-File:
+Features:
 
-```text
-src/app/(admin)/admin/packages/inbound/page.tsx
-```
-
-Fields:
-
-```text
-user_code or user_id
-domestic_tracking_no
-source_platform
-actual_weight
-length_cm
-width_cm
-height_cm
-image upload: OUTER / LABEL / INNER
-remark
-```
+- List with search, status filter, pagination
+- Create modal with: domesticTrackingNo, customerCode, adminNote, images
+- **国内快递单号支持扫码填入**：相机按钮打开扫码 overlay，识别条码后确认填入
+- 扫码组件：`src/components/admin/TrackingBarcodeScanner.tsx`
+- 候选过滤：`src/lib/tracking-number.ts`
+- 详见 `docs/barcode-scanner.md`
 
 APIs:
 
 ```text
-POST /admin/packages/inbound
-POST /admin/images/upload-url
-POST /admin/images/complete
+GET /admin/inbound-packages
+POST /admin/inbound-packages
+POST /admin/inbound-packages/:id/images
 ```
 
 ---

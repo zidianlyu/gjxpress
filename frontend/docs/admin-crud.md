@@ -13,6 +13,7 @@ Full admin CRUD for **all 6 entities** (Customers, Customer Registrations, Inbou
 - Error display with `requestId` for debugging
 - Success/failure feedback on all mutations
 - Mobile-responsive layout (drawer sidebar, stacked cards on mobile)
+- **Barcode scanner** for inbound package tracking number input (camera + ROI crop + candidate filter + manual confirm)
 
 ---
 
