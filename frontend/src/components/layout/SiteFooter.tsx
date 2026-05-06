@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Package } from 'lucide-react';
 import { SITE_CONFIG } from '@/lib/constants';
+import { siteConfig } from '@/lib/site-config';
 
 const footerLinks = {
   services: [
@@ -41,11 +42,17 @@ export function SiteFooter() {
               </div>
             </Link>
             <p className="text-sm text-muted-foreground">
-              提供跨境供应链与物流信息服务，支持仓储入库、包裹状态查询、集运单状态跟踪与海外仓取件状态管理。
+              提供跨境供应链与物流信息服务，支持仓储入库、包裹状态查询、集运单状态跟踪与本地递送安排。
             </p>
-            <p className="text-xs text-muted-foreground">
-              请联系工作人员获取最新联系方式。
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-foreground">服务区域：</p>
+              <p className="text-xs text-muted-foreground">
+                {siteConfig.serviceAreas.join('、')}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {siteConfig.handoffSummary}
+              </p>
+            </div>
           </div>
 
           {/* Services */}

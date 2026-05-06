@@ -66,8 +66,6 @@ export const siteConfig = {
   description: '...',
   locale: 'zh_CN',
   address: {
-    streetAddress: '2615 El Camino Real',
-    addressLocality: 'Santa Clara',
     addressRegion: 'CA',
     postalCode: '95051',
     addressCountry: 'US',
@@ -313,7 +311,30 @@ import { servicesFaqs } from '@/lib/faq';
 - Efficient font loading
 - Minimal client-side JavaScript
 
-### 6.3 Internal Linking Strategy
+### 6.3 Address Privacy Rules
+
+**No Public Full Address:**
+- Current address is private apartment, not displayed on public website
+- siteConfig does not expose full street address in public exports
+- Use serviceAreas array instead of complete address
+- Footer displays service area list, not street address
+
+**Service Area Configuration:**
+```typescript
+serviceAreas: [
+  'Santa Clara', 'San Jose', 'Milpitas',
+  'Fremont', 'Sunnyvale', 'Cupertino', 'Bay Area'
+],
+publicLocationSummary: '服务 Santa Clara、San Jose、Milpitas、Fremont 及湾区周边客户。',
+handoffSummary: '支持本地上门递送或预约交接，具体安排由工作人员确认。'
+```
+
+**Structured Data:**
+- Organization JSON-LD uses areaServed, not PostalAddress
+- LocalBusiness JSON-LD removes streetAddress, postalCode
+- No complete address in any public JSON-LD
+
+### 6.4 Internal Linking Strategy
 
 **RelatedLinks Component:**
 ```typescript

@@ -252,12 +252,12 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      {/* 6. US Pickup Address */}
+      {/* 6. Service Area & Handoff */}
       <section className="py-16 md:py-24 bg-muted/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl">
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold tracking-tight">美国取货地址</h2>
+              <h2 className="text-3xl font-bold tracking-tight">服务区域与交接方式</h2>
             </div>
             <div className="p-6 rounded-lg border bg-card">
               <div className="flex items-start gap-4">
@@ -265,12 +265,26 @@ export default function ServicesPage() {
                   <MapPin className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-mono text-lg font-semibold mb-3">
-                    2615 El Camino Real, Santa Clara, CA 95051
+                  <p className="font-semibold text-lg mb-3">
+                    服务 Santa Clara、San Jose、Milpitas、Fremont 及湾区周边客户
                   </p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    到达美国段后，请根据工作人员通知或系统状态安排取货。取货前建议确认现场是否有工作人员值班。
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                    广骏国际快运目前服务湾区周边客户。美国段到达后，工作人员会根据客户需求协助安排本地上门递送或预约交接，具体安排以工作人员确认为准。
                   </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Link
+                      href="/register"
+                      className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      新客户注册
+                    </Link>
+                    <Link
+                      href="/tracking"
+                      className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      查询物流状态
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>

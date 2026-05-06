@@ -98,8 +98,8 @@ export const faqData: FaqItem[] = [
 
   // 美国段取货
   {
-    question: '美国取货地址在哪里？',
-    answer: '当前取货地址为 2615 El Camino Real, Santa Clara, CA 95051。取货前建议确认现场是否有工作人员值班。',
+    question: '你们服务哪些区域？',
+    answer: '我们目前服务 Santa Clara、San Jose、Milpitas、Fremont 及湾区周边客户。美国段到达后，可根据实际情况安排本地上门递送或预约交接，具体安排由工作人员确认。',
     category: '美国段取货',
   },
   {

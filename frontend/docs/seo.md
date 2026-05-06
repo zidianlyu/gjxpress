@@ -84,10 +84,10 @@ export const siteConfig = {
   description: '广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务...',
   locale: 'zh_CN',
   address: {
-    streetAddress: '2615 El Camino Real',
+    // streetAddress: '完整街道地址', // 私人地址，不公开
     addressLocality: 'Santa Clara',
     addressRegion: 'CA',
-    postalCode: '95051',
+    // postalCode: '邮编', // 私人地址，不公开
     addressCountry: 'US',
   },
 }
@@ -180,10 +180,10 @@ Global Organization schema added to root layout:
   "description": "广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务...",
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "2615 El Camino Real",
+    // "streetAddress": "完整街道地址", // 私人地址，不公开
     "addressLocality": "Santa Clara",
     "addressRegion": "CA",
-    "postalCode": "95051",
+    // "postalCode": "邮编", // 私人地址，不公开
     "addressCountry": "US"
   }
 }
@@ -203,10 +203,10 @@ LocalBusiness schema for search visibility:
   "description": "广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务...",
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "2615 El Camino Real",
+    // "streetAddress": "完整街道地址", // 私人地址，不公开
     "addressLocality": "Santa Clara",
     "addressRegion": "CA",
-    "postalCode": "95051",
+    // "postalCode": "邮编", // 私人地址，不公开
     "addressCountry": "US"
   },
   "areaServed": ["Santa Clara", "Bay Area", "United States", "China"],
@@ -498,7 +498,62 @@ export const metadata: Metadata = {
 
 ---
 
-## 7. Domain and URL Strategy
+## 8. 地址隐私规则
+
+### 8.1 地址隐私原则
+
+**不公开私人地址：**
+- 当前地址是私人 apartment，不在 public 网站展示
+- 不在 SEO metadata 中包含完整地址
+- 不在 JSON-LD structured data 中输出 PostalAddress
+- 不在 Google Business Profile 中公开展示地址
+
+**服务区域表达：**
+- 使用 areaServed 替代完整地址
+- 列出具体服务城市：Santa Clara、San Jose、Milpitas、Fremont、Sunnyvale、Cupertino、Bay Area
+- 使用 "本地递送或预约交接" 描述交接方式
+
+### 8.2 技术实现
+
+**siteConfig 配置：**
+```typescript
+serviceAreas: [
+  'Santa Clara',
+  'San Jose',
+  'Milpitas',
+  'Fremont',
+  'Sunnyvale',
+  'Cupertino',
+  'Bay Area'
+],
+publicLocationSummary: '服务 Santa Clara、San Jose、Milpitas、Fremont 及湾区周边客户。',
+handoffSummary: '支持本地上门递送或预约交接，具体安排由工作人员确认。'
+```
+
+**Structured Data：**
+- Organization JSON-LD 使用 areaServed
+- LocalBusiness JSON-LD 移除 PostalAddress
+- 不输出 streetAddress、postalCode 等字段
+
+**页面文案：**
+- 服务页：服务区域与交接方式
+- FAQ：服务区域相关问题
+- 条款页：递送与保管
+- Footer：显示服务区域列表
+
+### 8.3 Google Business Profile
+
+**设置要求：**
+- 关闭 "Show business address to customers"
+- 设置 Service areas 为湾区城市
+- 描述文案与网站保持一致
+- 不承诺固定营业时间
+
+详细设置请参考：`docs/google-business-profile.md`
+
+---
+
+## 9. Domain and URL Strategy
 
 ### 3.1 Primary Domain
 

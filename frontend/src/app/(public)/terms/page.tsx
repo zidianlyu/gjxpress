@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { FileText, DollarSign, Scale, Clock, User, AlertTriangle, MapPin, RefreshCw } from 'lucide-react';
+import { FileText, DollarSign, Scale, Clock, User, AlertTriangle, MapPin, RefreshCw, Package } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import JsonLd from '@/components/seo/JsonLd';
 import { buildBreadcrumbJsonLd } from '@/lib/structured-data';
@@ -94,14 +94,14 @@ export default function TermsPage() {
             </p>
           </div>
 
-          {/* 7. Pickup & Storage */}
+          {/* 7. Handoff & Storage */}
           <div className="p-6 rounded-lg border bg-card">
             <div className="flex items-center gap-2 mb-3">
-              <MapPin className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">取货与保管</h2>
+              <Package className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">递送与保管</h2>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              到达美国段后，请根据工作人员通知或系统状态安排取货。超过基础保管期后，可能产生存放费用，具体以工作人员确认为准。
+              到达美国段后，工作人员会根据包裹状态和客户需求确认本地递送或预约交接安排。具体交接方式、时间和可能产生的本地服务费用，以工作人员确认为准。超过基础保管期后，可能产生存放费用。
             </p>
           </div>
 

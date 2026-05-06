@@ -110,7 +110,7 @@ export default function CompensationPage() {
               <h2 className="text-lg font-semibold">显示签收但未收到</h2>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              如果承运商状态显示已签收，但客户反馈未收到，需要结合派送记录、签收地址、承运商调查结果和客户提供的信息处理。工作人员可协助沟通，但承运商最终理赔结果可能受其规则限制。
+              如果承运商状态显示已签收，但客户反馈未收到，需要结合派送记录、交接记录、承运商调查结果和客户提供的信息处理。工作人员可协助沟通，但承运商最终理赔结果可能受其规则限制。
             </p>
           </div>
 
@@ -125,7 +125,7 @@ export default function CompensationPage() {
               <li>用户信息填写错误</li>
               <li>物品属于禁止或限制承接品类</li>
               <li>商品本身易碎或存在固有风险</li>
-              <li>承运商已按地址完成签收</li>
+              <li>承运商已按约定完成交接</li>
               <li>用户无法提供可核验资料</li>
               <li>其他非服务方可控因素</li>
             </ul>

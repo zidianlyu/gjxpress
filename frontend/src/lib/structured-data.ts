@@ -17,15 +17,8 @@ export function buildOrganizationJsonLd() {
     name: siteConfig.name,
     alternateName: siteConfig.englishName,
     url: siteConfig.url,
-    description: siteConfig.description,
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: siteConfig.address.streetAddress,
-      addressLocality: siteConfig.address.addressLocality,
-      addressRegion: siteConfig.address.addressRegion,
-      postalCode: siteConfig.address.postalCode,
-      addressCountry: siteConfig.address.addressCountry,
-    },
+    description: `${siteConfig.description}${siteConfig.publicLocationSummary}`,
+    areaServed: siteConfig.serviceAreas,
   };
 }
 
@@ -36,26 +29,14 @@ export function buildLocalBusinessJsonLd() {
     name: siteConfig.name,
     alternateName: siteConfig.englishName,
     url: siteConfig.url,
-    description: siteConfig.description,
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: siteConfig.address.streetAddress,
-      addressLocality: siteConfig.address.addressLocality,
-      addressRegion: siteConfig.address.addressRegion,
-      postalCode: siteConfig.address.postalCode,
-      addressCountry: siteConfig.address.addressCountry,
-    },
-    areaServed: [
-      'Santa Clara',
-      'Bay Area',
-      'United States',
-      'China',
-    ],
+    description: `${siteConfig.description}${siteConfig.publicLocationSummary}`,
+    areaServed: siteConfig.serviceAreas,
     knowsAbout: [
       '中国到美国跨境物流信息服务',
       '包裹入库记录',
       '合箱整理',
       '物流状态查询',
+      '本地递送安排',
     ],
   };
 }

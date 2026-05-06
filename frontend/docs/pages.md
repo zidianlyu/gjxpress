@@ -182,7 +182,7 @@ Sections:
 4. **费用参考** — 3 pricing cards (参考价/起): 空运普通¥70/kg起, 空运需确认¥80/kg起, 海运普通¥25/kg起 + amber disclaimer
 5. **计费说明** — 实际重量 vs 体积重, 取较大值, 进位计算, 附计费示例 (2kg实际 vs 2.548kg体积重 → 按3kg)
 6. **时效说明** — 空运/海运卡片 + blue info card: 时效均为参考, 不承接急单
-7. **美国取货地址** — 2615 El Camino Real, Santa Clara, CA 95051 + 取货提示
+7. **服务区域与交接方式** — 服务 Santa Clara、San Jose、Milpitas、Fremont 及湾区周边客户 + 本地递送或预约交接说明
 8. **CTA** — 新客户注册(/register), 查询物流状态(/tracking), 查看合规说明(/compliance)
 
 ---

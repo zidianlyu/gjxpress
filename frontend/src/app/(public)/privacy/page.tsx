@@ -50,6 +50,9 @@ export default function PrivacyPage() {
               <li><strong>注册申请信息</strong>：通过 Public 注册页面主动提交的信息</li>
               <li><strong>设备和访问日志</strong>：如 requestId、基础浏览器信息 — 用于安全和排错</li>
             </ul>
+            <p className="text-xs text-muted-foreground mt-4 pt-4 border-t">
+              Public 页面不会公开展示客户个人地址、退货地址、交接地址或工作人员私人地址。
+            </p>
           </div>
 
           {/* 2. How We Use Information */}
