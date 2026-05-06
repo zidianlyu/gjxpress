@@ -4,6 +4,9 @@ import { Users } from 'lucide-react';
 export const metadata: Metadata = {
   title: '团队介绍｜广骏国际快运',
   description: '了解广骏国际快运的服务团队与分工，包括国内仓储、海外仓管理和系统客服团队。',
+  alternates: {
+    canonical: '/team',
+  },
 };
 
 export default function TeamPage() {

@@ -5,6 +5,9 @@ import { ArrowRight, Package, Plane, Ship, Camera, Scale, CheckCircle, Users } f
 export const metadata: Metadata = {
   title: '中美跨境物流服务｜广骏国际快运',
   description: '了解广骏国际快运的中美跨境物流流程：国内仓收货、入库拍照、合箱整理、空运/海运出库与物流状态查询。',
+  alternates: {
+    canonical: '/services/china-us-shipping',
+  },
 };
 
 const features = [

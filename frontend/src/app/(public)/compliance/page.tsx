@@ -5,6 +5,9 @@ import { Shield, CheckCircle, AlertTriangle, XCircle, Info, Clock } from 'lucide
 export const metadata: Metadata = {
   title: '合规说明｜广骏国际快运',
   description: '了解广骏国际快运的品类说明、用户责任、时效边界和暂不承接物品说明。',
+  alternates: {
+    canonical: '/compliance',
+  },
 };
 
 export default function CompliancePage() {

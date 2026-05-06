@@ -8,6 +8,9 @@ import {
 export const metadata: Metadata = {
   title: '广骏国际快运｜看得见的跨境物流',
   description: '广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务，支持入库记录、包裹拍照、合箱整理、物流状态查询与美国段取货状态管理。',
+  alternates: {
+    canonical: '/',
+  },
 };
 
 const workflowSteps = [

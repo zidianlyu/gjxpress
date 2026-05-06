@@ -9,6 +9,9 @@ import {
 export const metadata: Metadata = {
   title: '服务介绍｜广骏国际快运',
   description: '了解广骏国际快运的中国到美国跨境物流信息服务，包括入库记录、包裹拍照、合箱出库、费用参考、计费说明和时效说明。',
+  alternates: {
+    canonical: '/services',
+  },
 };
 
 const baseServices = [

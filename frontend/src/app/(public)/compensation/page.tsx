@@ -8,6 +8,9 @@ import {
 export const metadata: Metadata = {
   title: '异常与赔付说明｜广骏国际快运',
   description: '了解包裹异常、少件、破损、延误和承运商异常情况下的处理原则与反馈要求。',
+  alternates: {
+    canonical: '/compensation',
+  },
 };
 
 export default function CompensationPage() {

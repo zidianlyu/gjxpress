@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type {Metadata} from "next";
+import {Geist, Geist_Mono} from "next/font/google";
 import "./globals.css";
-import { SITE_CONFIG } from "@/lib/constants";
+import {SITE_CONFIG} from "@/lib/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,39 +13,54 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteDescription = `${SITE_CONFIG.name}提供中美跨境供应链与物流信息服务，支持入库拍照、包裹确认、发货管理与物流查询。`;
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_CONFIG.url),
+
   title: {
     default: `${SITE_CONFIG.name} | ${SITE_CONFIG.slogan}`,
     template: `%s | ${SITE_CONFIG.name}`,
   },
-  description: `${SITE_CONFIG.name}提供中美跨境供应链与物流信息服务，支持入库拍照、包裹确认、发货管理与物流查询。`,
-  keywords: ["中美集运", "跨境物流", "中国寄美国", "包裹转运", "国际快递", "广骏国际快运"],
-  authors: [{ name: SITE_CONFIG.name }],
+
+  description: siteDescription,
+
+  keywords: [
+    "中美集运",
+    "跨境物流",
+    "中国寄美国",
+    "包裹转运",
+    "国际快递",
+    "广骏国际快运",
+  ],
+
+  authors: [{name: SITE_CONFIG.name}],
   creator: SITE_CONFIG.name,
   publisher: SITE_CONFIG.name,
+  applicationName: SITE_CONFIG.name,
+
   robots: {
     index: true,
     follow: true,
   },
+
   openGraph: {
     type: "website",
     locale: "zh_CN",
+    url: SITE_CONFIG.url,
     siteName: SITE_CONFIG.name,
     title: `${SITE_CONFIG.name} | ${SITE_CONFIG.slogan}`,
-    description: `${SITE_CONFIG.name}提供中美跨境供应链与物流信息服务，支持入库拍照、包裹确认、发货管理与物流查询。`,
+    description: siteDescription,
   },
+
   twitter: {
     card: "summary_large_image",
     title: `${SITE_CONFIG.name} | ${SITE_CONFIG.slogan}`,
-    description: `${SITE_CONFIG.name}提供中美跨境供应链与物流信息服务，支持入库拍照、包裹确认、发货管理与物流查询。`,
+    description: siteDescription,
   },
-  alternates: {
-    canonical: "/",
-  },
+
   verification: {
-    // Add Google Search Console verification when available
-    // google: 'your-verification-code',
+    google: "d1k3keXScHBw19TkGR_MLUgoVWR3w34TyVQriFUb5lI", // Google Search Console verification
   },
 };
 

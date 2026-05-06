@@ -4,6 +4,9 @@ import { Lock, Eye, EyeOff, Shield, UserPlus, Share2 } from 'lucide-react';
 export const metadata: Metadata = {
   title: '隐私政策｜广骏国际快运',
   description: '了解广骏国际快运如何处理联系方式、客户编号、包裹记录、图片、交易记录和注册申请信息。',
+  alternates: {
+    canonical: '/privacy',
+  },
 };
 
 export default function PrivacyPage() {

@@ -5,6 +5,9 @@ import { FileText, DollarSign, Scale, Clock, User, AlertTriangle, MapPin, Refres
 export const metadata: Metadata = {
   title: '服务条款｜广骏国际快运',
   description: '了解广骏国际快运的费用说明、计费规则、时效说明、客户责任和异常处理规则。',
+  alternates: {
+    canonical: '/terms',
+  },
 };
 
 export default function TermsPage() {

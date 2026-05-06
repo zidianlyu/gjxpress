@@ -5,6 +5,9 @@ import { SITE_CONFIG } from '@/lib/constants';
 export const metadata: Metadata = {
   title: '关于我们｜广骏国际快运',
   description: '了解广骏国际快运的品牌故事、服务理念与核心价值。',
+  alternates: {
+    canonical: '/about',
+  },
 };
 
 const values = [

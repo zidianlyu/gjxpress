@@ -5,6 +5,9 @@ import { AlertCircle, Info } from 'lucide-react';
 export const metadata: Metadata = {
   title: '免责声明｜广骏国际快运',
   description: '了解广骏国际快运页面信息、费用、时效和状态查询的免责声明。',
+  alternates: {
+    canonical: '/disclaimer',
+  },
 };
 
 export default function DisclaimerPage() {

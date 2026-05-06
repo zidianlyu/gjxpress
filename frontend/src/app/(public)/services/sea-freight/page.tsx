@@ -5,6 +5,9 @@ import { Ship, Scale, Package, DollarSign, CheckCircle } from 'lucide-react';
 export const metadata: Metadata = {
   title: '海运服务｜广骏国际快运',
   description: '了解广骏国际快运的中美海运服务：适合大件重货，支持合箱出库，入库拍照记录。',
+  alternates: {
+    canonical: '/services/sea-freight',
+  },
 };
 
 const features = [

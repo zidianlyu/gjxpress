@@ -5,6 +5,9 @@ import { Plane, Clock, Search, Package, CheckCircle } from 'lucide-react';
 export const metadata: Metadata = {
   title: '空运服务｜广骏国际快运',
   description: '了解广骏国际快运的中美空运服务：时效相对更快，支持入库记录、包裹拍照和物流状态查询。',
+  alternates: {
+    canonical: '/services/air-freight',
+  },
 };
 
 const features = [
