@@ -1,10 +1,10 @@
-# Admin CRUD Implementation — Phase 2
+# Admin CRUD Implementation — Phase 2 + 3
 
 > Updated: 2026-05-06
 
 ## Overview
 
-Full admin CRUD for **all 5 entities** (Customers, Inbound Packages, Customer Shipments, Master Shipments, Transactions) is implemented with:
+Full admin CRUD for **all 6 entities** (Customers, Customer Registrations, Inbound Packages, Customer Shipments, Master Shipments, Transactions) is implemented with:
 - List pages with search, status filters, pagination, mobile card view
 - Detail pages with edit, status update, and special actions
 - Create modals on list pages

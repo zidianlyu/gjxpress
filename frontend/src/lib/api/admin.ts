@@ -18,6 +18,10 @@ import type {
   CreateTransactionPayload,
   UpdateTransactionPayload,
   DeleteResponse,
+  CustomerRegistration,
+  CreateCustomerRegistrationPayload,
+  UpdateCustomerRegistrationPayload,
+  ApproveCustomerRegistrationResponse,
 } from '@/types/admin';
 
 // File upload helper — uses FormData, skips JSON Content-Type
@@ -261,4 +265,44 @@ export const adminApi = {
 
   hardDeleteTransaction: (id: string) =>
     adminApiFetch<DeleteResponse>(`/admin/transactions/${id}?confirm=DELETE_HARD`, { method: 'DELETE' }),
+
+  // === Customer Registrations ===
+  getCustomerRegistrations: (params?: { q?: string; status?: string; page?: number; pageSize?: number }) =>
+    adminApiFetch<PaginatedResponse<CustomerRegistration>>(
+      `/admin/customer-registrations${buildQuery(params || {})}`
+    ),
+
+  getCustomerRegistrationById: async (id: string) => {
+    const res = await adminApiFetch<{ data: CustomerRegistration } | CustomerRegistration>(`/admin/customer-registrations/${id}`);
+    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: CustomerRegistration }).data : res as CustomerRegistration;
+  },
+
+  createCustomerRegistration: async (data: CreateCustomerRegistrationPayload) => {
+    const res = await adminApiFetch<{ data: CustomerRegistration } | CustomerRegistration>('/admin/customer-registrations', { method: 'POST', body: data });
+    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: CustomerRegistration }).data : res as CustomerRegistration;
+  },
+
+  updateCustomerRegistration: async (id: string, data: UpdateCustomerRegistrationPayload) => {
+    const res = await adminApiFetch<{ data: CustomerRegistration } | CustomerRegistration>(`/admin/customer-registrations/${id}`, { method: 'PATCH', body: data });
+    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: CustomerRegistration }).data : res as CustomerRegistration;
+  },
+
+  approveCustomerRegistration: async (id: string, payload?: { reviewNote?: string }) => {
+    const res = await adminApiFetch<{ data: ApproveCustomerRegistrationResponse } | ApproveCustomerRegistrationResponse>(
+      `/admin/customer-registrations/${id}/approve`,
+      { method: 'POST', body: payload || {} }
+    );
+    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: ApproveCustomerRegistrationResponse }).data : res as ApproveCustomerRegistrationResponse;
+  },
+
+  rejectCustomerRegistration: async (id: string, payload?: { reviewNote?: string }) => {
+    const res = await adminApiFetch<{ data: CustomerRegistration } | CustomerRegistration>(
+      `/admin/customer-registrations/${id}/reject`,
+      { method: 'POST', body: payload || {} }
+    );
+    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: CustomerRegistration }).data : res as CustomerRegistration;
+  },
+
+  hardDeleteCustomerRegistration: (id: string) =>
+    adminApiFetch<DeleteResponse>(`/admin/customer-registrations/${id}?confirm=DELETE_HARD`, { method: 'DELETE' }),
 };

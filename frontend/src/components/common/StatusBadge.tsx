@@ -9,10 +9,12 @@ import {
   MASTER_SHIPMENT_STATUS_COLORS,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
+  CUSTOMER_REGISTRATION_STATUS_LABELS,
+  CUSTOMER_REGISTRATION_STATUS_COLORS,
 } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
-type BadgeType = 'inboundPackage' | 'customerShipment' | 'masterShipment' | 'payment';
+type BadgeType = 'inboundPackage' | 'customerShipment' | 'masterShipment' | 'payment' | 'customerRegistration';
 
 interface StatusBadgeProps {
   status: string;
@@ -36,6 +38,10 @@ const typeConfig: Record<BadgeType, { labels: Record<string, string>; colors: Re
   payment: {
     labels: PAYMENT_STATUS_LABELS,
     colors: PAYMENT_STATUS_COLORS,
+  },
+  customerRegistration: {
+    labels: CUSTOMER_REGISTRATION_STATUS_LABELS,
+    colors: CUSTOMER_REGISTRATION_STATUS_COLORS,
   },
 };
 
@@ -71,4 +77,8 @@ export function MasterShipmentStatusBadge({ status, className }: { status: strin
 
 export function PaymentStatusBadge({ status, className }: { status: string; className?: string }) {
   return <StatusBadge status={status} type="payment" className={className} />;
+}
+
+export function CustomerRegistrationStatusBadge({ status, className }: { status: string; className?: string }) {
+  return <StatusBadge status={status} type="customerRegistration" className={className} />;
 }

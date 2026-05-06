@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MaxLength, Matches } from 'class-validator';
 
-export class CreateCustomerDto {
+export class CreateCustomerRegistrationDto {
   @ApiPropertyOptional({ example: '+86' })
   @IsString()
   @IsOptional()
@@ -12,9 +12,10 @@ export class CreateCustomerDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(32)
+  @Matches(/^[\d+\s\-().]+$/, { message: 'phoneNumber must contain only digits, +, spaces, hyphens, or parentheses' })
   phoneNumber: string;
 
-  @ApiPropertyOptional({ example: 'wechat_id_optional' })
+  @ApiPropertyOptional({ example: 'wechat_optional' })
   @IsString()
   @IsOptional()
   @MaxLength(64)
@@ -26,7 +27,7 @@ export class CreateCustomerDto {
   @MaxLength(2000)
   domesticReturnAddress?: string;
 
-  @ApiPropertyOptional({ example: '内部备注' })
+  @ApiPropertyOptional({ example: '备注，可选' })
   @IsString()
   @IsOptional()
   @MaxLength(1000)

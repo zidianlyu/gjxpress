@@ -23,6 +23,7 @@ import { CustomerShipmentsModule } from './customer-shipments/customer-shipments
 import { MasterShipmentsModule } from './master-shipments/master-shipments.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { AdminImageModule } from './admin-image/admin-image.module';
+import { CustomerRegistrationsModule } from './customer-registrations/customer-registrations.module';
 import { envValidationSchema } from './config/env.validation';
 
 @Module({
@@ -54,6 +55,7 @@ import { envValidationSchema } from './config/env.validation';
     MasterShipmentsModule,
     TransactionsModule,
     AdminImageModule,
+    CustomerRegistrationsModule,
   ],
 })
 export class AppModule {}

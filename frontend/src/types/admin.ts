@@ -27,6 +27,7 @@ export type Customer = {
   phoneCountryCode: string;
   phoneNumber: string;
   wechatId?: string | null;
+  domesticReturnAddress?: string | null;
   notes?: string | null;
   status: 'ACTIVE' | 'DISABLED';
   createdAt: string;
@@ -37,6 +38,7 @@ export type CreateCustomerPayload = {
   phoneCountryCode?: string;
   phoneNumber: string;
   wechatId?: string;
+  domesticReturnAddress?: string;
   notes?: string;
 };
 
@@ -44,8 +46,58 @@ export type UpdateCustomerPayload = {
   phoneCountryCode?: string;
   phoneNumber?: string;
   wechatId?: string | null;
+  domesticReturnAddress?: string | null;
   notes?: string | null;
   status?: 'ACTIVE' | 'DISABLED';
+};
+
+// Customer Registration
+export type CustomerRegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export type CustomerRegistration = {
+  id: string;
+  customerCode: string;
+  phoneCountryCode: string;
+  phoneNumber: string;
+  wechatId?: string | null;
+  domesticReturnAddress?: string | null;
+  notes?: string | null;
+  status: CustomerRegistrationStatus;
+  reviewNote?: string | null;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  createdCustomerId?: string | null;
+  createdCustomer?: {
+    id: string;
+    customerCode: string;
+  } | null;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+export type CreateCustomerRegistrationPayload = {
+  phoneCountryCode?: string;
+  phoneNumber: string;
+  wechatId?: string;
+  domesticReturnAddress?: string;
+  notes?: string;
+};
+
+export type UpdateCustomerRegistrationPayload = {
+  phoneCountryCode?: string;
+  phoneNumber?: string;
+  wechatId?: string | null;
+  domesticReturnAddress?: string | null;
+  notes?: string | null;
+  reviewNote?: string | null;
+};
+
+export type ApproveCustomerRegistrationResponse = {
+  registration: CustomerRegistration;
+  customer: {
+    id: string;
+    customerCode: string;
+  };
 };
 
 // Inbound Package

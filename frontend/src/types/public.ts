@@ -25,3 +25,10 @@ export type PublicBatchUpdate = {
   publishedAt?: string | null;
   updatedAt?: string | null;
 };
+
+export type PublicCustomerRegistrationResponse = {
+  id: string;
+  customerCode: string;
+  status: 'PENDING';
+  message: string;
+};

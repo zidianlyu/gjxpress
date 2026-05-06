@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CustomerRegistrationsService } from '../customer-registrations/customer-registrations.service';
+import { CreateCustomerRegistrationDto } from '../customer-registrations/dto/create-customer-registration.dto';
 import {
   CUSTOMER_SHIPMENT_STATUS_LABELS,
   MASTER_SHIPMENT_STATUS_LABELS,
@@ -9,7 +11,10 @@ import {
 
 @Injectable()
 export class PublicService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private customerRegistrationsService: CustomerRegistrationsService,
+  ) {}
 
   async listRecommendations(page: any = 1, pageSize: any = 20, category?: string, city?: string) {
     const take = Math.min(Number(pageSize) || 20, 100);
@@ -144,6 +149,13 @@ export class PublicService {
         updatedAt: master.updatedAt,
       },
     };
+  }
+
+  async submitRegistration(
+    dto: CreateCustomerRegistrationDto,
+    meta?: { userAgent?: string },
+  ) {
+    return this.customerRegistrationsService.createRegistration(dto, { userAgent: meta?.userAgent });
   }
 
   async listBatchUpdates(query: { page?: number; pageSize?: number }) {

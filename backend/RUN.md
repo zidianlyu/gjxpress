@@ -79,7 +79,7 @@ docker push 919333998053.dkr.ecr.us-west-1.amazonaws.com/gjxpress-backend:latest
 ssh -i ~/.ssh/gjxpress-backend-key.pem ubuntu@54.215.255.83
 
 # 进入目录（后续）
-cd ~/gjxpress-backend
+cd ~/gjxpress/backend
 
 # 登陆ECR （后续）
 aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin 919333998053.dkr.ecr.us-west-1.amazonaws.com
@@ -138,5 +138,5 @@ kill -9 $(lsof -t -i:3000)
 ## 要跑
 ```bash
 npx prisma migrate deploy
-ADMIN_BOOTSTRAP_PHONE_NUMBER=13929035086 ADMIN_BOOTSTRAP_PASSWORD=gjxpress12345 npm run admin:create
+ADMIN_BOOTSTRAP_PHONE_NUMBER=13818111736 ADMIN_BOOTSTRAP_PASSWORD=1234 npm run admin:create
 ```

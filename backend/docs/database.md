@@ -1,8 +1,8 @@
 # Backend Database Design — GJXpress Logistic OS
 
-> Scope: Supabase Postgres + Prisma schema for `backend/`  
-> Storage: Supabase Storage  
-> ORM: Prisma  
+> Scope: Supabase Postgres + Prisma schema for `backend/`
+> Storage: Supabase Storage
+> ORM: Prisma
 > Primary database: PostgreSQL through Supabase
 
 ---
@@ -94,7 +94,7 @@ Package.packageNo = PKG-20260504-0001
 
 ## 4. Recommended Prisma Schema
 
-> Windsurf may use this as the starting schema.  
+> Windsurf may use this as the starting schema.
 > Adjust names only if also updating `backend/docs/api.md`.
 
 ```prisma
@@ -1069,7 +1069,110 @@ Keep migration files committed.
 
 ---
 
-## 16. Windsurf Implementation Checklist
+## 16. Phase 3 — CustomerRegistration & Customer.domesticReturnAddress
+
+### 16.1 Customer.domesticReturnAddress
+
+Added optional `TEXT` column `domestic_return_address` to the `customers` table.
+
+- Prisma field: `domesticReturnAddress String? @map("domestic_return_address") @db.Text`
+- Admin-only visibility. Not exposed to Public endpoints.
+- Settable on create (`POST /admin/customers`) and update (`PATCH /admin/customers/:id`).
+- Also copied from `CustomerRegistration` on approval.
+
+### 16.2 CustomerRegistrationStatus Enum
+
+```sql
+CREATE TYPE "CustomerRegistrationStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+```
+
+### 16.3 CustomerRegistration Table
+
+Table: `customer_registrations`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | auto |
+| `customer_code` | VARCHAR(16) UNIQUE | GJ + 4 digits, generated at submission time |
+| `phone_country_code` | VARCHAR(8) | default +86 |
+| `phone_number` | VARCHAR(32) | required |
+| `wechat_id` | VARCHAR(64) nullable | |
+| `domestic_return_address` | TEXT nullable | |
+| `notes` | TEXT nullable | |
+| `status` | CustomerRegistrationStatus | default PENDING |
+| `approved_at` | TIMESTAMP nullable | |
+| `approved_by_admin_id` | UUID nullable | admin who approved |
+| `rejected_at` | TIMESTAMP nullable | |
+| `rejected_by_admin_id` | UUID nullable | admin who rejected |
+| `review_note` | TEXT nullable | internal note |
+| `created_customer_id` | UUID nullable FK→customers(id) SET NULL | set after approve |
+| `ip_hash` | VARCHAR(128) nullable | hashed IP for audit |
+| `user_agent` | VARCHAR(512) nullable | browser UA |
+| `created_at` | TIMESTAMP | |
+| `updated_at` | TIMESTAMP | |
+
+FK: `created_customer_id` → `customers.id` ON DELETE SET NULL (deleting registration does NOT delete Customer)
+
+### 16.4 customerCode Generation Rules
+
+- Format: `GJ` + exactly 4 numeric digits (e.g. `GJ0427`)
+- Range: `GJ1000`–`GJ9999` (3rd-4th digit always `Math.floor(1000 + random * 9000)`)
+- Uniqueness check: simultaneously queries both `Customer.customerCode` and `CustomerRegistration.customerCode`
+- Max retries: 50 before throwing `400 "Customer code pool exhausted or collision too high."`
+- Pool size: ~9000 codes. If pool is exhausted in future, format can be extended to 5 digits — update `VarChar(16)` column and regex
+- customerCode is NOT a login credential. Used only for customer identification and package attribution.
+
+### 16.5 Approve Transaction Logic
+
+`POST /admin/customer-registrations/:id/approve` uses a single `$transaction`:
+
+1. Check registration exists + not already APPROVED
+2. Check phone not already a formal Customer (409)
+3. Check customerCode not already in Customer table (409 — should never happen but defensive)
+4. `tx.customer.create(...)` — copies customerCode, phoneCountryCode, phoneNumber, wechatId, domesticReturnAddress, notes; status=ACTIVE
+5. `tx.customerRegistration.update(...)` — status=APPROVED, approvedAt=now, approvedByAdminId, createdCustomerId=customer.id, reviewNote
+
+### 16.6 Duplicate Submission Policy
+
+| Existing state | Re-submit result |
+|---|---|
+| PENDING same phone | 409 — 该手机号已有待审核申请 |
+| APPROVED same phone | 409 — 该手机号已关联正式客户 |
+| Already formal Customer | 409 — 该手机号已登记为正式客户 |
+| REJECTED same phone | Allowed — new submission creates new registration with new customerCode |
+
+### 16.7 Hard Delete Behaviour
+
+- Hard delete `CustomerRegistration` removes the row only.
+- `customers.created_customer_id` FK uses `ON DELETE SET NULL` — the formal Customer is unaffected.
+- `confirm=DELETE_HARD` required; 400 otherwise.
+
+### 16.8 Privacy
+
+- Public `POST /public/customer-registrations` response returns only: `id`, `customerCode`, `status`, `message`
+- Never returns: ipHash, userAgent, reviewNote, approvedByAdminId, rejectedByAdminId, other registrations' data
+- Backend request log does not include phoneNumber, wechatId, or domesticReturnAddress in log output
+- Rate limit and CAPTCHA not implemented yet. Recommended for production: add rate limit per IP on `POST /public/customer-registrations`
+
+### 16.9 Migration
+
+File: `prisma/migrations/20260506024953_customer_registration_review/migration.sql`
+
+Operations:
+- `CREATE TYPE "CustomerRegistrationStatus"`
+- `ALTER TABLE "customers" ADD COLUMN "domestic_return_address" TEXT`
+- `CREATE TABLE "customer_registrations"` with all columns and indexes
+- `ADD CONSTRAINT` FK to customers
+
+**Status: create-only (not yet applied)**. Apply with:
+```bash
+npx prisma migrate deploy
+```
+After backing up the database.
+
+---
+
+## 17. Windsurf Implementation Checklist
 
 When implementing database:
 

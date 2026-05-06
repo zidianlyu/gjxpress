@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { Search, Plus, Loader2, X } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
-import type { Customer } from '@/types/admin';
+import type { CustomerRegistration } from '@/types/admin';
 import { Pagination } from '@/components/common/Pagination';
+import { CUSTOMER_REGISTRATION_STATUS_LABELS, CUSTOMER_REGISTRATION_STATUS_COLORS } from '@/lib/constants/status';
+import { cn } from '@/lib/utils';
 
-export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+export default function CustomerRegistrationsPage() {
+  const [items, setItems] = useState<CustomerRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [errorRequestId, setErrorRequestId] = useState('');
@@ -25,13 +27,13 @@ export default function CustomersPage() {
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
 
-  const fetchCustomers = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError('');
     setErrorRequestId('');
     try {
-      const data = await adminApi.getCustomers({ q: search || undefined, status: statusFilter || undefined, page, pageSize: 20 });
-      setCustomers(data?.items || []);
+      const data = await adminApi.getCustomerRegistrations({ q: search || undefined, status: statusFilter || undefined, page, pageSize: 20 });
+      setItems(data?.items || []);
       setTotalPages(data?.pagination?.totalPages || 1);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -46,8 +48,8 @@ export default function CustomersPage() {
   }, [search, statusFilter, page]);
 
   useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
+    fetchData();
+  }, [fetchData]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,16 +66,16 @@ export default function CustomersPage() {
     setCreateError('');
     setCreateSuccess('');
     try {
-      const customer = await adminApi.createCustomer({
+      const reg = await adminApi.createCustomerRegistration({
         phoneCountryCode: createForm.phoneCountryCode,
         phoneNumber: createForm.phoneNumber.trim(),
         wechatId: createForm.wechatId.trim() || undefined,
         domesticReturnAddress: createForm.domesticReturnAddress.trim() || undefined,
         notes: createForm.notes.trim() || undefined,
       });
-      setCreateSuccess(`客户创建成功，客户编号：${customer.customerCode}`);
+      setCreateSuccess(`申请已创建，客户编号：${reg.customerCode}`);
       setCreateForm({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '', notes: '' });
-      fetchCustomers();
+      fetchData();
     } catch (err) {
       if (err instanceof ApiError) {
         setCreateError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
@@ -89,15 +91,15 @@ export default function CustomersPage() {
     <div className="flex-1 overflow-auto">
       <header className="bg-white border-b px-4 md:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold">客户管理</h1>
-          <p className="text-sm text-muted-foreground">管理客户信息</p>
+          <h1 className="text-xl md:text-2xl font-bold">新客户审核</h1>
+          <p className="text-sm text-muted-foreground">管理客户注册申请</p>
         </div>
         <button
           onClick={() => { setShowCreate(true); setCreateError(''); setCreateSuccess(''); }}
           className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
-          新建客户
+          新建申请
         </button>
       </header>
 
@@ -110,7 +112,7 @@ export default function CustomersPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索客户编号、手机号或微信号..."
+              placeholder="搜索客户编号、手机号、微信号"
               className="w-full pl-9 pr-3 py-2 rounded-md border bg-background text-sm"
             />
           </div>
@@ -120,8 +122,9 @@ export default function CustomersPage() {
             className="px-3 py-2 rounded-md border bg-background text-sm"
           >
             <option value="">全部状态</option>
-            <option value="ACTIVE">活跃</option>
-            <option value="DISABLED">禁用</option>
+            <option value="PENDING">待审核</option>
+            <option value="APPROVED">已通过</option>
+            <option value="REJECTED">已拒绝</option>
           </select>
           <button type="submit" className="px-4 py-2 rounded-md border bg-background text-sm hover:bg-muted">
             搜索
@@ -132,8 +135,8 @@ export default function CustomersPage() {
         {error && (
           <div className="mb-4 p-4 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
             <p>{error}</p>
-            {errorRequestId && <p className="mt-1 text-xs text-red-500">Request ID: {errorRequestId}</p>}
-            <button onClick={fetchCustomers} className="mt-2 text-xs underline">重试</button>
+            {errorRequestId && <p className="mt-1 text-xs text-red-500 break-all">Request ID: {errorRequestId}</p>}
+            <button onClick={fetchData} className="mt-2 text-xs underline">重试</button>
           </div>
         )}
 
@@ -145,15 +148,15 @@ export default function CustomersPage() {
         )}
 
         {/* Empty */}
-        {!isLoading && !error && customers.length === 0 && (
+        {!isLoading && !error && items.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
-            <p className="text-lg font-medium">暂无客户</p>
-            <p className="text-sm mt-1">点击右上角新建客户</p>
+            <p className="text-lg font-medium">暂无注册申请</p>
+            <p className="text-sm mt-1">等待新客户提交注册信息</p>
           </div>
         )}
 
         {/* Table */}
-        {!isLoading && !error && customers.length > 0 && (
+        {!isLoading && !error && items.length > 0 && (
           <>
             {/* Desktop table */}
             <div className="hidden md:block rounded-lg border overflow-hidden">
@@ -165,28 +168,28 @@ export default function CustomersPage() {
                     <th className="text-left px-4 py-3 font-medium">微信号</th>
                     <th className="text-left px-4 py-3 font-medium">国内退货地址</th>
                     <th className="text-left px-4 py-3 font-medium">状态</th>
-                    <th className="text-left px-4 py-3 font-medium">创建时间</th>
+                    <th className="text-left px-4 py-3 font-medium">提交时间</th>
                     <th className="text-left px-4 py-3 font-medium">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {customers.map((c) => (
-                    <tr key={c.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-mono text-xs">{c.customerCode}</td>
-                      <td className="px-4 py-3">{c.phoneCountryCode} {c.phoneNumber}</td>
-                      <td className="px-4 py-3">{c.wechatId || '-'}</td>
-                      <td className="px-4 py-3 max-w-[160px] truncate text-xs text-muted-foreground" title={c.domesticReturnAddress || ''}>{c.domesticReturnAddress || '-'}</td>
+                  {items.map((r) => (
+                    <tr key={r.id} className="hover:bg-muted/30">
+                      <td className="px-4 py-3 font-mono text-xs">{r.customerCode}</td>
+                      <td className="px-4 py-3">{r.phoneCountryCode} {r.phoneNumber}</td>
+                      <td className="px-4 py-3">{r.wechatId || '-'}</td>
+                      <td className="px-4 py-3 max-w-[140px] truncate text-xs text-muted-foreground" title={r.domesticReturnAddress || ''}>{r.domesticReturnAddress || '-'}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {c.status === 'ACTIVE' ? '活跃' : '禁用'}
+                        <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[r.status] || 'bg-gray-100 text-gray-700')}>
+                          {CUSTOMER_REGISTRATION_STATUS_LABELS[r.status] || r.status}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {new Date(c.createdAt).toLocaleDateString('zh-CN')}
+                        {new Date(r.createdAt).toLocaleDateString('zh-CN')}
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/admin/customers/${c.id}`} className="text-primary text-xs hover:underline">
-                          查看/编辑
+                        <Link href={`/admin/customer-registrations/${r.id}`} className="text-primary text-xs hover:underline">
+                          查看详情
                         </Link>
                       </td>
                     </tr>
@@ -197,17 +200,19 @@ export default function CustomersPage() {
 
             {/* Mobile card list */}
             <div className="md:hidden space-y-3">
-              {customers.map((c) => (
-                <Link key={c.id} href={`/admin/customers/${c.id}`} className="block p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors">
+              {items.map((r) => (
+                <Link key={r.id} href={`/admin/customer-registrations/${r.id}`} className="block p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-mono text-sm font-medium">{c.customerCode}</span>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {c.status === 'ACTIVE' ? '活跃' : '禁用'}
+                    <span className="font-mono text-sm font-medium">{r.customerCode}</span>
+                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[r.status] || 'bg-gray-100 text-gray-700')}>
+                      {CUSTOMER_REGISTRATION_STATUS_LABELS[r.status] || r.status}
                     </span>
                   </div>
                   <div className="text-sm text-muted-foreground space-y-0.5">
-                    <p>{c.phoneCountryCode} {c.phoneNumber}</p>
-                    {c.wechatId && <p>微信：{c.wechatId}</p>}
+                    <p>{r.phoneCountryCode} {r.phoneNumber}</p>
+                    {r.wechatId && <p>微信：{r.wechatId}</p>}
+                    {r.domesticReturnAddress && <p className="truncate">地址：{r.domesticReturnAddress}</p>}
+                    <p className="text-xs">{new Date(r.createdAt).toLocaleDateString('zh-CN')}</p>
                   </div>
                 </Link>
               ))}
@@ -221,22 +226,19 @@ export default function CustomersPage() {
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">新建客户</h2>
+              <h2 className="text-lg font-semibold">新建注册申请</h2>
               <button onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {createSuccess && (
-              <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">
-                <p>{createSuccess}</p>
-                <p className="text-xs mt-1 text-green-600">客户编号用于包裹归属，不是登录密码。</p>
-              </div>
+              <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">{createSuccess}</div>
             )}
             {createError && (
-              <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm">{createError}</div>
+              <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm break-all">{createError}</div>
             )}
 
             <form onSubmit={handleCreate} className="space-y-4">

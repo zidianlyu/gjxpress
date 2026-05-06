@@ -1,6 +1,8 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Body, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 import { PublicService } from './public.service';
+import { CreateCustomerRegistrationDto } from '../customer-registrations/dto/create-customer-registration.dto';
 
 @ApiTags('Public')
 @Controller('public')
@@ -45,5 +47,16 @@ export class PublicController {
     @Query('pageSize') pageSize?: number,
   ) {
     return this.publicService.listBatchUpdates({ page, pageSize });
+  }
+
+  @Post('customer-registrations')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Submit new customer registration application (public, no auth). Returns customerCode and PENDING status only.' })
+  submitRegistration(
+    @Body() dto: CreateCustomerRegistrationDto,
+    @Req() req: Request,
+  ) {
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 512);
+    return this.publicService.submitRegistration(dto, { userAgent });
   }
 }

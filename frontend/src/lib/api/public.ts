@@ -1,8 +1,9 @@
 // Public API functions (no auth required)
 
 import { publicApiFetch } from './client';
-import type { PublicTrackingResult, PublicBatchUpdate } from '@/types/public';
+import type { PublicTrackingResult, PublicBatchUpdate, PublicCustomerRegistrationResponse } from '@/types/public';
 import type { PaginatedResponse } from '@/types/api';
+import type { CreateCustomerRegistrationPayload } from '@/types/admin';
 
 export const publicApi = {
   tracking: (query: string) =>
@@ -23,4 +24,10 @@ export const publicApi = {
 
   health: () =>
     publicApiFetch<{ status: string; service: string; timestamp: string }>('/health'),
+
+  createCustomerRegistration: (data: CreateCustomerRegistrationPayload) =>
+    publicApiFetch<PublicCustomerRegistrationResponse>('/public/customer-registrations', {
+      method: 'POST',
+      body: data,
+    }),
 };

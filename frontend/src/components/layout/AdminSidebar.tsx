@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Users,
+  UserPlus,
   Truck,
   FileText,
   LogOut,
@@ -23,6 +24,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ClipboardList,
   Package,
   Users,
+  UserPlus,
   Truck,
   FileText,
 };
@@ -40,7 +42,7 @@ export function AdminSidebar({ onNavigate }: AdminSidebarProps) {
   }, []);
 
   return (
-    <aside className="w-64 border-r bg-card flex flex-col">
+    <aside className="w-64 h-full border-r bg-card flex flex-col">
       {/* Header */}
       <div className="p-4 border-b">
         <Link href="/admin" className="flex items-center gap-2">

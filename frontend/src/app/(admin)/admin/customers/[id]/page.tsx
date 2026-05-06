@@ -21,7 +21,7 @@ export default function CustomerDetailPage() {
 
   // Edit state
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ phoneCountryCode: '', phoneNumber: '', wechatId: '', notes: '', status: '' });
+  const [form, setForm] = useState({ phoneCountryCode: '', phoneNumber: '', wechatId: '', domesticReturnAddress: '', notes: '', status: '' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
@@ -37,6 +37,7 @@ export default function CustomerDetailPage() {
         phoneCountryCode: data.phoneCountryCode || '+86',
         phoneNumber: data.phoneNumber || '',
         wechatId: data.wechatId || '',
+        domesticReturnAddress: data.domesticReturnAddress || '',
         notes: data.notes || '',
         status: data.status || 'ACTIVE',
       });
@@ -69,8 +70,9 @@ export default function CustomerDetailPage() {
       const updated = await adminApi.updateCustomer(id, {
         phoneCountryCode: form.phoneCountryCode,
         phoneNumber: form.phoneNumber.trim(),
-        wechatId: form.wechatId.trim() || undefined,
-        notes: form.notes.trim() || undefined,
+        wechatId: form.wechatId.trim() || null,
+        domesticReturnAddress: form.domesticReturnAddress.trim() || null,
+        notes: form.notes.trim() || null,
         status: form.status as 'ACTIVE' | 'DISABLED',
       });
       setCustomer(updated);
@@ -250,6 +252,21 @@ export default function CustomerDetailPage() {
               />
             ) : (
               <input type="text" value={customer.wechatId || '-'} disabled className="w-full px-3 py-2 rounded-md border bg-muted text-sm" />
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">国内退货地址</label>
+            {editing ? (
+              <textarea
+                value={form.domesticReturnAddress}
+                onChange={(e) => setForm(f => ({ ...f, domesticReturnAddress: e.target.value }))}
+                placeholder="可选"
+                rows={2}
+                className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
+              />
+            ) : (
+              <div className="px-3 py-2 rounded-md border bg-muted text-sm min-h-[40px]">{customer.domesticReturnAddress || '-'}</div>
             )}
           </div>
 

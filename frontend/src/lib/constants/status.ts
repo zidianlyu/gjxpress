@@ -92,6 +92,18 @@ export const PAYMENT_STATUS_COLORS: Record<string, string> = {
   REFUNDED: 'bg-purple-100 text-purple-700',
 };
 
+export const CUSTOMER_REGISTRATION_STATUS_LABELS: Record<string, string> = {
+  PENDING: '待审核',
+  APPROVED: '已通过',
+  REJECTED: '已拒绝',
+};
+
+export const CUSTOMER_REGISTRATION_STATUS_COLORS: Record<string, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-700',
+  APPROVED: 'bg-green-100 text-green-700',
+  REJECTED: 'bg-red-100 text-red-700',
+};
+
 // Generic status label getter with fallback
 export function getStatusLabel(status: string, labelMap: Record<string, string>): string {
   return labelMap[status] || status;

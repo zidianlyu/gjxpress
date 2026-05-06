@@ -932,7 +932,66 @@ No recommendations found.
 
 ---
 
-## 13. Deployment Pages Checklist
+## 13. Customer Registration Pages (Phase 3)
+
+### 13.1 Public Registration Page
+
+Route: `/register`
+File: `src/app/(public)/register/page.tsx`
+
+Features:
+- Form fields: phoneCountryCode, phoneNumber, wechatId, domesticReturnAddress, notes
+- Privacy consent checkbox (links to /privacy)
+- On success: shows customerCode with copy button and "待审核" notice
+- No PII exposure from other customers
+- Mobile responsive
+
+API: `POST /public/customer-registrations`
+
+### 13.2 Admin Customer Registrations List
+
+Route: `/admin/customer-registrations`
+File: `src/app/(admin)/admin/customer-registrations/page.tsx`
+
+Features:
+- Table/card list of registrations
+- Search by customerCode, phoneNumber, wechatId
+- Filter by status (PENDING/APPROVED/REJECTED)
+- Pagination
+- Create modal for admin-initiated registrations
+- Mobile responsive cards
+
+API: `GET /admin/customer-registrations`
+
+### 13.3 Admin Customer Registration Detail
+
+Route: `/admin/customer-registrations/[id]`
+File: `src/app/(admin)/admin/customer-registrations/[id]/page.tsx`
+
+Features:
+- View/edit registration fields
+- Approve → creates formal Customer
+- Reject with optional reviewNote
+- Hard delete with confirmation dialog
+- Link to created customer after approval
+- Status badges (PENDING/APPROVED/REJECTED)
+
+APIs:
+- `GET /admin/customer-registrations/:id`
+- `PATCH /admin/customer-registrations/:id`
+- `POST /admin/customer-registrations/:id/approve`
+- `POST /admin/customer-registrations/:id/reject`
+- `DELETE /admin/customer-registrations/:id?confirm=DELETE_HARD`
+
+### 13.4 Updated Customer Pages
+
+- `/admin/customers` and `/admin/customers/[id]` now include `domesticReturnAddress` field
+- Create customer modal includes domesticReturnAddress
+- Detail page edit form includes domesticReturnAddress
+
+---
+
+## 14. Deployment Pages Checklist
 
 Before deploying to Vercel:
 

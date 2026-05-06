@@ -1,8 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEnum, MaxLength } from 'class-validator';
-import { CustomerStatus } from '@prisma/client';
+import { IsString, IsOptional, MaxLength } from 'class-validator';
 
-export class UpdateCustomerDto {
+export class UpdateCustomerRegistrationDto {
   @ApiPropertyOptional({ example: '+86' })
   @IsString()
   @IsOptional()
@@ -21,7 +20,7 @@ export class UpdateCustomerDto {
   @MaxLength(64)
   wechatId?: string;
 
-  @ApiPropertyOptional({ example: '广东省广州市天河区...' })
+  @ApiPropertyOptional({ example: '广东省广州市...' })
   @IsString()
   @IsOptional()
   @MaxLength(2000)
@@ -33,8 +32,9 @@ export class UpdateCustomerDto {
   @MaxLength(1000)
   notes?: string;
 
-  @ApiPropertyOptional({ enum: CustomerStatus })
-  @IsEnum(CustomerStatus)
+  @ApiPropertyOptional({ example: '资料审核中，需补充信息' })
+  @IsString()
   @IsOptional()
-  status?: CustomerStatus;
+  @MaxLength(1000)
+  reviewNote?: string;
 }

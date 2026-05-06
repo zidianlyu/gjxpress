@@ -7,6 +7,7 @@ const footerLinks = {
     { label: '服务介绍', href: '/services' },
     { label: '物流状态查询', href: '/tracking' },
     { label: '批次更新', href: '/batch-updates' },
+    { label: '新客户注册', href: '/register' },
   ],
   company: [
     { label: '关于我们', href: '/about' },

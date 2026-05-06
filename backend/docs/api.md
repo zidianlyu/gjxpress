@@ -2245,3 +2245,297 @@ curl -s -X POST "$BASE/admin/master-shipments" \
   -H "Content-Type: application/json" \
   -d '{"vendorName":"DHL","vendorTrackingNo":"DHL123456","customerShipmentIds":["<uuid1>","<uuid2>"]}'
 ```
+
+---
+
+## 25. Phase 3 — Customer Registration Review & domesticReturnAddress
+
+> Auth: Public registration requires no auth. All Admin endpoints require `ADMIN_TOKEN`.
+> customerCode format: `GJ` + 4 digits (e.g. `GJ0427`). Generated uniquely across both `Customer` and `CustomerRegistration` tables.
+> Duplicate phone (PENDING or APPROVED) → 409. Already a formal Customer → 409.
+
+---
+
+## 25.1 Customer — domesticReturnAddress Field
+
+The `Customer` model now includes `domesticReturnAddress` (optional text). Available on all admin endpoints.
+
+**Create:**
+```json
+{
+  "phoneCountryCode": "+86",
+  "phoneNumber": "13800000000",
+  "wechatId": "wechat_optional",
+  "domesticReturnAddress": "广东省广州市天河区...",
+  "notes": "内部备注"
+}
+```
+
+**Update (PATCH /admin/customers/:id):**
+```json
+{
+  "domesticReturnAddress": "新地址"
+}
+```
+
+**Response** includes `domesticReturnAddress` in all list/detail responses.
+
+---
+
+## 25.2 Public — Submit Customer Registration
+
+### POST /api/public/customer-registrations
+
+No auth required.
+
+**Request:**
+```json
+{
+  "phoneCountryCode": "+86",
+  "phoneNumber": "13800000000",
+  "wechatId": "wechat_optional",
+  "domesticReturnAddress": "广东省广州市天河区...",
+  "notes": "备注，可选"
+}
+```
+
+**Validation:**
+- `phoneCountryCode` max 8 chars (default `+86`)
+- `phoneNumber` required, max 32 chars, digits/+/spaces/hyphens only
+- `wechatId` optional, max 64 chars
+- `domesticReturnAddress` optional, max 2000 chars
+- `notes` optional, max 1000 chars
+
+**Response 201:**
+```json
+{
+  "id": "uuid",
+  "customerCode": "GJ0427",
+  "status": "PENDING",
+  "message": "注册信息已提交，请等待工作人员审核。"
+}
+```
+
+**Errors:**
+- 400 — validation failure
+- 409 — same phone already has PENDING registration (waiting review)
+- 409 — same phone already has APPROVED registration (already a customer)
+- 409 — same phone already exists as formal Customer
+
+**Privacy:**
+- Does NOT return list of registrations
+- Does NOT return other applicants' data
+- Does NOT return ipHash, userAgent, reviewNote, approvedByAdminId
+- REJECTED phone can re-submit (only PENDING/APPROVED blocks re-submission)
+
+---
+
+## 25.3 Admin — Customer Registration List
+
+### GET /api/admin/customer-registrations
+
+**Query params:**
+| Param | Required | Description |
+|---|---|---|
+| `q` | no | Search customerCode, phoneNumber, wechatId |
+| `status` | no | `PENDING` \| `APPROVED` \| `REJECTED` |
+| `page` | no | Default 1 |
+| `pageSize` | no | Default 20, max 100 |
+
+**Response 200:**
+```json
+{
+  "items": [...],
+  "page": 1,
+  "pageSize": 20,
+  "total": 5,
+  "totalPages": 1
+}
+```
+
+Each item includes: `id`, `customerCode`, `phoneCountryCode`, `phoneNumber`, `wechatId`, `domesticReturnAddress`, `notes`, `status`, `reviewNote`, `createdCustomerId`, `approvedAt`, `rejectedAt`, `createdAt`, `updatedAt`.
+
+---
+
+## 25.4 Admin — Create Registration (Manual)
+
+### POST /api/admin/customer-registrations
+
+Admin creates a registration manually, enters PENDING queue.
+
+**Request:** Same as Public (`phoneNumber` required, others optional).
+
+**Response 201:** Full registration object.
+
+**Errors:** Same 409 conflicts as Public endpoint.
+
+---
+
+## 25.5 Admin — Get Registration Detail
+
+### GET /api/admin/customer-registrations/:id
+
+**Response 200:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "customerCode": "GJ0427",
+    "phoneCountryCode": "+86",
+    "phoneNumber": "13800000000",
+    "wechatId": "optional",
+    "domesticReturnAddress": "...",
+    "notes": "...",
+    "status": "PENDING",
+    "reviewNote": null,
+    "approvedAt": null,
+    "approvedByAdminId": null,
+    "rejectedAt": null,
+    "rejectedByAdminId": null,
+    "createdCustomerId": null,
+    "createdCustomer": null,
+    "ipHash": "...",
+    "userAgent": "...",
+    "createdAt": "...",
+    "updatedAt": "..."
+  }
+}
+```
+
+**Errors:** 404 if not found.
+
+---
+
+## 25.6 Admin — Update Registration
+
+### PATCH /api/admin/customer-registrations/:id
+
+Update info or reviewNote. Does NOT change status directly.
+
+**Allowed fields:**
+- `phoneCountryCode`, `phoneNumber`, `wechatId`, `domesticReturnAddress`, `notes`, `reviewNote`
+
+**Response 200:** `{ data: updatedRegistration }`
+
+---
+
+## 25.7 Admin — Approve Registration
+
+### POST /api/admin/customer-registrations/:id/approve
+
+Approve and atomically create a formal `Customer`.
+
+**Request:**
+```json
+{ "reviewNote": "可选审核备注" }
+```
+
+**Rules:**
+- Status must be `PENDING` or `REJECTED` (not `APPROVED`)
+- `customerCode` must not already exist in `Customer` table
+- Phone must not already be a formal Customer (409)
+- Uses `$transaction`: creates `Customer` → updates registration `status=APPROVED`, sets `approvedAt`, `approvedByAdminId`, `createdCustomerId`
+
+**Response 200:**
+```json
+{
+  "registration": { ... },
+  "customer": { "id": "uuid", "customerCode": "GJ0427" }
+}
+```
+
+**Errors:**
+- 404 — registration not found
+- 409 — already APPROVED
+- 409 — phone already a formal Customer
+- 409 — customerCode already taken
+
+---
+
+## 25.8 Admin — Reject Registration
+
+### POST /api/admin/customer-registrations/:id/reject
+
+**Request:**
+```json
+{ "reviewNote": "拒绝原因，可选" }
+```
+
+**Rules:**
+- Status must not be `APPROVED` (409)
+- Sets `status=REJECTED`, `rejectedAt`, `rejectedByAdminId`
+
+**Response 200:** `{ data: updatedRegistration }`
+
+---
+
+## 25.9 Admin — Hard Delete Registration
+
+### DELETE /api/admin/customer-registrations/:id?confirm=DELETE_HARD
+
+**Rules:**
+- `confirm=DELETE_HARD` required (400 if missing)
+- Deletes registration record only
+- Does NOT cascade-delete any `Customer` created from this registration
+- `createdCustomer` FK uses `SET NULL` on Prisma side (registration FK only)
+
+**Response 200:**
+```json
+{ "deleted": true, "id": "uuid" }
+```
+
+---
+
+## 25.10 curl Quick Reference — Phase 3
+
+```bash
+ADMIN_TOKEN="<ADMIN_TOKEN>"
+BASE="http://localhost:3000/api"
+
+# Public: submit registration (no token)
+curl -s -X POST "$BASE/public/customer-registrations" \
+  -H "Content-Type: application/json" \
+  -d '{"phoneCountryCode":"+86","phoneNumber":"13800000000","wechatId":"wx123","domesticReturnAddress":"广东省..."}'
+
+# Admin: list pending registrations
+curl -s "$BASE/admin/customer-registrations?status=PENDING" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# Admin: get detail
+curl -s "$BASE/admin/customer-registrations/<reg-id>" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# Admin: update reviewNote
+curl -s -X PATCH "$BASE/admin/customer-registrations/<reg-id>" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reviewNote":"资料已核实"}'
+
+# Admin: approve (creates Customer)
+curl -s -X POST "$BASE/admin/customer-registrations/<reg-id>/approve" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reviewNote":"审核通过"}'
+
+# Admin: reject
+curl -s -X POST "$BASE/admin/customer-registrations/<reg-id>/reject" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reviewNote":"资料不完整"}'
+
+# Admin: hard delete registration (does NOT delete Customer)
+curl -s -X DELETE "$BASE/admin/customer-registrations/<reg-id>?confirm=DELETE_HARD" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# Admin: create customer with domesticReturnAddress
+curl -s -X POST "$BASE/admin/customers" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber":"13800000000","domesticReturnAddress":"广东省广州市..."}'
+
+# Admin: update customer domesticReturnAddress
+curl -s -X PATCH "$BASE/admin/customers/<cust-id>" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"domesticReturnAddress":"新地址"}'
+```

@@ -51,7 +51,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen flex bg-muted/30">
       {/* Desktop sidebar */}
-      <div className="hidden md:block">
+      <div className="hidden md:flex md:sticky md:top-0 md:h-screen">
         <AdminSidebar />
       </div>
 

@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
-const MAX_CODE_RETRIES = 20;
+const MAX_CODE_RETRIES = 50;
 
 @Injectable()
 export class CustomersService {
@@ -31,8 +31,9 @@ export class CustomersService {
         customerCode,
         phoneCountryCode: countryCode,
         phoneNumber: dto.phoneNumber,
-        wechatId: dto.wechatId,
-        notes: dto.notes,
+        wechatId: dto.wechatId ?? null,
+        domesticReturnAddress: dto.domesticReturnAddress ?? null,
+        notes: dto.notes ?? null,
       },
     });
   }
@@ -68,6 +69,7 @@ export class CustomersService {
           phoneCountryCode: true,
           phoneNumber: true,
           wechatId: true,
+          domesticReturnAddress: true,
           status: true,
           createdAt: true,
           _count: {
@@ -153,11 +155,12 @@ export class CustomersService {
     const updated = await this.prisma.customer.update({
       where: { id },
       data: {
-        phoneCountryCode: dto.phoneCountryCode,
-        phoneNumber: dto.phoneNumber,
-        wechatId: dto.wechatId,
-        notes: dto.notes,
-        status: dto.status,
+        ...(dto.phoneCountryCode !== undefined && { phoneCountryCode: dto.phoneCountryCode }),
+        ...(dto.phoneNumber !== undefined && { phoneNumber: dto.phoneNumber }),
+        ...(dto.wechatId !== undefined && { wechatId: dto.wechatId }),
+        ...(dto.domesticReturnAddress !== undefined && { domesticReturnAddress: dto.domesticReturnAddress }),
+        ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(dto.status !== undefined && { status: dto.status }),
       },
     });
     return { data: updated };
@@ -210,17 +213,18 @@ export class CustomersService {
     return { deleted: true, id };
   }
 
-  private async generateUniqueCustomerCode(): Promise<string> {
+  async generateUniqueCustomerCode(): Promise<string> {
     for (let i = 0; i < MAX_CODE_RETRIES; i++) {
-      const digits = Math.floor(1000 + Math.random() * 9000).toString();
+      const digits = String(Math.floor(1000 + Math.random() * 9000));
       const code = `GJ${digits}`;
-      const exists = await this.prisma.customer.findUnique({
-        where: { customerCode: code },
-      });
-      if (!exists) return code;
+      const [inCustomers, inRegistrations] = await Promise.all([
+        this.prisma.customer.findUnique({ where: { customerCode: code } }),
+        this.prisma.customerRegistration.findUnique({ where: { customerCode: code } }),
+      ]);
+      if (!inCustomers && !inRegistrations) return code;
     }
     throw new BadRequestException(
-      'Failed to generate unique customerCode after maximum retries',
+      'Customer code pool exhausted or collision too high.',
     );
   }
 }

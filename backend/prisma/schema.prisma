@@ -110,6 +110,12 @@ enum TransactionType {
   REFUND
 }
 
+enum CustomerRegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum SourcePlatform {
   TAOBAO
   JD
@@ -659,19 +665,21 @@ model AdminAccount {
 }
 
 model Customer {
-  id               String         @id @default(uuid()) @db.Uuid
-  customerCode     String         @unique @map("customer_code") @db.VarChar(16)
-  phoneCountryCode String         @default("+86") @map("phone_country_code") @db.VarChar(8)
-  phoneNumber      String         @map("phone_number") @db.VarChar(32)
-  wechatId         String?        @map("wechat_id") @db.VarChar(64)
-  notes            String?
-  status           CustomerStatus @default(ACTIVE)
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  id                    String         @id @default(uuid()) @db.Uuid
+  customerCode          String         @unique @map("customer_code") @db.VarChar(16)
+  phoneCountryCode      String         @default("+86") @map("phone_country_code") @db.VarChar(8)
+  phoneNumber           String         @map("phone_number") @db.VarChar(32)
+  wechatId              String?        @map("wechat_id") @db.VarChar(64)
+  domesticReturnAddress String?        @map("domestic_return_address") @db.Text
+  notes                 String?
+  status                CustomerStatus @default(ACTIVE)
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
 
   inboundPackages   InboundPackage[]
   customerShipments CustomerShipment[]
   transactions      TransactionRecord[]
+  registrations     CustomerRegistration[]
 
   @@unique([phoneCountryCode, phoneNumber], map: "customers_phone_unique")
   @@index([customerCode])
@@ -679,6 +687,41 @@ model Customer {
   @@index([wechatId])
   @@index([status])
   @@map("customers")
+}
+
+model CustomerRegistration {
+  id           String @id @default(uuid()) @db.Uuid
+  customerCode String @unique @map("customer_code") @db.VarChar(16)
+
+  phoneCountryCode      String  @default("+86") @map("phone_country_code") @db.VarChar(8)
+  phoneNumber           String  @map("phone_number") @db.VarChar(32)
+  wechatId              String? @map("wechat_id") @db.VarChar(64)
+  domesticReturnAddress String? @map("domestic_return_address") @db.Text
+  notes                 String?
+
+  status CustomerRegistrationStatus @default(PENDING)
+
+  approvedAt        DateTime? @map("approved_at")
+  approvedByAdminId String?   @map("approved_by_admin_id") @db.Uuid
+  rejectedAt        DateTime? @map("rejected_at")
+  rejectedByAdminId String?   @map("rejected_by_admin_id") @db.Uuid
+  reviewNote        String?   @map("review_note")
+
+  createdCustomerId String?   @map("created_customer_id") @db.Uuid
+  createdCustomer   Customer? @relation(fields: [createdCustomerId], references: [id])
+
+  ipHash    String? @map("ip_hash") @db.VarChar(128)
+  userAgent String? @map("user_agent") @db.VarChar(512)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([customerCode])
+  @@index([phoneNumber])
+  @@index([wechatId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("customer_registrations")
 }
 
 model InboundPackage {
