@@ -15,7 +15,6 @@ const CUSTOMER_LIST_SELECT = {
   phoneNumber: true,
   wechatId: true,
   domesticReturnAddress: true,
-  notes: true,
   status: true,
   createdAt: true,
   updatedAt: true,
@@ -62,8 +61,8 @@ export class CustomersService {
         phoneNumber: dto.phoneNumber,
         wechatId: dto.wechatId ?? null,
         domesticReturnAddress: dto.domesticReturnAddress ?? null,
-        notes: dto.notes ?? null,
       },
+      select: CUSTOMER_LIST_SELECT,
     });
   }
 
@@ -116,7 +115,8 @@ export class CustomersService {
   async findOne(id: string) {
     const customer = await this.prisma.customer.findUnique({
       where: { id },
-      include: {
+      select: {
+        ...CUSTOMER_LIST_SELECT,
         inboundPackages: {
           select: {
             id: true,
@@ -164,7 +164,6 @@ export class CustomersService {
       : undefined;
     const wechatId = trimNullableString(dto.wechatId);
     const domesticReturnAddress = trimNullableString(dto.domesticReturnAddress);
-    const notes = trimNullableString(dto.notes);
 
     if (dto.phoneNumber || dto.phoneCountryCode) {
       const newCountry = phoneCountryCode || customer.phoneCountryCode;
@@ -190,7 +189,6 @@ export class CustomersService {
         ...(dto.phoneNumber !== undefined && { phoneNumber }),
         ...(dto.wechatId !== undefined && { wechatId }),
         ...(dto.domesticReturnAddress !== undefined && { domesticReturnAddress }),
-        ...(dto.notes !== undefined && { notes }),
         ...(dto.status !== undefined && { status: dto.status }),
       },
       select: CUSTOMER_LIST_SELECT,

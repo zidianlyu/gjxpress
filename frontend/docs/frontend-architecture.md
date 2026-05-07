@@ -16,8 +16,8 @@ frontend/
 │   │   │   ├── page.tsx
 │   │   │   ├── services/
 │   │   │   ├── tracking/
-│   │   │   ├── batch-updates/
 │   │   │   ├── register/
+│   │   │   ├── contact/
 │   │   │   ├── compliance/
 │   │   │   ├── privacy/
 │   │   │   ├── terms/
@@ -65,10 +65,23 @@ export const siteConfig = {
   url: "https://gjxpress.net",
   description: "...",
   locale: "zh_CN",
-  address: {
-    addressRegion: "CA",
-    postalCode: "95051",
-    addressCountry: "US",
+  serviceAreas: ["Santa Clara", "San Jose", "Milpitas", "Fremont"],
+  publicContacts: {
+    domestic: {
+      label: "国内联系人",
+      name: "阿骏",
+      phone: "+86 139-2903-5086",
+      phoneHref: "tel:+8613929035086",
+      wechat: "FENG13929035086",
+    },
+    us: {
+      label: "美国联系人",
+      name: "吕哥",
+      phone: "+1 951-660-1736",
+      phoneHref: "tel:+19516601736",
+      wechat: "zidianlyu",
+    },
+    note: "添加微信或联系时，请注明：“咨询广骏中美快运”",
   },
 };
 ```
@@ -177,7 +190,7 @@ Admin API wrappers live in `src/lib/api/admin.ts` and use `adminApiFetch`, which
 
 List wrappers normalize backend pagination shape before data reaches pages. The normalized shape is `{ items, page, pageSize, total, totalPages }`.
 
-Supported backend shapes include top-level `{ items, page, pageSize, total }`, legacy nested `{ items, pagination }`, and plain arrays.
+Supported backend shapes include top-level `{ items, page, pageSize, total }`, nested `{ data: { items, ... } }`, legacy nested `{ items, pagination }`, uncommon `{ item: ... }`, and plain arrays.
 
 Status labels are centralized in `src/lib/constants/status.ts`. Inbound package and customer shipment UI submit only canonical simplified statuses while retaining display compatibility for old enum values during migration.
 
@@ -189,6 +202,18 @@ Admin customer shipment create submits `customerCode`; the backend resolves it t
 
 Customer shipment create notes end with exactly one `应付费用：...` line. If the amount can be calculated, the line uses the formatted payable amount; otherwise it uses `应付费用：待确认`.
 
+Customer and CustomerRegistration frontends do not expose or submit notes. Public registration collects only contact fields and privacy consent. Admin registration review allows editing contact fields, approving, or deleting the application. The registration delete action is labeled `删除申请`, uses the hard delete API (`DELETE /admin/customer-registrations/:id?confirm=DELETE_HARD`), and does not require typed `DELETE` confirmation in that specific review-detail flow.
+
+New customer review flow is: Public registration → Admin review → approve creates a formal Customer → backend hard deletes the CustomerRegistration. After approval, the frontend redirects to the created customer detail page when the API returns `response.customer.id`, otherwise back to the registration list. The frontend must not re-fetch the deleted registration.
+
+Inbound package create requires a valid `customerCode` (`GJ` plus four digits). Admins enter only the four digits through `CustomerCodeInput`; the frontend payload submits the full business code such as `GJ1736`. When the backend reports a missing customer for that submitted code, the create modal shows `客户 GJ1736 不存在，请核实后重试。` without a Request ID. Unknown API errors may still show Request ID for troubleshooting.
+
+`支付订单` is the Admin display name for `/admin/transactions`; backend API paths and model names may still use `transactions`. The frontend does not implement online payment, payment links, or payment QR codes. Admins can create a shipping-fee payment order only from an unpaid customer shipment via the `入账` action. The action is a text button matching `编辑`, with no border and no icon. The modal displays the business shipment number label `集运单号` such as `GJS20260507267`, hides the raw `customerShipmentId` from the admin, and keeps that internal id only in the create payload. It prefills `customerShipmentId`, `billingRateCnyPerKg * billingWeightKg`, and type `SHIPPING_FEE`. Create payloads use `{ customerShipmentId, type, amountCents, adminNote? }` and must not submit `customerId`; the backend derives `customerId` from `customerShipmentId`. `/admin/transactions` remains a list/detail area and does not expose a top-right create button. The transactions list defaults to all types and must not hide `SHIPPING_FEE`.
+
+Inbound package and customer shipment hard deletes are entity deletes only: the frontend calls the backend `?confirm=DELETE_HARD` endpoint through `adminApi`, and backend storage cleanup deletes any uploaded images. The frontend must not compute storage object paths or delete storage directly.
+
+Customer shipments do not support cancellation in Admin UI. Problem cases should be handled by updating the shipment status to `EXCEPTION` or another existing status.
+
 Admin detail pages must hydrate from their detail APIs on page load using route params, not from list-page state. This keeps `/admin/customers/:id` and `/admin/inbound-packages/:id` refresh-safe and direct-link safe.
 
 Admin detail pages must unwrap detail API responses before storing entity state. Backend detail responses may arrive as a raw object, `{ item }`, or `{ data }`; pages should use the shared unwrap helper instead of putting wrapper objects into state.
@@ -197,9 +222,13 @@ When displaying a shortened id, use `safeShortId()` instead of calling `value.sl
 
 Admin create modals close and reset after successful creation, then refresh the list. If the create request fails, the modal remains open and keeps the admin's entered values.
 
+Inbound package and customer shipment create modals use a full-page blocking loading overlay while creating records, uploading selected images, and refreshing lists. During that state admins cannot close the modal, click cancel, remove selected files, submit again, or interact with the underlying page. The overlay text should reflect progress such as `正在创建记录...`, `正在上传图片 2 / 5...`, and `正在刷新列表...`. On failure, the overlay disappears and the modal keeps form values and local image selections.
+
 Inbound package image uploads must only run after create returns a real package `id`. If the create response does not include an id in raw object, `{ item }`, or `{ data }`, the frontend stops image upload and shows an explicit error instead of calling `/undefined/images`.
 
 Customer shipment image uploads follow the same rule: create first through the backend API, extract a real shipment `id`, then upload images through `/admin/customer-shipments/:id/images`.
+
+Master shipments include `shipmentType` in create and update payloads. Valid internal values are `AIR_GENERAL`, `AIR_SENSITIVE`, and `SEA`, displayed to admins as `空运普货`, `空运敏货`, and `海运`. New batch forms show `类型` at the top, before supplier fields and customer shipment selection. Lists and detail pages display the Chinese label, with old records defaulting to `空运普货` when the value is missing.
 
 ---
 
@@ -386,7 +415,47 @@ handoffSummary: '支持本地上门递送或预约交接，具体安排由工作
 - LocalBusiness JSON-LD removes streetAddress, postalCode
 - No complete address in any public JSON-LD
 
-### 6.4 Internal Linking Strategy
+### 6.4 Public Contacts And App Version
+
+**Public contact configuration:**
+
+- Public contact details are centralized in `src/lib/site-config.ts` under `publicContacts`
+- `/contact` is a public indexed contact page and is included in `sitemap.ts`
+- Public nav, footer, home page, services page, and register page provide discoverable links to contact information
+- Every indexable public page renders `PublicContactStrip` above `PublicFooter` through the `(public)` layout; Admin pages do not use this layout
+- The home page renders `PublicContactHighlight` near the hero with both public contacts, clickable telephone links, visible WeChat ids, and the consultation note
+- Organization and LocalBusiness JSON-LD include public `contactPoint` telephone values
+- The public footer displays domestic and U.S. contacts with name, telephone link, and WeChat id
+- Contact content must not include private addresses, payment details, collection QR codes, or high-risk logistics promises
+- Public pages may add lightweight contact CTAs, but should avoid fixed pricing, fixed timelines, tax-included claims, or delivery/customs guarantees
+
+### 6.5 Public Nav And Tracking Consolidation
+
+- Public nav uses: 服务, 查询订单, 新客户注册, 联系, 合规, 隐私, 管理员
+- Logo remains the only home link; there is no separate 首页 nav tab
+- The former 查询 and 批次更新 nav entries are merged into 查询订单, linking to `/tracking`
+- `/tracking` shows public batch update content at the top and keeps the order/tracking query form below it
+- `/batch-updates` and `/batch-updates/:path*` are no longer content routes; `next.config.ts` permanently redirects them to `/tracking`
+- Sitemap and footer links exclude `/batch-updates`; do not request indexing for that URL in Google Search Console
+
+**AppVersionBadge:**
+
+- `src/components/common/AppVersionBadge.tsx` is shared by Public and Admin surfaces
+- It reads public build-time environment values only and does not call the backend
+- Display priority:
+  1. `NEXT_PUBLIC_APP_VERSION`
+  2. `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA`, shortened to 7 characters
+  3. `development`
+- If both version and commit SHA exist, it renders `版本：v<NEXT_PUBLIC_APP_VERSION> · <shortSha>`
+- The Public footer and Admin sidebar both render `AppVersionBadge`
+- Vercel production deployments need "Automatically expose System Environment Variables" enabled to make `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` available automatically
+
+**Admin public-home shortcut:**
+
+- The Admin sidebar includes an `打开官网` link
+- It points to `/`, opens a new tab, and uses `rel="noopener noreferrer"`
+
+### 6.6 Internal Linking Strategy
 
 **RelatedLinks Component:**
 
@@ -501,7 +570,8 @@ graph TD
 - ✅ Organization/LocalBusiness in root layout
 - ✅ Breadcrumbs on all public pages
 - ❌ FAQ only when actual FAQ content exists
-- ❌ No telephone, openingHours, or ratings
+- ✅ Public contactPoint telephone values may be included when they match visible contact content
+- ❌ No openingHours or ratings unless verified and visible
 - ✅ All data must match page content
 
 ---

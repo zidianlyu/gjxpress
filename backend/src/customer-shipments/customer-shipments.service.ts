@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CUSTOMER_SHIPMENT_STATUS_LABELS } from '../common/status-labels';
+import { AdminImageService } from '../admin-image/admin-image.service';
 
 function generateShipmentNo(): string {
   const date = new Date();
@@ -58,17 +59,43 @@ function normalizeCustomerCode(value?: string | null): string | undefined {
 
 function formatCustomerShipment(shipment: any) {
   return {
-    ...shipment,
+    id: shipment.id,
+    shipmentNo: shipment.shipmentNo,
+    customerId: shipment.customerId,
+    customer: shipment.customer,
+    status: shipment.status,
+    paymentStatus: shipment.paymentStatus,
+    actualWeightKg: shipment.actualWeightKg,
+    volumeFormula: shipment.volumeFormula,
+    billingRateCnyPerKg: shipment.billingRateCnyPerKg,
+    billingWeightKg: shipment.billingWeightKg,
+    quantity: shipment.quantity,
     imageUrls: shipment.imageUrls ?? [],
+    notes: shipment.notes,
+    masterShipmentId: shipment.masterShipmentId,
+    masterShipment: shipment.masterShipment,
+    internationalTrackingNo: shipment.internationalTrackingNo,
+    publicTrackingEnabled: shipment.publicTrackingEnabled,
+    sentToOverseasAt: shipment.sentToOverseasAt,
+    arrivedOverseasAt: shipment.arrivedOverseasAt,
+    localDeliveryRequestedAt: shipment.localDeliveryRequestedAt,
+    pickedUpAt: shipment.pickedUpAt,
+    completedAt: shipment.completedAt,
+    items: shipment.items,
+    transactions: shipment.transactions,
+    createdAt: shipment.createdAt,
+    updatedAt: shipment.updatedAt,
     statusText: CUSTOMER_SHIPMENT_STATUS_LABELS[shipment.status] ?? shipment.status,
     itemCount: shipment.itemCount ?? shipment._count?.items,
-    _count: undefined,
   };
 }
 
 @Injectable()
 export class CustomerShipmentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private imageService: AdminImageService,
+  ) {}
 
   async create(dto: {
     customerCode?: string;
@@ -349,6 +376,8 @@ export class CustomerShipmentsService {
       });
     }
 
+    const deletedImageCount = await this.imageService.removeByPublicUrls(shipment.imageUrls);
+
     await this.prisma.$transaction(async (tx) => {
       if (shipment._count.items > 0) {
         const items = await tx.customerShipmentItem.findMany({
@@ -363,37 +392,7 @@ export class CustomerShipmentsService {
       await tx.customerShipment.delete({ where: { id } });
     });
 
-    return { deleted: true, id };
-  }
-
-  async cancel(id: string) {
-    const shipment = await this.prisma.customerShipment.findUnique({ where: { id } });
-    if (!shipment) throw new NotFoundException('CustomerShipment not found');
-
-    if (BLOCKED_ITEM_MUTATION_STATUSES.includes(shipment.status)) {
-      throw new ConflictException(
-        `Cannot cancel shipment with status ${shipment.status}. Shipment is already in transit or completed.`,
-      );
-    }
-
-    const items = await this.prisma.customerShipmentItem.findMany({
-      where: { customerShipmentId: id },
-    });
-
-    await this.prisma.$transaction(async (tx) => {
-      if (items.length > 0) {
-        await tx.inboundPackage.updateMany({
-          where: { id: { in: items.map((i) => i.inboundPackageId) } },
-          data: { status: 'ARRIVED' },
-        });
-      }
-      await tx.customerShipment.update({
-        where: { id },
-        data: { status: 'EXCEPTION' },
-      });
-    });
-
-    return { data: { id, status: 'EXCEPTION', cancelled: true, message: 'Shipment cancelled (status set to EXCEPTION)' } };
+    return { deleted: true, id, deletedImageCount };
   }
 
   async updateStatus(id: string, status: string, forcedAt?: string) {

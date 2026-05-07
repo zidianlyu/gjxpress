@@ -279,6 +279,12 @@ export default function ServicesPage() {
                       新客户注册
                     </Link>
                     <Link
+                      href="/contact"
+                      className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      咨询线路
+                    </Link>
+                    <Link
                       href="/tracking"
                       className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
@@ -315,6 +321,12 @@ export default function ServicesPage() {
                 查询物流状态
               </Link>
               <Link
+                href="/contact"
+                className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-3 text-base font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                咨询线路
+              </Link>
+              <Link
                 href="/compliance"
                 className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-3 text-base font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
               >
@@ -346,6 +358,7 @@ export default function ServicesPage() {
               links={[
                 { label: "新客户注册", href: "/register" },
                 { label: "物流状态查询", href: "/tracking" },
+                { label: "联系我们", href: "/contact" },
                 { label: "合规说明", href: "/compliance" },
                 { label: "异常与赔付说明", href: "/compensation" },
                 { label: "常见问题", href: "/faq" },

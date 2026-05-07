@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsArray, IsUUID, ArrayNotEmpty, ArrayMinSize } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsArray, IsUUID, ArrayNotEmpty, ArrayMinSize, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { MasterShipmentsService } from './master-shipments.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -28,6 +28,11 @@ import {
 } from '../common/swagger/api-docs';
 
 class CreateMasterShipmentDto {
+  @ApiPropertyOptional({
+    enum: ['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA'],
+    description: 'Shipment type: AIR_GENERAL=空运普货, AIR_SENSITIVE=空运敏货, SEA=海运.',
+  })
+  @IsIn(['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA']) @IsOptional() shipmentType?: string;
   @ApiProperty({ description: 'Vendor or carrier name.' })
   @IsString() vendorName: string;
   @ApiProperty({ description: 'Vendor tracking number.' })
@@ -51,6 +56,11 @@ class AddCustomerShipmentsDto {
 }
 
 class UpdateMasterShipmentDto {
+  @ApiPropertyOptional({
+    enum: ['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA'],
+    description: 'Shipment type: AIR_GENERAL=空运普货, AIR_SENSITIVE=空运敏货, SEA=海运.',
+  })
+  @IsIn(['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA']) @IsOptional() shipmentType?: string;
   @ApiPropertyOptional({ description: 'Vendor or carrier name.' })
   @IsString() @IsOptional() vendorName?: string;
   @ApiPropertyOptional({ description: 'Vendor tracking number.' })
@@ -119,7 +129,7 @@ export class MasterShipmentsController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '[Admin] General update (vendorName, vendorTrackingNo, adminNote, publicTitle, publicSummary, publicStatusText, publicVisible)' })
+  @ApiOperation({ summary: '[Admin] General update (shipmentType, vendorName, vendorTrackingNo, adminNote, publicTitle, publicSummary, publicStatusText, publicVisible)' })
   @ApiIdParam('id', 'Master shipment id')
   @ApiGenericOk('Master shipment updated.')
   update(@Param('id') id: string, @Body() dto: UpdateMasterShipmentDto) {

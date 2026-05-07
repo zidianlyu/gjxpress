@@ -9,6 +9,30 @@ import { CustomersService } from '../customers/customers.service';
 import { CreateCustomerRegistrationDto } from './dto/create-customer-registration.dto';
 import { UpdateCustomerRegistrationDto } from './dto/update-customer-registration.dto';
 
+const REGISTRATION_RESPONSE_SELECT = {
+  id: true,
+  customerCode: true,
+  phoneCountryCode: true,
+  phoneNumber: true,
+  wechatId: true,
+  domesticReturnAddress: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+const CUSTOMER_RESPONSE_SELECT = {
+  id: true,
+  customerCode: true,
+  phoneCountryCode: true,
+  phoneNumber: true,
+  wechatId: true,
+  domesticReturnAddress: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 @Injectable()
 export class CustomerRegistrationsService {
   constructor(
@@ -49,7 +73,6 @@ export class CustomerRegistrationsService {
         phoneNumber,
         wechatId: dto.wechatId?.trim() || null,
         domesticReturnAddress: dto.domesticReturnAddress?.trim() || null,
-        notes: dto.notes?.trim() || null,
         ipHash: meta?.ipHash ?? null,
         userAgent: meta?.userAgent ?? null,
       },
@@ -63,7 +86,7 @@ export class CustomerRegistrationsService {
     };
   }
 
-  async adminCreate(dto: CreateCustomerRegistrationDto, adminId: string) {
+  async adminCreate(dto: CreateCustomerRegistrationDto) {
     const countryCode = (dto.phoneCountryCode || '+86').trim();
     const phoneNumber = dto.phoneNumber.trim();
 
@@ -93,8 +116,8 @@ export class CustomerRegistrationsService {
         phoneNumber,
         wechatId: dto.wechatId?.trim() || null,
         domesticReturnAddress: dto.domesticReturnAddress?.trim() || null,
-        notes: dto.notes?.trim() || null,
       },
+      select: REGISTRATION_RESPONSE_SELECT,
     });
 
     return { data: registration };
@@ -110,13 +133,16 @@ export class CustomerRegistrationsService {
     const take = Math.min(Number(query.pageSize) || 20, 100);
     const skip = (page - 1) * take;
 
-    const where: any = {};
-    if (query.status) where.status = query.status;
+    if (query.status && query.status !== 'PENDING') {
+      throw new BadRequestException('Registration list only supports status=PENDING');
+    }
+    const where: any = { status: query.status || 'PENDING' };
     if (query.q) {
       where.OR = [
         { customerCode: { contains: query.q, mode: 'insensitive' } },
         { phoneNumber: { contains: query.q } },
         { wechatId: { contains: query.q, mode: 'insensitive' } },
+        { domesticReturnAddress: { contains: query.q, mode: 'insensitive' } },
       ];
     }
 
@@ -126,22 +152,7 @@ export class CustomerRegistrationsService {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          customerCode: true,
-          phoneCountryCode: true,
-          phoneNumber: true,
-          wechatId: true,
-          domesticReturnAddress: true,
-          notes: true,
-          status: true,
-          reviewNote: true,
-          createdCustomerId: true,
-          approvedAt: true,
-          rejectedAt: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select: REGISTRATION_RESPONSE_SELECT,
       }),
       this.prisma.customerRegistration.count({ where }),
     ]);
@@ -158,21 +169,7 @@ export class CustomerRegistrationsService {
   async findOne(id: string) {
     const reg = await this.prisma.customerRegistration.findUnique({
       where: { id },
-      include: {
-        createdCustomer: {
-          select: {
-            id: true,
-            customerCode: true,
-            phoneCountryCode: true,
-            phoneNumber: true,
-            wechatId: true,
-            domesticReturnAddress: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-      },
+      select: REGISTRATION_RESPONSE_SELECT,
     });
     if (!reg) throw new NotFoundException('Registration not found');
     return { data: reg };
@@ -189,39 +186,35 @@ export class CustomerRegistrationsService {
         ...(dto.phoneNumber !== undefined && { phoneNumber: dto.phoneNumber.trim() }),
         ...(dto.wechatId !== undefined && { wechatId: dto.wechatId?.trim() || null }),
         ...(dto.domesticReturnAddress !== undefined && { domesticReturnAddress: dto.domesticReturnAddress?.trim() || null }),
-        ...(dto.notes !== undefined && { notes: dto.notes?.trim() || null }),
-        ...(dto.reviewNote !== undefined && { reviewNote: dto.reviewNote?.trim() || null }),
       },
+      select: REGISTRATION_RESPONSE_SELECT,
     });
     return { data: updated };
   }
 
-  async approve(id: string, adminId: string, reviewNote?: string) {
-    const reg = await this.prisma.customerRegistration.findUnique({ where: { id } });
-    if (!reg) throw new NotFoundException('Registration not found');
-    if (reg.status === 'APPROVED') {
-      throw new ConflictException('Registration is already approved');
-    }
-
-    const existingCustomer = await this.prisma.customer.findFirst({
-      where: { phoneCountryCode: reg.phoneCountryCode, phoneNumber: reg.phoneNumber },
-    });
-    if (existingCustomer) {
-      throw new ConflictException(
-        `Phone ${reg.phoneCountryCode} ${reg.phoneNumber} is already registered as a customer`,
-      );
-    }
-
-    const codeConflict = await this.prisma.customer.findUnique({
-      where: { customerCode: reg.customerCode },
-    });
-    if (codeConflict) {
-      throw new ConflictException(
-        `customerCode ${reg.customerCode} is already taken by an existing customer`,
-      );
-    }
-
+  async approve(id: string) {
     return this.prisma.$transaction(async (tx) => {
+      const reg = await tx.customerRegistration.findUnique({ where: { id } });
+      if (!reg) throw new NotFoundException('Registration not found');
+
+      const codeConflict = await tx.customer.findUnique({
+        where: { customerCode: reg.customerCode },
+      });
+      if (codeConflict) {
+        throw new ConflictException(
+          `Customer already exists for customerCode ${reg.customerCode}`,
+        );
+      }
+
+      const phoneConflict = await tx.customer.findFirst({
+        where: { phoneCountryCode: reg.phoneCountryCode, phoneNumber: reg.phoneNumber },
+      });
+      if (phoneConflict) {
+        throw new ConflictException(
+          `Phone ${reg.phoneCountryCode} ${reg.phoneNumber} is already registered as a customer`,
+        );
+      }
+
       const customer = await tx.customer.create({
         data: {
           customerCode: reg.customerCode,
@@ -229,61 +222,19 @@ export class CustomerRegistrationsService {
           phoneNumber: reg.phoneNumber,
           wechatId: reg.wechatId,
           domesticReturnAddress: reg.domesticReturnAddress,
-          notes: reg.notes,
           status: 'ACTIVE',
         },
+        select: CUSTOMER_RESPONSE_SELECT,
       });
 
-      const updatedReg = await tx.customerRegistration.update({
-        where: { id },
-        data: {
-          status: 'APPROVED',
-          approvedAt: new Date(),
-          approvedByAdminId: adminId,
-          createdCustomerId: customer.id,
-          ...(reviewNote !== undefined && { reviewNote: reviewNote?.trim() || null }),
-        },
-        include: {
-          createdCustomer: {
-            select: {
-              id: true,
-              customerCode: true,
-              phoneCountryCode: true,
-              phoneNumber: true,
-              wechatId: true,
-              domesticReturnAddress: true,
-              status: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          },
-        },
-      });
+      await tx.customerRegistration.delete({ where: { id: reg.id } });
 
       return {
-        registration: updatedReg,
-        customer: { id: customer.id, customerCode: customer.customerCode },
+        approved: true,
+        deletedRegistrationId: reg.id,
+        customer,
       };
     });
-  }
-
-  async reject(id: string, adminId: string, reviewNote?: string) {
-    const reg = await this.prisma.customerRegistration.findUnique({ where: { id } });
-    if (!reg) throw new NotFoundException('Registration not found');
-    if (reg.status === 'APPROVED') {
-      throw new ConflictException('Cannot reject an already approved registration');
-    }
-
-    const updated = await this.prisma.customerRegistration.update({
-      where: { id },
-      data: {
-        status: 'REJECTED',
-        rejectedAt: new Date(),
-        rejectedByAdminId: adminId,
-        ...(reviewNote !== undefined && { reviewNote: reviewNote?.trim() || null }),
-      },
-    });
-    return { data: updated };
   }
 
   async hardDelete(id: string, confirm: string) {

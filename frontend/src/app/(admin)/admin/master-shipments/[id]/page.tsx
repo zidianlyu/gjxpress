@@ -11,6 +11,7 @@ import { MasterShipmentStatusBadge } from '@/components/common/StatusBadge';
 import { MASTER_SHIPMENT_STATUS_LABELS } from '@/lib/constants/status';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
 import { safeShortId } from '@/lib/api/unwrap';
+import { MASTER_SHIPMENT_TYPE_OPTIONS, formatMasterShipmentType, type MasterShipmentType } from '@/lib/master-shipment-types';
 
 const ALL_STATUSES = ['CREATED', 'HANDED_TO_VENDOR', 'IN_TRANSIT', 'TRANSFER_OR_CUSTOMS_PROCESSING', 'ARRIVED_OVERSEAS', 'CLOSED', 'EXCEPTION'];
 
@@ -30,6 +31,7 @@ export default function MasterShipmentDetailPage() {
   const [actionError, setActionError] = useState('');
 
   // Edit fields
+  const [shipmentType, setShipmentType] = useState<MasterShipmentType>('AIR_GENERAL');
   const [vendorName, setVendorName] = useState('');
   const [vendorTrackingNo, setVendorTrackingNo] = useState('');
   const [adminNote, setAdminNote] = useState('');
@@ -64,6 +66,7 @@ export default function MasterShipmentDetailPage() {
     try {
       const data = await adminApi.getMasterShipmentById(id);
       setShipment(data);
+      setShipmentType((data.shipmentType as MasterShipmentType | null) || 'AIR_GENERAL');
       setVendorName(data.vendorName || '');
       setVendorTrackingNo(data.vendorTrackingNo || '');
       setAdminNote(data.adminNote || '');
@@ -94,6 +97,7 @@ export default function MasterShipmentDetailPage() {
     setActionError('');
     try {
       const updated = await adminApi.updateMasterShipment(id, {
+        shipmentType,
         vendorName,
         vendorTrackingNo,
         adminNote,
@@ -258,6 +262,10 @@ export default function MasterShipmentDetailPage() {
               <span className="text-muted-foreground">批次号：</span>
               <span className="font-mono">{shipment.batchNo}</span>
             </div>
+            <div>
+              <span className="text-muted-foreground">类型：</span>
+              {formatMasterShipmentType(shipment.shipmentType)}
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">状态：</span>
               <MasterShipmentStatusBadge status={shipment.status} />
@@ -277,6 +285,16 @@ export default function MasterShipmentDetailPage() {
         <div className="rounded-lg border p-4 space-y-3">
           <h2 className="font-semibold">编辑信息</h2>
           <div className="grid grid-cols-1 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1">类型</label>
+              <select value={shipmentType} onChange={(e) => setShipmentType(e.target.value as MasterShipmentType)} className="w-full px-3 py-2 rounded-md border text-sm">
+                {MASTER_SHIPMENT_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-xs font-medium mb-1">供应商名称</label>
               <input type="text" value={vendorName} onChange={(e) => setVendorName(e.target.value)} className="w-full px-3 py-2 rounded-md border text-sm" />

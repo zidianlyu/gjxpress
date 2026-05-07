@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInboundPackageDto } from './dto/create-inbound-package.dto';
 import { INBOUND_PACKAGE_STATUS_LABELS } from '../common/status-labels';
+import { AdminImageService } from '../admin-image/admin-image.service';
 
 const VALID_INBOUND_PACKAGE_STATUSES = ['UNIDENTIFIED', 'ARRIVED', 'CONSOLIDATED'];
 const CUSTOMER_CODE_PATTERN = /^GJ\d{4}$/;
@@ -66,7 +67,10 @@ function formatInboundPackage(pkg: any) {
 
 @Injectable()
 export class InboundPackagesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private imageService: AdminImageService,
+  ) {}
 
   async create(dto: CreateInboundPackageDto) {
     const domesticTrackingNo = normalizeOptionalString(dto.domesticTrackingNo);
@@ -422,7 +426,9 @@ export class InboundPackagesService {
       });
     }
 
+    const deletedImageCount = await this.imageService.removeByPublicUrls(pkg.imageUrls);
+
     await this.prisma.inboundPackage.delete({ where: { id } });
-    return { deleted: true, id };
+    return { deleted: true, id, deletedImageCount };
   }
 }

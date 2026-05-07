@@ -187,14 +187,6 @@ export class CustomerShipmentsController {
     return this.service.update(id, dto);
   }
 
-  @Patch(':id/cancel')
-  @ApiOperation({ summary: '[Admin] Cancel shipment (PACKED/EXCEPTION only). Restores package statuses to ARRIVED.' })
-  @ApiIdParam('id', 'Customer shipment id')
-  @ApiGenericOk('Shipment cancelled.')
-  cancel(@Param('id') id: string) {
-    return this.service.cancel(id);
-  }
-
   @Patch(':id/status')
   @ApiOperation({ summary: '[Admin] Update customer shipment status' })
   @ApiIdParam('id', 'Customer shipment id')
@@ -266,6 +258,13 @@ export class CustomerShipmentsController {
     @Query('confirm') confirm: string,
   ) {
     if (!imageUrl) throw new BadRequestException('imageUrl query param is required');
+    if (confirm !== 'DELETE_HARD') {
+      throw new BadRequestException('Must pass confirm=DELETE_HARD to confirm image deletion');
+    }
+    const images = await this.service.getImages(id);
+    if (!images.items.includes(imageUrl)) {
+      throw new BadRequestException('imageUrl not found in this shipment');
+    }
     await this.imageService.delete(imageUrl);
     return this.service.removeImage(id, imageUrl, confirm);
   }

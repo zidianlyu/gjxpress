@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   ArrowRight, Search, UserPlus, Warehouse, Camera, PackageOpen,
-  Truck, MapPin, CheckCircle, Info,
+  Truck, MapPin, CheckCircle, Info, Phone,
 } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { RelatedLinks } from '@/components/public/RelatedLinks';
+import { PublicContactHighlight } from '@/components/public/PublicContactHighlight';
 
 export const metadata: Metadata = buildMetadata({
   title: '广骏国际快运｜看得见的跨境物流',
@@ -109,10 +110,19 @@ export default function HomePage() {
               >
                 查看服务介绍
               </Link>
+              <Link
+                href="/contact"
+                className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-3 text-base font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                <Phone className="mr-2 h-4 w-4" />
+                联系我们
+              </Link>
             </div>
           </div>
         </div>
       </section>
+
+      <PublicContactHighlight />
 
       {/* Service Workflow Section */}
       <section className="py-16 md:py-24">
@@ -220,6 +230,7 @@ export default function HomePage() {
                 { label: "服务介绍", href: "/services" },
                 { label: "新客户注册", href: "/register" },
                 { label: "物流状态查询", href: "/tracking" },
+                { label: "联系我们", href: "/contact" },
                 { label: "合规说明", href: "/compliance" },
               ]}
             />

@@ -7,11 +7,14 @@ import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { CustomerShipment } from '@/types/admin';
 import { ImagePicker, LocalImageList } from '@/components/admin/ImageManager';
+import { PaymentOrderCreateDialog } from '@/components/admin/PaymentOrderCreateDialog';
+import { AdminBlockingOverlay } from '@/components/admin/AdminBlockingOverlay';
 import { Pagination } from '@/components/common/Pagination';
 import { CustomerShipmentStatusBadge, PaymentStatusBadge } from '@/components/common/StatusBadge';
 import { CUSTOMER_SHIPMENT_STATUS_OPTIONS } from '@/lib/constants/status';
 import { CustomerCodeInput, isCustomerCodeComplete } from '@/components/admin/CustomerCodeInput';
 import { buildDefaultShipmentNotes, ensurePayableAmountLine, formatPayableAmount, isPositiveDecimalString, sanitizeDecimalString } from '@/lib/admin/customer-shipment-form';
+import { computeShipmentPayableAmountYuan, isUnpaidShipment } from '@/lib/admin/payment-order';
 import { getEntityId, safeShortId } from '@/lib/api/unwrap';
 
 export default function CustomerShipmentsPage() {
@@ -38,9 +41,12 @@ export default function CustomerShipmentsPage() {
   const [localFiles, setLocalFiles] = useState<File[]>([]);
   const [notesManuallyEdited, setNotesManuallyEdited] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createBlockingText, setCreateBlockingText] = useState('正在创建记录...');
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
+  const [paymentDialogShipment, setPaymentDialogShipment] = useState<CustomerShipment | null>(null);
   const payableText = formatPayableAmount(createForm.billingRateCnyPerKg, createForm.billingWeightKg) || '待确认';
+  const paymentDialogAmount = paymentDialogShipment ? computeShipmentPayableAmountYuan(paymentDialogShipment) : null;
 
   const formatDate = (value?: string | null) => {
     if (!value) return '-';
@@ -141,6 +147,7 @@ export default function CustomerShipmentsPage() {
       return;
     }
     setCreating(true);
+    setCreateBlockingText('正在创建记录...');
     setCreateError('');
     setCreateSuccess('');
     try {
@@ -162,13 +169,15 @@ export default function CustomerShipmentsPage() {
       if (localFiles.length > 0) {
         if (!shipmentId) {
           setCreateSuccess('记录已创建但后端未返回 ID，无法上传图片，请刷新列表确认后重试。');
+          setCreateBlockingText('正在刷新列表...');
+          await fetchData();
           resetCreateForm();
           setShowCreate(false);
-          fetchData();
           return;
         }
         let failCount = 0;
-        for (const file of localFiles) {
+        for (const [index, file] of localFiles.entries()) {
+          setCreateBlockingText(`正在上传图片 ${index + 1} / ${localFiles.length}...`);
           try {
             await adminApi.uploadCustomerShipmentImage(shipmentId, file);
           } catch {
@@ -177,17 +186,19 @@ export default function CustomerShipmentsPage() {
         }
         if (failCount > 0) {
           setCreateSuccess('记录已创建，部分图片上传失败，可进入详情页补传。');
+          setCreateBlockingText('正在刷新列表...');
+          await fetchData();
           resetCreateForm();
           setShowCreate(false);
-          fetchData();
           return;
         }
       }
 
       setCreateSuccess(`集运单创建成功${shipment.shipmentNo ? `，单号：${shipment.shipmentNo}` : ''}` + (localFiles.length > 0 ? `，已上传 ${localFiles.length} 张图片` : ''));
+      setCreateBlockingText('正在刷新列表...');
+      await fetchData();
       resetCreateForm();
       setShowCreate(false);
-      fetchData();
     } catch (err) {
       if (err instanceof ApiError) {
         setCreateError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
@@ -197,6 +208,10 @@ export default function CustomerShipmentsPage() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const openPaymentDialog = (shipment: CustomerShipment) => {
+    setPaymentDialogShipment(shipment);
   };
 
   return (
@@ -301,9 +316,22 @@ export default function CustomerShipmentsPage() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(s.createdAt)}</td>
                       <td className="px-4 py-3">
-                        <Link href={`/admin/customer-shipments/${s.id}`} className="text-primary text-xs hover:underline">
-                          查看/编辑
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/admin/customer-shipments/${s.id}`} className="text-primary text-xs hover:underline">
+                            编辑
+                          </Link>
+                          {isUnpaidShipment(s) && (
+                            <button
+                              type="button"
+                              onClick={() => openPaymentDialog(s)}
+                              aria-label="为该集运单入账"
+                              title="新建支付订单"
+                              className="text-primary text-xs hover:underline"
+                            >
+                              入账
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -314,9 +342,11 @@ export default function CustomerShipmentsPage() {
             {/* Mobile card list */}
             <div className="md:hidden space-y-3">
               {shipments.map((s) => (
-                <Link key={s.id} href={`/admin/customer-shipments/${s.id}`} className="block p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors">
+                <div key={s.id} className="p-4 rounded-lg border bg-card">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-sm">{s.shipmentNo || safeShortId(s.id)}</span>
+                    <Link href={`/admin/customer-shipments/${s.id}`} className="font-mono text-sm text-primary hover:underline">
+                      {s.shipmentNo || safeShortId(s.id)}
+                    </Link>
                     <CustomerShipmentStatusBadge status={s.status} />
                   </div>
                   <div className="flex items-center justify-between text-sm">
@@ -325,7 +355,23 @@ export default function CustomerShipmentsPage() {
                     </span>
                     <PaymentStatusBadge status={s.paymentStatus || ''} />
                   </div>
-                </Link>
+                  <div className="mt-3 flex items-center justify-between">
+                    <Link href={`/admin/customer-shipments/${s.id}`} className="text-xs text-primary hover:underline">
+                      编辑
+                    </Link>
+                    {isUnpaidShipment(s) && (
+                      <button
+                        type="button"
+                        onClick={() => openPaymentDialog(s)}
+                        aria-label="为该集运单入账"
+                        title="新建支付订单"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        入账
+                      </button>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
 
@@ -340,7 +386,15 @@ export default function CustomerShipmentsPage() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">新建集运单</h2>
-              <button onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!creating) setShowCreate(false);
+                }}
+                disabled={creating}
+                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                aria-label="关闭"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -349,10 +403,10 @@ export default function CustomerShipmentsPage() {
             {createError && <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm">{createError}</div>}
 
             <form onSubmit={handleCreate} className="space-y-4">
-              <CustomerCodeInput value={createForm.customerCode} onChange={handleCustomerCodeChange} required />
+              <CustomerCodeInput value={createForm.customerCode} onChange={handleCustomerCodeChange} required disabled={creating} />
               <div>
                 <label className="block text-xs font-medium mb-1">件数 *</label>
-                <input type="number" min={1} step={1} value={createForm.quantity} onChange={(e) => setCreateForm((f) => ({ ...f, quantity: e.target.value }))} placeholder="例如 3" className="w-full px-3 py-2 rounded-md border bg-background text-sm" required />
+                <input type="number" min={1} step={1} value={createForm.quantity} onChange={(e) => setCreateForm((f) => ({ ...f, quantity: e.target.value }))} placeholder="例如 3" className="w-full px-3 py-2 rounded-md border bg-background text-sm" required disabled={creating} />
               </div>
 
               {/* Billing fields */}
@@ -372,6 +426,7 @@ export default function CustomerShipmentsPage() {
                       }
                       placeholder="例如 2"
                       className="w-full px-3 py-2 rounded-l-md border bg-background text-sm"
+                      disabled={creating}
                     />
                     <span className="inline-flex items-center px-2 bg-muted border border-l-0 rounded-r-md text-xs text-muted-foreground">kg</span>
                   </div>
@@ -389,6 +444,7 @@ export default function CustomerShipmentsPage() {
                     }
                     placeholder="例如 35*28*13/5000=2.548"
                     className="w-full px-3 py-2 rounded-md border bg-background text-sm"
+                    disabled={creating}
                   />
                 </div>
               </div>
@@ -407,6 +463,7 @@ export default function CustomerShipmentsPage() {
                     }
                     placeholder="例如 3"
                     className="w-full px-3 py-2 rounded-l-md border bg-background text-sm"
+                    disabled={creating}
                   />
                   <span className="inline-flex items-center px-2 bg-muted border border-l-0 rounded-r-md text-xs text-muted-foreground">kg</span>
                 </div>
@@ -427,6 +484,7 @@ export default function CustomerShipmentsPage() {
                     }
                     placeholder="例如 80"
                     className="w-full px-3 py-2 border bg-background text-sm"
+                    disabled={creating}
                   />
                   <span className="inline-flex items-center px-2 bg-muted border border-l-0 rounded-r-md text-xs text-muted-foreground">/kg</span>
                 </div>
@@ -445,6 +503,7 @@ export default function CustomerShipmentsPage() {
                   rows={3}
                   placeholder="备注（填写客户编号后自动生成）"
                   className="w-full px-3 py-2 rounded-md border bg-background text-sm"
+                  disabled={creating}
                 />
               </div>
 
@@ -452,11 +511,13 @@ export default function CustomerShipmentsPage() {
               <div>
                 <label className="block text-xs font-medium mb-1">图片</label>
                 <ImagePicker onSelect={(files) => setLocalFiles((prev) => [...prev, ...files])} disabled={creating} />
-                <LocalImageList files={localFiles} onRemove={(i) => setLocalFiles((prev) => prev.filter((_, idx) => idx !== i))} />
+                <LocalImageList files={localFiles} onRemove={(i) => {
+                  if (!creating) setLocalFiles((prev) => prev.filter((_, idx) => idx !== i));
+                }} />
               </div>
 
               <div className="flex gap-2 justify-end">
-                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-md border text-sm hover:bg-muted">
+                <button type="button" onClick={() => setShowCreate(false)} disabled={creating} className="px-4 py-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50">
                   取消
                 </button>
                 <button type="submit" disabled={creating} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50">
@@ -465,8 +526,23 @@ export default function CustomerShipmentsPage() {
               </div>
             </form>
           </div>
+          {creating && <AdminBlockingOverlay description={createBlockingText} />}
         </div>
       )}
+
+      <PaymentOrderCreateDialog
+        open={!!paymentDialogShipment}
+        onOpenChange={(open) => {
+          if (!open) setPaymentDialogShipment(null);
+        }}
+        defaultCustomerShipmentId={paymentDialogShipment?.id}
+        defaultShipmentNo={paymentDialogShipment?.shipmentNo || undefined}
+        defaultAmountYuan={paymentDialogAmount || undefined}
+        defaultType="SHIPPING_FEE"
+        lockCustomerShipment
+        amountHelperText={paymentDialogShipment && !paymentDialogAmount ? '无法自动计算金额，请手动填写。' : undefined}
+        onCreated={fetchData}
+      />
     </div>
   );
 }

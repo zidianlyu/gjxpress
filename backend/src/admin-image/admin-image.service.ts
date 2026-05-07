@@ -79,17 +79,87 @@ export class AdminImageService implements OnModuleInit {
   }
 
   async delete(publicUrl: string): Promise<void> {
-    const path = this.extractPath(publicUrl);
+    const path = this.extractObjectPathFromPublicUrl(publicUrl, this.bucket);
     if (!path) {
       throw new BadRequestException('Cannot parse storage path from the provided imageUrl');
     }
 
-    const { error } = await this.supabase.storage.from(this.bucket).remove([path]);
+    await this.removeObjectsByPaths([path]);
+  }
+
+  async removeByPublicUrls(imageUrls: string[] | null | undefined): Promise<number> {
+    const urls = (imageUrls ?? []).filter((url): url is string => typeof url === 'string' && url.trim().length > 0);
+    if (urls.length === 0) return 0;
+
+    const objectPaths: string[] = [];
+    for (const imageUrl of urls) {
+      const path = this.extractObjectPathFromPublicUrl(imageUrl, this.bucket);
+      if (path) {
+        objectPaths.push(path);
+        continue;
+      }
+
+      if (this.isSupabaseStorageUrl(imageUrl)) {
+        this.logger.error(
+          `Storage URL parse failed env=${this.bucketEnvName} bucket=${this.bucket} objectCount=1`,
+        );
+        throw new BadRequestException('Cannot parse Supabase Storage URL for the configured bucket');
+      }
+
+      this.logger.warn(
+        `Skipping non-Supabase storage image reference env=${this.bucketEnvName} bucket=${this.bucket} objectCount=1`,
+      );
+    }
+
+    const uniquePaths = [...new Set(objectPaths)];
+    await this.removeObjectsByPaths(uniquePaths);
+    return uniquePaths.length;
+  }
+
+  extractObjectPathFromPublicUrl(imageUrl: string, bucketName: string): string | null {
+    const value = imageUrl.trim();
+    const bucket = bucketName.trim();
+    if (!value || !bucket) return null;
+
+    if (!this.looksLikeUrl(value)) {
+      return this.normalizeObjectPath(value, bucket);
+    }
+
+    try {
+      const url = new URL(value);
+      const marker = `/object/public/${bucket}/`;
+      const idx = url.pathname.indexOf(marker);
+      if (idx === -1) return null;
+      const rawPath = url.pathname.slice(idx + marker.length);
+      return this.normalizeObjectPath(decodeURIComponent(rawPath), bucket);
+    } catch {
+      return null;
+    }
+  }
+
+  async removeObjectsByUrls(imageUrls: string[]): Promise<number> {
+    return this.removeByPublicUrls(imageUrls);
+  }
+
+  private async removeObjectsByPaths(paths: string[]): Promise<void> {
+    const objectPaths = [...new Set(paths.map((path) => path.trim()).filter(Boolean))];
+    if (objectPaths.length === 0) return;
+
+    this.logger.log(
+      `Removing storage objects env=${this.bucketEnvName} bucket=${this.bucket} objectPrefix=${this.describeObjectPrefix(objectPaths)} objectCount=${objectPaths.length}`,
+    );
+
+    const { data, error } = await this.supabase.storage.from(this.bucket).remove(objectPaths);
     if (error) {
       this.logger.error(
-        `Storage delete failed env=${this.bucketEnvName} bucket=${this.bucket} objectPath=${path} statusCode=${(error as any).statusCode ?? 'n/a'} code=${(error as any).code ?? 'n/a'} message=${error.message}`,
+        `Storage delete failed env=${this.bucketEnvName} bucket=${this.bucket} objectPrefix=${this.describeObjectPrefix(objectPaths)} objectCount=${objectPaths.length} statusCode=${(error as any).statusCode ?? 'n/a'} code=${(error as any).code ?? 'n/a'} message=${error.message}`,
       );
       throw new InternalServerErrorException(`Storage delete failed: ${error.message}`);
+    }
+    if (Array.isArray(data) && data.length < objectPaths.length) {
+      this.logger.warn(
+        `Some storage objects were already absent env=${this.bucketEnvName} bucket=${this.bucket} objectPrefix=${this.describeObjectPrefix(objectPaths)} objectCount=${objectPaths.length}`,
+      );
     }
   }
 
@@ -106,15 +176,29 @@ export class AdminImageService implements OnModuleInit {
     }
   }
 
-  private extractPath(publicUrl: string): string | null {
+  private looksLikeUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value);
+  }
+
+  private isSupabaseStorageUrl(value: string): boolean {
+    if (!this.looksLikeUrl(value)) return false;
     try {
-      const url = new URL(publicUrl);
-      const marker = `/object/public/${this.bucket}/`;
-      const idx = url.pathname.indexOf(marker);
-      if (idx === -1) return null;
-      return url.pathname.slice(idx + marker.length);
+      const url = new URL(value);
+      return url.hostname.endsWith('.supabase.co') && url.pathname.includes('/storage/v1/object/');
     } catch {
-      return null;
+      return false;
     }
+  }
+
+  private normalizeObjectPath(rawPath: string, bucketName: string): string | null {
+    const path = rawPath.replace(/^\/+/, '');
+    if (!path || path.includes('..')) return null;
+    if (path === bucketName || path.startsWith(`${bucketName}/`)) return null;
+    return path;
+  }
+
+  private describeObjectPrefix(paths: string[]): string {
+    const first = paths[0] ?? '';
+    return first.split('/').slice(0, 2).join('/') || 'n/a';
   }
 }

@@ -26,10 +26,4 @@ export class CreateCustomerRegistrationDto {
   @IsOptional()
   @MaxLength(2000)
   domesticReturnAddress?: string;
-
-  @ApiPropertyOptional({ example: '备注，可选' })
-  @IsString()
-  @IsOptional()
-  @MaxLength(1000)
-  notes?: string;
 }

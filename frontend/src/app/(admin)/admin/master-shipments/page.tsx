@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { MasterShipmentStatusBadge } from '@/components/common/StatusBadge';
 import { MASTER_SHIPMENT_STATUS_LABELS } from '@/lib/constants/status';
 import { safeShortId } from '@/lib/api/unwrap';
+import { MASTER_SHIPMENT_TYPE_OPTIONS, formatMasterShipmentType, type MasterShipmentType } from '@/lib/master-shipment-types';
 
 export default function MasterShipmentsPage() {
   const [shipments, setShipments] = useState<MasterShipment[]>([]);
@@ -27,6 +28,7 @@ export default function MasterShipmentsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState({
+    shipmentType: 'AIR_GENERAL' as MasterShipmentType,
     vendorName: '',
     vendorTrackingNo: '',
     adminNote: '',
@@ -41,7 +43,7 @@ export default function MasterShipmentsPage() {
   const [csLoading, setCsLoading] = useState(false);
 
   const resetCreateForm = () => {
-    setCreateForm({ vendorName: '', vendorTrackingNo: '', adminNote: '' });
+    setCreateForm({ shipmentType: 'AIR_GENERAL', vendorName: '', vendorTrackingNo: '', adminNote: '' });
     setSelectedCsIds([]);
     setCsSearch('');
     setCreateError('');
@@ -60,7 +62,7 @@ export default function MasterShipmentsPage() {
         pageSize: 20,
       });
       setShipments(data?.items || []);
-      setTotalPages(data?.pagination?.totalPages || 1);
+      setTotalPages(data?.totalPages || data?.pagination?.totalPages || 1);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -123,6 +125,7 @@ export default function MasterShipmentsPage() {
     setCreateSuccess('');
     try {
       const result = await adminApi.createMasterShipment({
+        shipmentType: createForm.shipmentType,
         vendorName: createForm.vendorName,
         vendorTrackingNo: createForm.vendorTrackingNo,
         customerShipmentIds: selectedCsIds,
@@ -172,11 +175,26 @@ export default function MasterShipmentsPage() {
               {createSuccess && <div className="p-2 rounded bg-green-50 border border-green-200 text-green-700 text-sm">{createSuccess}</div>}
               {createError && <div className="p-2 rounded bg-red-50 border border-red-200 text-red-700 text-sm break-all">{createError}</div>}
               <div>
-                <label className="block text-xs font-medium mb-1">物流商名称 *</label>
+                <label className="block text-xs font-medium mb-1">类型 *</label>
+                <select
+                  value={createForm.shipmentType}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, shipmentType: e.target.value as MasterShipmentType }))}
+                  className="w-full px-3 py-2 rounded-md border text-sm"
+                  required
+                >
+                  {MASTER_SHIPMENT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">供应商名称 *</label>
                 <input type="text" value={createForm.vendorName} onChange={(e) => setCreateForm((f) => ({ ...f, vendorName: e.target.value }))} className="w-full px-3 py-2 rounded-md border text-sm" required placeholder="如：顺丰国际" />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1">物流商运单号 *</label>
+                <label className="block text-xs font-medium mb-1">供应商单号 *</label>
                 <input
                   type="text"
                   value={createForm.vendorTrackingNo}
@@ -329,6 +347,7 @@ export default function MasterShipmentsPage() {
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="text-left px-4 py-3 font-medium">批次号</th>
+                    <th className="text-left px-4 py-3 font-medium">类型</th>
                     <th className="text-left px-4 py-3 font-medium">供应商</th>
                     <th className="text-left px-4 py-3 font-medium">供应商单号</th>
                     <th className="text-left px-4 py-3 font-medium">状态</th>
@@ -341,6 +360,7 @@ export default function MasterShipmentsPage() {
                   {shipments.map((s) => (
                     <tr key={s.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3 font-mono text-xs">{s.batchNo}</td>
+                      <td className="px-4 py-3 text-xs">{formatMasterShipmentType(s.shipmentType)}</td>
                       <td className="px-4 py-3">{s.vendorName || '-'}</td>
                       <td className="px-4 py-3 font-mono text-xs">{s.vendorTrackingNo || '-'}</td>
                       <td className="px-4 py-3">
@@ -370,6 +390,7 @@ export default function MasterShipmentsPage() {
                     <MasterShipmentStatusBadge status={s.status} />
                   </div>
                   <div className="text-sm text-muted-foreground space-y-1">
+                    <p>类型：{formatMasterShipmentType(s.shipmentType)}</p>
                     <p>供应商：{s.vendorName || '-'}</p>
                     <div className="flex justify-between">
                       <span className={s.publicVisible ? 'text-green-600' : ''}>{s.publicVisible ? '已公开' : '未公开'}</span>

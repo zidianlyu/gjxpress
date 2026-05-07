@@ -13,11 +13,13 @@ import {
   FileText,
   LogOut,
   User,
+  ExternalLink,
 } from 'lucide-react';
 import { SITE_CONFIG, ADMIN_NAV_LINKS } from '@/lib/constants';
 import { adminLogout, getAdminUser } from '@/lib/api/admin';
 import { cn } from '@/lib/utils';
 import type { AdminUser } from '@/types/admin';
+import { AppVersionBadge } from '@/components/common/AppVersionBadge';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -95,6 +97,16 @@ export function AdminSidebar({ onNavigate }: AdminSidebarProps) {
             </div>
           </div>
         )}
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="在新标签页打开官网首页"
+          className="mb-2 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ExternalLink className="h-4 w-4" />
+          <span>打开官网</span>
+        </a>
         <button
           onClick={() => adminLogout()}
           className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -102,6 +114,9 @@ export function AdminSidebar({ onNavigate }: AdminSidebarProps) {
           <LogOut className="h-4 w-4" />
           <span>退出登录</span>
         </button>
+        <div className="mt-3 px-3">
+          <AppVersionBadge />
+        </div>
       </div>
     </aside>
   );

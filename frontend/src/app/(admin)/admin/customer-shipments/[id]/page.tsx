@@ -231,26 +231,6 @@ export default function CustomerShipmentDetailPage() {
     }
   };
 
-  const handleCancel = async () => {
-    if (!confirm('确定取消该集运单？已发往海外的集运单无法取消。')) return;
-    setSaving(true);
-    setActionMsg('');
-    setActionError('');
-    try {
-      const updated = await adminApi.cancelCustomerShipment(id);
-      setShipment(updated);
-      setActionMsg('集运单已取消');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setActionError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
-      } else {
-        setActionError('操作失败');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
   // Delete state
   const [showDelete, setShowDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -486,18 +466,13 @@ export default function CustomerShipmentDetailPage() {
           </div>
         </div>
 
-        {/* Cancel & Delete */}
+        {/* Delete */}
         <div className="rounded-lg border border-red-100 p-4 space-y-3">
           <h2 className="font-semibold text-red-700">危险操作</h2>
-          <p className="text-xs text-muted-foreground">取消集运单会将包含的入库包裹恢复为&ldquo;已入库&rdquo;状态。已发货后的集运单无法取消。</p>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={handleCancel} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
-              取消集运单
-            </button>
-            <button onClick={() => setShowDelete(true)} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
-              永久删除
-            </button>
-          </div>
+          <p className="text-xs text-muted-foreground">永久删除此集运单，此操作不可恢复。</p>
+          <button onClick={() => setShowDelete(true)} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
+            永久删除
+          </button>
         </div>
 
         <div className="text-xs text-muted-foreground">
@@ -515,7 +490,7 @@ export default function CustomerShipmentDetailPage() {
         }}
         onConfirm={handleDelete}
         title="永久删除集运单"
-        description="删除后此集运单数据将不可恢复。如存在关联交易记录或已发货，系统会阻止删除。"
+        description="删除后此集运单数据将不可恢复。删除后将同时彻底删除该记录已上传的图片，无法恢复。如存在关联支付订单或已发货，系统会阻止删除。"
         confirmText="DELETE"
         entityLabel={displayShipmentNo}
         blockers={deleteBlockers}

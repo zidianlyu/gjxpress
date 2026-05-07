@@ -916,8 +916,8 @@ Form fields:
 - 手机号 (required)
 - 微信号 (optional)
 - 国内退货地址 (optional, textarea, helper text)
-- 备注 (optional, textarea, helper text)
 - 隐私确认 checkbox (required, links to /privacy)
+- Contact helper link to `/contact` for pre-registration consultation
 
 Info sidebar:
 
@@ -951,10 +951,12 @@ Features:
 
 - Table/card list of registrations
 - Search by customerCode, phoneNumber, wechatId
-- Filter by status (PENDING/APPROVED/REJECTED)
+- Filter by status; primary active workflow is PENDING because approved registrations are hard deleted by the backend
 - Pagination
 - Create modal for admin-initiated registrations
+- Operation link label is `审核`
 - Mobile responsive cards
+- Registration notes, review notes, rejection reasons, and reject actions are not displayed
 
 API: `GET /admin/customer-registrations`
 
@@ -965,22 +967,19 @@ File: `src/app/(admin)/admin/customer-registrations/[id]/page.tsx`
 
 Features:
 
-- View/edit registration fields
-- Approve → creates formal Customer
-- Reject with optional reviewNote
-- Hard delete with confirmation dialog
-- Link to created customer after approval
-- Status badges (PENDING/APPROVED/REJECTED)
-- If `createdCustomer` exists, show formal Customer card and allow Customer status update through `PATCH /admin/customers/:id`
-- Registration status and formal Customer status are separate concepts
+- View registration fields: customerCode, phoneCountryCode, phoneNumber, wechatId, domesticReturnAddress, createdAt, updatedAt, and lightweight status if returned
+- Edit/complete customer information through `PATCH /admin/customer-registrations/:id`
+- Approve through `POST /admin/customer-registrations/:id/approve`; request body does not include notes or reviewNote
+- After approval, backend creates a formal Customer and hard deletes the CustomerRegistration
+- Frontend does not re-fetch the registration after approval; it redirects to `/admin/customers/:customerId` when response.customer.id exists, otherwise to `/admin/customer-registrations`
+- Hard delete with confirmation dialog: `此操作会永久删除该注册申请，无法恢复。`
+- Detail page has no registration notes, reviewNote, reject dialog, reject button, or reject API call
 
 APIs:
 
 - `GET /admin/customer-registrations/:id`
 - `PATCH /admin/customer-registrations/:id`
 - `POST /admin/customer-registrations/:id/approve`
-- `POST /admin/customer-registrations/:id/reject`
-- `PATCH /admin/customers/:id`
 - `DELETE /admin/customer-registrations/:id?confirm=DELETE_HARD`
 
 ### 13.4 Updated Customer Pages
@@ -988,6 +987,22 @@ APIs:
 - `/admin/customers` and `/admin/customers/[id]` now include `domesticReturnAddress` field
 - Create customer modal includes domesticReturnAddress
 - Detail page edit form includes domesticReturnAddress
+- Customer list, create payload, detail page, and update payload do not include Customer notes
+
+## 14. Contact Page
+
+Route: `/contact`
+File: `src/app/(public)/contact/page.tsx`
+
+Requirements:
+
+- Public, indexed server component page with metadata and canonical `/contact`
+- Included in sitemap
+- Breadcrumb JSON-LD: 首页 > 联系我们
+- Displays domestic and U.S. contacts from `src/lib/site-config.ts`
+- Telephone values use `tel:` links; WeChat IDs are visible crawlable text
+- Does not display private addresses, payment information, payment QR codes, or high-risk logistics promises
+- Public nav, footer, home page, services page, and register page link to `/contact`
 - Detail page hydrates from `GET /admin/customers/:id` and is safe to refresh directly
 - `/admin/customers` reads normalized `response.items`
 - The table displays customerCode, phone, wechatId, domestic return address summary, status, createdAt, and actions
@@ -1119,7 +1134,7 @@ All public page sections use `mx-auto max-w-7xl px-4 sm:px-6 lg:px-8` for consis
 
 - Logo (left) links to `/` with `aria-label="返回首页"` — serves as the Home button
 - **No "首页" tab** — Logo is the sole home link, avoiding redundancy
-- Nav items (right): 服务, 查询, 批次更新, 新客户注册, 合规, 隐私, 管理员
+- Nav items (right): 服务, 查询订单, 新客户注册, 联系, 合规, 隐私, 管理员
 - **"Admin" renamed to "管理员"** for consistent Chinese language
 - Layout: `justify-between` — Logo on the left, nav links on the right
 - Desktop: horizontal nav items
@@ -1132,12 +1147,12 @@ All public page sections use `mx-auto max-w-7xl px-4 sm:px-6 lg:px-8` for consis
 - Four columns (PC): Brand, 服务, 说明, 管理
 - Mobile: stacked layout
 - 说明 column: 合规说明, 隐私政策, 服务条款, 异常与赔付说明, 免责声明
-- No fake phone numbers — uses "请联系工作人员获取最新联系方式"
+- Public footer shows domestic and U.S. contacts from `siteConfig.publicContacts`, with telephone links and visible WeChat ids
 - 管理员入口 links to `/admin/login`
 
 ### 14.4 Public Pages Updated
 
-All public pages use centered layout: /, /about, /services, /services/china-us-shipping, /services/air-freight, /services/sea-freight, /tracking, /batch-updates, /batch-updates/[batchNo], /register, /compliance, /privacy, /terms, /compensation, /disclaimer, /team.
+All public pages use centered layout: /, /about, /services, /services/china-us-shipping, /services/air-freight, /services/sea-freight, /tracking, /register, /contact, /compliance, /privacy, /terms, /compensation, /disclaimer, /team. All indexable public pages show contact information through ContactStrip/Footer. `/batch-updates` is no longer a content page and permanently redirects to `/tracking`.
 
 ---
 
@@ -1149,9 +1164,9 @@ All public pages use the standardized `buildMetadata()` helper from `lib/seo.ts`
 | ---------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
 | `/`              | 广骏国际快运｜看得见的跨境物流 | 广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务，支持入库记录、包裹拍照、合箱整理、物流状态查询与美国段取货状态管理。 | `/`              |
 | `/services`      | 服务介绍｜广骏国际快运         | 了解广骏国际快运的中国到美国跨境物流信息服务，包括入库记录、包裹拍照、合箱出库、费用参考、计费说明和时效说明。                     | `/services`      |
-| `/tracking`      | 物流状态查询｜广骏国际快运     | 通过国内快递单号或集运单号查询低敏物流状态。公开查询仅展示状态信息，不展示手机号、微信号、图片或交易记录。                         | `/tracking`      |
-| `/batch-updates` | 批次更新｜广骏国际快运         | 查看广骏国际快运公开发布的批次状态更新，了解已公开的低敏物流进度信息。                                                             | `/batch-updates` |
+| `/tracking`      | 查询订单与批次更新｜广骏国际快运 | 通过客户编号或物流信息查询订单状态，并查看广骏国际快运中国到美国线路的批次更新说明。                                               | `/tracking`      |
 | `/register`      | 新客户注册｜广骏国际快运       | 填写新客户联系信息，提交后生成客户编号，工作人员审核通过后用于后续包裹归属。                                                       | `/register`      |
+| `/contact`       | 联系我们｜广骏国际快运         | 联系广骏国际快运，咨询中国到美国跨境物流线路、包裹入库、合箱出库和美国段交接安排。                                                 | `/contact`       |
 | `/faq`           | 常见问题｜广骏国际快运         | 了解广骏国际快运的新客户注册、客户编号、包裹入库、计费规则、时效参考、品类限制和异常处理常见问题。                                 | `/faq`           |
 | `/about`         | 关于我们｜广骏国际快运         | 了解广骏国际快运的品牌故事、服务理念与核心价值。                                                                                   | `/about`         |
 | `/team`          | 团队介绍｜广骏国际快运         | 了解广骏国际快运的服务团队与分工，包括国内仓储、海外仓管理和系统客服团队。                                                         | `/team`          |
@@ -1166,7 +1181,7 @@ All public pages use the standardized `buildMetadata()` helper from `lib/seo.ts`
 - All pages use `广骏国际快运` for public-facing titles and `广骏供应链服务` for legal/policy pages
 - All pages have canonical URLs set via the metadata helper
 - Admin pages (`/admin/*`) are set to `noindex, nofollow`
-- Dynamic routes like `/batch-updates/[batchNo]` use `generateMetadata` for proper canonical generation
+- `/batch-updates` and `/batch-updates/:path*` are permanent redirects to `/tracking`; do not request indexing for those URLs
 
 ---
 

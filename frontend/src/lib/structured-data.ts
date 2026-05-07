@@ -17,7 +17,22 @@ export function buildOrganizationJsonLd() {
     name: siteConfig.name,
     alternateName: siteConfig.englishName,
     url: siteConfig.url,
+    telephone: siteConfig.publicContacts.us.phone,
     description: `${siteConfig.description}${siteConfig.publicLocationSummary}`,
+    contactPoint: [
+      {
+        '@type': 'ContactPoint',
+        contactType: siteConfig.publicContacts.domestic.label,
+        telephone: siteConfig.publicContacts.domestic.phone,
+        availableLanguage: ['zh-CN'],
+      },
+      {
+        '@type': 'ContactPoint',
+        contactType: siteConfig.publicContacts.us.label,
+        telephone: siteConfig.publicContacts.us.phone,
+        availableLanguage: ['zh-CN', 'en-US'],
+      },
+    ],
     areaServed: siteConfig.serviceAreas,
   };
 }
@@ -29,7 +44,22 @@ export function buildLocalBusinessJsonLd() {
     name: siteConfig.name,
     alternateName: siteConfig.englishName,
     url: siteConfig.url,
+    telephone: siteConfig.publicContacts.us.phone,
     description: `${siteConfig.description}${siteConfig.publicLocationSummary}`,
+    contactPoint: [
+      {
+        '@type': 'ContactPoint',
+        contactType: siteConfig.publicContacts.domestic.label,
+        telephone: siteConfig.publicContacts.domestic.phone,
+        availableLanguage: ['zh-CN'],
+      },
+      {
+        '@type': 'ContactPoint',
+        contactType: siteConfig.publicContacts.us.label,
+        telephone: siteConfig.publicContacts.us.phone,
+        availableLanguage: ['zh-CN', 'en-US'],
+      },
+    ],
     areaServed: siteConfig.serviceAreas,
     knowsAbout: [
       '中国到美国跨境物流信息服务',

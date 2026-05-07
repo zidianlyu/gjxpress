@@ -210,7 +210,7 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 | Create customer | POST | `/admin/customers` | `customers.controller.ts` | `create()` | `CreateCustomerDto` | ✅ | ✅ Updated | Phone uniqueness check; auto GJ#### code; accepts domesticReturnAddress |
 | List customers | GET | `/admin/customers` | `customers.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, status, page, pageSize; returns `{ items, page, pageSize, total }`; q searches customerCode/phoneNumber/wechatId |
 | Get customer detail | GET | `/admin/customers/:id` | `customers.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes packages, shipments, counts, domesticReturnAddress |
-| Update customer | PATCH | `/admin/customers/:id` | `customers.controller.ts` | `update()` | `UpdateCustomerDto` | ✅ | ✅ Updated | phone, wechatId, **domesticReturnAddress**, notes, status (`ACTIVE`/`DISABLED`); customerCode immutable |
+| Update customer | PATCH | `/admin/customers/:id` | `customers.controller.ts` | `update()` | `UpdateCustomerDto` | ✅ | ✅ Updated | phone, wechatId, **domesticReturnAddress**, status (`ACTIVE`/`DISABLED`); customerCode immutable; no notes |
 | Soft-disable customer | PATCH | `/admin/customers/:id/disable` | `customers.controller.ts` | `disable()` | — | ✅ | ✅ Implemented | Sets status=DISABLED |
 | Hard delete | DELETE | `/admin/customers/:id` | `customers.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Implemented | 409 if inboundPackages/customerShipments/transactions > 0 |
 
@@ -227,7 +227,7 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 | List images | GET | `/admin/inbound-packages/:id/images` | `inbound-packages.controller.ts` | `getImages()` | — | ✅ | ✅ **New** | Returns `{ items: string[] }` |
 | Upload image | POST | `/admin/inbound-packages/:id/images` | `inbound-packages.controller.ts` | `uploadImage()` | multipart/form-data `file` | ✅ | ✅ **New** | Uploads to Supabase Storage; appends URL to imageUrls; returns `{ url, imageUrls }` |
 | Delete image | DELETE | `/admin/inbound-packages/:id/images` | `inbound-packages.controller.ts` | `deleteImage()` | `?imageUrl=<encoded>&confirm=DELETE_HARD` | ✅ | ✅ **Updated** | Query params only; removes from storage and imageUrls; returns `{ deleted, url, imageUrls }` |
-| Hard delete | DELETE | `/admin/inbound-packages/:id` | `inbound-packages.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Implemented | 409 if shipmentItems > 0 |
+| Hard delete | DELETE | `/admin/inbound-packages/:id` | `inbound-packages.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Updated | 409 if shipmentItems > 0; deletes own Storage image objects first; returns deletedImageCount |
 
 ### CustomerShipment
 
@@ -237,7 +237,6 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 | List shipments | GET | `/admin/customer-shipments` | `customer-shipments.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, status, paymentStatus, customerId, masterShipmentId, **unbatched=true**; returns quantity and statusText |
 | Get shipment detail | GET | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customer, items, masterShipment, transactions |
 | General update | PATCH | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `update()` | inline DTO | ✅ | ✅ Updated | notes, trackingNo, publicTracking, status, paymentStatus, quantity, actualWeightKg, volumeFormula, billingRateCnyPerKg, billingWeightKg |
-| Cancel shipment | PATCH | `/admin/customer-shipments/:id/cancel` | `customer-shipments.controller.ts` | `cancel()` | — | ✅ | ✅ Updated | Blocked if SHIPPED+; restores packages to ARRIVED |
 | Update status | PATCH | `/admin/customer-shipments/:id/status` | `customer-shipments.controller.ts` | `updateStatus()` | inline DTO | ✅ | ✅ Updated | Valid values: PACKED, SHIPPED, ARRIVED, READY_FOR_PICKUP, PICKED_UP, EXCEPTION |
 | Update payment status | PATCH | `/admin/customer-shipments/:id/payment-status` | `customer-shipments.controller.ts` | `updatePaymentStatus()` | inline DTO | ✅ | ✅ Implemented | Enum validation; no online payment |
 | Add item | POST | `/admin/customer-shipments/:id/items` | `customer-shipments.controller.ts` | `addItem()` | inline DTO | ✅ | ✅ Implemented | Customer match check; 409 if in another shipment |
@@ -245,7 +244,7 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 | List images | GET | `/admin/customer-shipments/:id/images` | `customer-shipments.controller.ts` | `getImages()` | — | ✅ | ✅ **New** | Returns `{ items: string[] }` |
 | Upload image | POST | `/admin/customer-shipments/:id/images` | `customer-shipments.controller.ts` | `uploadImage()` | multipart/form-data `file` | ✅ | ✅ **New** | Uploads to Supabase Storage; appends URL to imageUrls; returns `{ url, imageUrls }` |
 | Delete image | DELETE | `/admin/customer-shipments/:id/images` | `customer-shipments.controller.ts` | `deleteImage()` | `?imageUrl=<encoded>&confirm=DELETE_HARD` | ✅ | ✅ **Updated** | Query params only; removes from storage and imageUrls; returns `{ deleted, url, imageUrls }` |
-| Hard delete shipment | DELETE | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Implemented | 409 if in-transit/completed, masterShipmentId set, or transactions > 0; cascades item cleanup |
+| Hard delete shipment | DELETE | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Updated | 409 if in-transit/completed, masterShipmentId set, or transactions > 0; deletes own Storage image objects first; returns deletedImageCount |
 
 ### CustomerShipmentItem
 
@@ -258,10 +257,10 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 
 | Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Create batch | POST | `/admin/master-shipments` | `master-shipments.controller.ts` | `create()` | inline DTO | ✅ | ✅ Updated | Auto GJByyyyMMddNNN batchNo; **vendorName + vendorTrackingNo + customerShipmentIds all required**; atomic transaction; validates no duplicates/already-batched |
-| List batches | GET | `/admin/master-shipments` | `master-shipments.controller.ts` | `findAll()` | query params | ✅ | ✅ Implemented | q, status, publicVisible, page, pageSize |
-| Get batch detail | GET | `/admin/master-shipments/:id` | `master-shipments.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customerShipments summary |
-| General update | PATCH | `/admin/master-shipments/:id` | `master-shipments.controller.ts` | `update()` | inline DTO | ✅ | ✅ **Added** | vendorName, vendorTrackingNo, adminNote, publicTitle, publicSummary, publicStatusText, publicVisible |
+| Create batch | POST | `/admin/master-shipments` | `master-shipments.controller.ts` | `create()` | inline DTO | ✅ | ✅ Updated | Auto GJByyyyMMddNNN batchNo; supports `shipmentType` AIR_GENERAL/AIR_SENSITIVE/SEA; **vendorName + vendorTrackingNo + customerShipmentIds all required**; atomic transaction; validates no duplicates/already-batched |
+| List batches | GET | `/admin/master-shipments` | `master-shipments.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, status, publicVisible, page, pageSize; returns `shipmentType` and customerShipments summary |
+| Get batch detail | GET | `/admin/master-shipments/:id` | `master-shipments.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes `shipmentType` and customerShipments summary |
+| General update | PATCH | `/admin/master-shipments/:id` | `master-shipments.controller.ts` | `update()` | inline DTO | ✅ | ✅ **Added** | shipmentType, vendorName, vendorTrackingNo, adminNote, publicTitle, publicSummary, publicStatusText, publicVisible |
 | Update status | PATCH | `/admin/master-shipments/:id/status` | `master-shipments.controller.ts` | `updateStatus()` | inline DTO | ✅ | ✅ Implemented | Auto-fills handedToVendorAt, arrivedOverseasAt, closedAt |
 | Update publication | PATCH | `/admin/master-shipments/:id/publication` | `master-shipments.controller.ts` | `updatePublication()` | inline DTO | ✅ | ✅ Implemented | Sets publicVisible, titles, publishedAt |
 | Add customer shipments | POST | `/admin/master-shipments/:id/customer-shipments` | `master-shipments.controller.ts` | `addCustomerShipments()` | inline DTO | ✅ | ✅ Implemented | Batch link with conflict checks |
@@ -272,9 +271,9 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 
 | Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Create transaction | POST | `/admin/transactions` | `transactions.controller.ts` | `create()` | inline DTO | ✅ | ✅ Updated | **customerShipmentId required**; type: SHIPPING_FEE\|REFUND only; no currency/paymentStatus/description |
-| List transactions | GET | `/admin/transactions` | `transactions.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, customerId, customerShipmentId, type (no paymentStatus filter) |
-| Get transaction detail | GET | `/admin/transactions/:id` | `transactions.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customer and shipment summary |
+| Create transaction | POST | `/admin/transactions` | `transactions.controller.ts` | `create()` | inline DTO | ✅ | ✅ Updated | **customerShipmentId required**; derives customerId; type: SHIPPING_FEE\|REFUND only; creates TransactionRecord; SHIPPING_FEE marks shipment paymentStatus=PAID in the same transaction |
+| List transactions | GET | `/admin/transactions` | `transactions.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, customerId, customerShipmentId, optional type; no type defaults, so SHIPPING_FEE and REFUND both appear |
+| Get transaction detail | GET | `/admin/transactions/:id` | `transactions.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customerShipment.shipmentNo and customer.customerCode |
 | Update transaction | PATCH | `/admin/transactions/:id` | `transactions.controller.ts` | `update()` | inline DTO | ✅ | ✅ Updated | type, amountCents, adminNote, occurredAt only |
 | Hard delete transaction | DELETE | `/admin/transactions/:id` | `transactions.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Implemented | No longer blocked on paymentStatus (field removed) |
 
@@ -283,18 +282,18 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 | Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
 | Admin create registration | POST | `/admin/customer-registrations` | `customer-registrations.controller.ts` | `adminCreate()` | `CreateCustomerRegistrationDto` | ✅ | ✅ **New** | Enters PENDING queue; 409 if PENDING/APPROVED exists for same phone |
-| List registrations | GET | `/admin/customer-registrations` | `customer-registrations.controller.ts` | `findAll()` | query params | ✅ | ✅ **New** | q, status (PENDING/APPROVED/REJECTED), page, pageSize |
-| Get registration detail | GET | `/admin/customer-registrations/:id` | `customer-registrations.controller.ts` | `findOne()` | — | ✅ | ✅ **New** | Includes createdCustomer summary |
-| Update registration | PATCH | `/admin/customer-registrations/:id` | `customer-registrations.controller.ts` | `update()` | `UpdateCustomerRegistrationDto` | ✅ | ✅ **New** | phone, wechatId, domesticReturnAddress, notes, reviewNote (no status change) |
-| Approve registration | POST | `/admin/customer-registrations/:id/approve` | `customer-registrations.controller.ts` | `approve()` | `{ reviewNote? }` | ✅ | ✅ **New** | Atomic tx: creates Customer + updates status; 409 if already approved or phone conflict |
-| Reject registration | POST | `/admin/customer-registrations/:id/reject` | `customer-registrations.controller.ts` | `reject()` | `{ reviewNote? }` | ✅ | ✅ **New** | 409 if already APPROVED |
-| Hard delete registration | DELETE | `/admin/customer-registrations/:id` | `customer-registrations.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ **New** | Does NOT delete created Customer; 400 if confirm missing |
+| List registrations | GET | `/admin/customer-registrations` | `customer-registrations.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, status=PENDING, page, pageSize; no notes/reviewNote |
+| Get registration detail | GET | `/admin/customer-registrations/:id` | `customer-registrations.controller.ts` | `findOne()` | — | ✅ | ✅ Updated | Basic pending registration fields only; no notes/reviewNote |
+| Update registration | PATCH | `/admin/customer-registrations/:id` | `customer-registrations.controller.ts` | `update()` | `UpdateCustomerRegistrationDto` | ✅ | ✅ Updated | phone, wechatId, domesticReturnAddress only |
+| Approve registration | POST | `/admin/customer-registrations/:id/approve` | `customer-registrations.controller.ts` | `approve()` | none | ✅ | ✅ Updated | Atomic tx: creates Customer + hard deletes registration; 409 if customerCode or phone conflict |
+| Hard delete registration | DELETE | `/admin/customer-registrations/:id` | `customer-registrations.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Updated | Does NOT delete Customer; 400 if confirm missing |
 
 ### Public Endpoints
 
 | Capability | Method | Path | Controller | Service | Auth | Status | Notes |
 |---|---|---|---|---|---|---|---|
-| Submit customer registration | POST | `/public/customer-registrations` | `public.controller.ts` | `submitRegistration()` | None | ✅ **New** | No auth; returns customerCode+PENDING; 409 if PENDING/APPROVED exists for phone |
+| Submit customer registration | POST | `/customer-registrations` | `customer-registrations.controller.ts` | `createRegistration()` | None | ✅ Updated | No auth; returns customerCode+PENDING; no notes; 409 if PENDING/APPROVED exists for phone |
+| Submit customer registration (compat) | POST | `/public/customer-registrations` | `public.controller.ts` | `submitRegistration()` | None | ✅ Kept | Compatibility alias with same behavior |
 | Track shipment | GET | `/public/tracking/:shipmentNo` | `public.controller.ts` | `trackShipment()` | None | ✅ Implemented | Returns NO_RECORD if not found/disabled; no PII |
 | List batch updates | GET | `/public/batch-updates` | `public.controller.ts` | `listBatchUpdates()` | None | ✅ Implemented | Only publicVisible=true batches; no vendorTrackingNo |
 | Get batch update | GET | `/public/batch-updates/:batchNo` | `public.controller.ts` | `getBatchUpdate()` | None | ✅ Implemented | 404 if not found or not publicVisible |

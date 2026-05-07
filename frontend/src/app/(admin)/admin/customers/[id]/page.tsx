@@ -16,7 +16,6 @@ function buildForm(customer: Customer) {
     phoneNumber: customer.phoneNumber || '',
     wechatId: customer.wechatId || '',
     domesticReturnAddress: customer.domesticReturnAddress || '',
-    notes: customer.notes || '',
     status: customer.status || 'ACTIVE',
   };
 }
@@ -33,10 +32,18 @@ export default function CustomerDetailPage() {
 
   // Edit state
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ phoneCountryCode: '', phoneNumber: '', wechatId: '', domesticReturnAddress: '', notes: '', status: '' });
+  const [form, setForm] = useState({ phoneCountryCode: '', phoneNumber: '', wechatId: '', domesticReturnAddress: '', status: '' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
+
+  useEffect(() => {
+    const notice = window.sessionStorage.getItem('gjx_admin_notice');
+    if (notice) {
+      setSaveSuccess(notice);
+      window.sessionStorage.removeItem('gjx_admin_notice');
+    }
+  }, []);
 
   const fetchCustomer = useCallback(async () => {
     setIsLoading(true);
@@ -81,7 +88,6 @@ export default function CustomerDetailPage() {
         phoneNumber: form.phoneNumber.trim(),
         wechatId: form.wechatId.trim() || null,
         domesticReturnAddress: form.domesticReturnAddress.trim() || null,
-        notes: form.notes.trim() || null,
         status: form.status as 'ACTIVE' | 'DISABLED',
       });
       setCustomer(updated);
@@ -280,21 +286,6 @@ export default function CustomerDetailPage() {
             )}
           </div>
 
-          <div>
-            <label className="block text-xs font-medium mb-1">备注</label>
-            {editing ? (
-              <textarea
-                value={form.notes}
-                onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-                placeholder="可选"
-                rows={3}
-                className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
-              />
-            ) : (
-              <div className="px-3 py-2 rounded-md border bg-muted text-sm min-h-[60px]">{customer.notes || '-'}</div>
-            )}
-          </div>
-
           <div className="text-xs text-muted-foreground">
             <p>创建时间：{formatDateTime(customer.createdAt)}</p>
             <p>更新时间：{formatDateTime(customer.updatedAt)}</p>
@@ -329,7 +320,7 @@ export default function CustomerDetailPage() {
         {/* Danger Zone */}
         <div className="mt-6 rounded-lg border border-red-200 p-4 space-y-3">
           <h2 className="font-semibold text-red-700">危险操作</h2>
-          <p className="text-xs text-muted-foreground">永久删除此客户。如存在关联入库包裹、集运单或交易记录，系统将阻止删除。</p>
+            <p className="text-xs text-muted-foreground">永久删除此客户。如存在关联入库包裹、集运单或支付订单，系统将阻止删除。</p>
           <button onClick={() => setShowDelete(true)} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
             永久删除客户
           </button>

@@ -1579,8 +1579,7 @@ Create a new customer. `customerCode` is auto-generated (format: `GJ####`, e.g. 
   "phoneCountryCode": "+86",
   "phoneNumber": "13800000000",
   "wechatId": "wx_zhangsan",
-  "domesticReturnAddress": "广东省广州市天河区...",
-  "notes": "内部备注"
+  "domesticReturnAddress": "广东省广州市天河区..."
 }
 ```
 
@@ -1593,7 +1592,6 @@ Create a new customer. `customerCode` is auto-generated (format: `GJ####`, e.g. 
   "phoneNumber": "13800000000",
   "wechatId": "wx_zhangsan",
   "domesticReturnAddress": "广东省广州市天河区...",
-  "notes": "内部备注",
   "status": "ACTIVE",
   "createdAt": "...",
   "updatedAt": "..."
@@ -1623,7 +1621,6 @@ List customers with search and pagination.
       "phoneNumber": "13800000000",
       "wechatId": "wx_zhangsan",
       "domesticReturnAddress": "广东省广州市天河区...",
-      "notes": "内部备注",
       "status": "ACTIVE",
       "createdAt": "2026-05-05T10:00:00.000Z",
       "updatedAt": "2026-05-05T10:00:00.000Z"
@@ -1658,7 +1655,6 @@ Update customer fields. Cannot change `customerCode`.
   "phoneNumber": "4155550000",
   "wechatId": "wx_lisi",
   "domesticReturnAddress": "广东省广州市越秀区...",
-  "notes": "更新备注",
   "status": "ACTIVE"
 }
 ```
@@ -1845,7 +1841,7 @@ Create a customer shipment (集运单).
 
 `q` searches: `shipmentNo`, `customerCode`, `phoneNumber`
 
-List and detail responses include `quantity` and `statusText`.
+List and detail responses include `customerId`, `customer`, `status`, `paymentStatus`, billing fields, `quantity`, stable `imageUrls: []`, `notes`, timestamps, and `statusText`. Decimal fields are serialized as JSON strings by Prisma.
 
 ---
 
@@ -1877,21 +1873,6 @@ General update.
 ```
 
 If `status` is set, timestamp fields are auto-populated (see status endpoint rules). If a timestamp is already set, it is not overwritten.
-
----
-
-### PATCH /api/admin/customer-shipments/:id/cancel
-
-Cancel a shipment (soft cancel). Sets status to `EXCEPTION`. Restores all package statuses to `ARRIVED`.
-
-**Rules:** Cannot cancel if status is `SHIPPED`, `ARRIVED`, `READY_FOR_PICKUP`, or `PICKED_UP`.
-
-**Response 200:**
-```json
-{ "data": { "id": "...", "status": "EXCEPTION", "cancelled": true } }
-```
-
-**Errors:** 409 if already in transit/completed.
 
 ---
 
@@ -1959,7 +1940,7 @@ Remove a package from the shipment.
 |---|---|---|---|
 | Customer | ❌ Never | ✅ `PATCH /:id/disable` (status=DISABLED) | Has packages/shipments |
 | InboundPackage | ❌ Never | ❌ Not implemented (no `archivedAt` in schema) | Avoid business record loss |
-| CustomerShipment | ❌ Never | ✅ `PATCH /:id/cancel` (status=EXCEPTION) | Cannot delete in-transit |
+| CustomerShipment | ✅ `DELETE /:id?confirm=DELETE_HARD` | ❌ Cancel endpoint removed; use status `EXCEPTION` only for exception handling | Hard delete is blocked if in-transit/completed, batched, or has transactions |
 | CustomerShipmentItem | N/A | ✅ `DELETE /:id/items/:itemId` (blocked if in transit) | Restores package to ARRIVED |
 
 ---
@@ -2049,6 +2030,16 @@ curl -s -X PATCH "$BASE/admin/customer-shipments/<id>/payment-status" \
   -H "Content-Type: application/json" \
   -d '{"paymentStatus":"PAID"}'
 
+# Transactions
+curl -s -X POST "$BASE/admin/transactions" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"customerShipmentId":"<shipment-uuid>","type":"SHIPPING_FEE","amountCents":16000,"adminNote":"运费支付订单"}'
+
+# Transaction creation derives customerId from customerShipmentId, creates a
+# TransactionRecord, and for SHIPPING_FEE marks CustomerShipment.paymentStatus=PAID.
+# GET /admin/transactions returns all types by default, including SHIPPING_FEE.
+
 # Check X-Request-Id in response
 curl -si "$BASE/admin/customers" \
   -H "Authorization: Bearer $ADMIN_TOKEN" | grep -i x-request-id
@@ -2062,6 +2053,7 @@ curl -si "$BASE/admin/customers" \
 > Image uploads use `multipart/form-data` (field name: `file`).
 > Max image size: **10 MB**. Allowed MIME: `image/jpeg`, `image/png`, `image/webp`, `image/heic`.
 > Images stored in Supabase Storage bucket configured by `SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES`. Public URLs are stable and stored in `imageUrls[]`.
+> Hard deleting an inbound package or customer shipment removes its own `imageUrls[]` Storage objects first. If Storage deletion fails, the database record is not deleted.
 
 ---
 
@@ -2208,6 +2200,7 @@ Create a batch and atomically link customer shipments.
 **Request:**
 ```json
 {
+  "shipmentType": "AIR_GENERAL",
   "vendorName": "DHL",
   "vendorTrackingNo": "DHL1234567890",
   "customerShipmentIds": ["uuid1", "uuid2"],
@@ -2217,6 +2210,8 @@ Create a batch and atomically link customer shipments.
 
 **Rules:**
 - `vendorName`, `vendorTrackingNo`, `customerShipmentIds` are all **required**.
+- `shipmentType` is optional for backward compatibility and defaults to `AIR_GENERAL`.
+- Allowed `shipmentType` values: `AIR_GENERAL`（空运普货）, `AIR_SENSITIVE`（空运敏货）, `SEA`（海运）.
 - `customerShipmentIds` must be non-empty.
 - No duplicate IDs in the array → 400.
 - All IDs must exist → 404 with list of missing IDs.
@@ -2229,6 +2224,7 @@ Create a batch and atomically link customer shipments.
   "data": {
     "id": "uuid",
     "batchNo": "GJB20260515001",
+    "shipmentType": "AIR_GENERAL",
     "vendorName": "DHL",
     "vendorTrackingNo": "DHL1234567890",
     "status": "CREATED",
@@ -2239,7 +2235,7 @@ Create a batch and atomically link customer shipments.
         "shipmentNo": "GJS20260515001",
         "status": "PACKED",
         "paymentStatus": "UNPAID",
-        "customer": { "id": "...", "customerCode": "GJ0001", "wechatId": "wx123" }
+        "customer": { "id": "...", "customerCode": "GJ0001" }
       }
     ],
     "createdAt": "...",
@@ -2249,6 +2245,8 @@ Create a batch and atomically link customer shipments.
 ```
 
 **Errors:** 400 for missing/empty fields or duplicate IDs. 404 for unknown shipment IDs. 409 for already-batched shipments.
+
+Migration `add_master_shipment_type` adds `master_shipments.shipment_type` with default `AIR_GENERAL`.
 
 ---
 
@@ -2310,8 +2308,7 @@ The `Customer` model now includes `domesticReturnAddress` (optional text). Avail
   "phoneCountryCode": "+86",
   "phoneNumber": "13800000000",
   "wechatId": "wechat_optional",
-  "domesticReturnAddress": "广东省广州市天河区...",
-  "notes": "内部备注"
+  "domesticReturnAddress": "广东省广州市天河区..."
 }
 ```
 
@@ -2328,7 +2325,9 @@ The `Customer` model now includes `domesticReturnAddress` (optional text). Avail
 
 ## 25.2 Public — Submit Customer Registration
 
-### POST /api/public/customer-registrations
+### POST /api/customer-registrations
+
+`POST /api/public/customer-registrations` is also supported for compatibility.
 
 No auth required.
 
@@ -2338,8 +2337,7 @@ No auth required.
   "phoneCountryCode": "+86",
   "phoneNumber": "13800000000",
   "wechatId": "wechat_optional",
-  "domesticReturnAddress": "广东省广州市天河区...",
-  "notes": "备注，可选"
+  "domesticReturnAddress": "广东省广州市天河区..."
 }
 ```
 
@@ -2348,7 +2346,7 @@ No auth required.
 - `phoneNumber` required, max 32 chars, digits/+/spaces/hyphens only
 - `wechatId` optional, max 64 chars
 - `domesticReturnAddress` optional, max 2000 chars
-- `notes` optional, max 1000 chars
+- `notes` is not accepted
 
 **Response 201:**
 ```json
@@ -2369,8 +2367,8 @@ No auth required.
 **Privacy:**
 - Does NOT return list of registrations
 - Does NOT return other applicants' data
-- Does NOT return ipHash, userAgent, reviewNote, approvedByAdminId
-- REJECTED phone can re-submit (only PENDING/APPROVED blocks re-submission)
+- Does NOT return ipHash, userAgent, reviewNote, approvedByAdminId, notes
+- Reject/rejected flow is no longer used.
 
 ---
 
@@ -2382,7 +2380,7 @@ No auth required.
 | Param | Required | Description |
 |---|---|---|
 | `q` | no | Search customerCode, phoneNumber, wechatId |
-| `status` | no | `PENDING` \| `APPROVED` \| `REJECTED` |
+| `status` | no | `PENDING` only; defaults to pending records |
 | `page` | no | Default 1 |
 | `pageSize` | no | Default 20, max 100 |
 
@@ -2397,7 +2395,7 @@ No auth required.
 }
 ```
 
-Each item includes: `id`, `customerCode`, `phoneCountryCode`, `phoneNumber`, `wechatId`, `domesticReturnAddress`, `notes`, `status`, `reviewNote`, `createdCustomerId`, `approvedAt`, `rejectedAt`, `createdAt`, `updatedAt`.
+Each item includes: `id`, `customerCode`, `phoneCountryCode`, `phoneNumber`, `wechatId`, `domesticReturnAddress`, `status`, `createdAt`, `updatedAt`. It does not include `notes`, `reviewNote`, or rejection fields.
 
 ---
 
@@ -2429,34 +2427,14 @@ Admin creates a registration manually, enters PENDING queue.
     "phoneNumber": "13800000000",
     "wechatId": "optional",
     "domesticReturnAddress": "...",
-    "notes": "...",
     "status": "PENDING",
-    "reviewNote": null,
-    "approvedAt": null,
-    "approvedByAdminId": null,
-    "rejectedAt": null,
-    "rejectedByAdminId": null,
-    "createdCustomerId": "uuid-or-null",
-    "createdCustomer": {
-      "id": "uuid",
-      "customerCode": "GJ0427",
-      "phoneCountryCode": "+86",
-      "phoneNumber": "13800000000",
-      "wechatId": "optional",
-      "domesticReturnAddress": "...",
-      "status": "ACTIVE",
-      "createdAt": "...",
-      "updatedAt": "..."
-    },
-    "ipHash": "...",
-    "userAgent": "...",
     "createdAt": "...",
     "updatedAt": "..."
   }
 }
 ```
 
-For non-approved registrations or approved rows without `createdCustomerId`, `createdCustomer` is `null`. For APPROVED registrations with `createdCustomerId`, the nested formal Customer is included so admins can inspect and then update `Customer.status` through `PATCH /api/admin/customers/:id`.
+After approval, the registration row is hard deleted, so this endpoint returns 404 for the approved registration id.
 
 **Errors:** 404 if not found.
 
@@ -2466,10 +2444,10 @@ For non-approved registrations or approved rows without `createdCustomerId`, `cr
 
 ### PATCH /api/admin/customer-registrations/:id
 
-Update info or reviewNote. Does NOT change status directly.
+Update registration info before approval. Does NOT approve.
 
 **Allowed fields:**
-- `phoneCountryCode`, `phoneNumber`, `wechatId`, `domesticReturnAddress`, `notes`, `reviewNote`
+- `phoneCountryCode`, `phoneNumber`, `wechatId`, `domesticReturnAddress`
 
 **Response 200:** `{ data: updatedRegistration }`
 
@@ -2481,47 +2459,35 @@ Update info or reviewNote. Does NOT change status directly.
 
 Approve and atomically create a formal `Customer`.
 
-**Request:**
-```json
-{ "reviewNote": "可选审核备注" }
-```
-
 **Rules:**
-- Status must be `PENDING` or `REJECTED` (not `APPROVED`)
 - `customerCode` must not already exist in `Customer` table
 - Phone must not already be a formal Customer (409)
-- Uses `$transaction`: creates `Customer` → updates registration `status=APPROVED`, sets `approvedAt`, `approvedByAdminId`, `createdCustomerId`
+- Uses `$transaction`: reads registration → creates `Customer` with the same `customerCode` → hard deletes the `CustomerRegistration`
+- Does not store an APPROVED registration row and does not accept review notes
 
 **Response 200:**
 ```json
 {
-  "registration": { ... },
-  "customer": { "id": "uuid", "customerCode": "GJ0427" }
+  "approved": true,
+  "deletedRegistrationId": "uuid",
+  "customer": {
+    "id": "uuid",
+    "customerCode": "GJ0427",
+    "phoneCountryCode": "+86",
+    "phoneNumber": "13800000000",
+    "wechatId": "optional",
+    "domesticReturnAddress": "...",
+    "status": "ACTIVE",
+    "createdAt": "...",
+    "updatedAt": "..."
+  }
 }
 ```
 
 **Errors:**
 - 404 — registration not found
-- 409 — already APPROVED
 - 409 — phone already a formal Customer
-- 409 — customerCode already taken
-
----
-
-## 25.8 Admin — Reject Registration
-
-### POST /api/admin/customer-registrations/:id/reject
-
-**Request:**
-```json
-{ "reviewNote": "拒绝原因，可选" }
-```
-
-**Rules:**
-- Status must not be `APPROVED` (409)
-- Sets `status=REJECTED`, `rejectedAt`, `rejectedByAdminId`
-
-**Response 200:** `{ data: updatedRegistration }`
+- 409 — Customer already exists for customerCode GJ####
 
 ---
 
@@ -2532,8 +2498,7 @@ Approve and atomically create a formal `Customer`.
 **Rules:**
 - `confirm=DELETE_HARD` required (400 if missing)
 - Deletes registration record only
-- Does NOT cascade-delete any `Customer` created from this registration
-- `createdCustomer` FK uses `SET NULL` on Prisma side (registration FK only)
+- Does NOT delete any `Customer`
 
 **Response 200:**
 ```json
@@ -2561,23 +2526,15 @@ curl -s "$BASE/admin/customer-registrations?status=PENDING" \
 curl -s "$BASE/admin/customer-registrations/<reg-id>" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 
-# Admin: update reviewNote
+# Admin: update registration info
 curl -s -X PATCH "$BASE/admin/customer-registrations/<reg-id>" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"reviewNote":"资料已核实"}'
+  -d '{"wechatId":"wx123","domesticReturnAddress":"广东省..."}'
 
-# Admin: approve (creates Customer)
+# Admin: approve (creates Customer, deletes registration)
 curl -s -X POST "$BASE/admin/customer-registrations/<reg-id>/approve" \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"reviewNote":"审核通过"}'
-
-# Admin: reject
-curl -s -X POST "$BASE/admin/customer-registrations/<reg-id>/reject" \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"reviewNote":"资料不完整"}'
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 
 # Admin: hard delete registration (does NOT delete Customer)
 curl -s -X DELETE "$BASE/admin/customer-registrations/<reg-id>?confirm=DELETE_HARD" \

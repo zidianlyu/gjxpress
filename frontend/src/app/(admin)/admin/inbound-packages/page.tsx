@@ -12,7 +12,21 @@ import { InboundPackageStatusBadge } from '@/components/common/StatusBadge';
 import { TrackingBarcodeScanner } from '@/components/admin/TrackingBarcodeScanner';
 import { INBOUND_PACKAGE_STATUS_OPTIONS } from '@/lib/constants/status';
 import { CustomerCodeInput, isCustomerCodeComplete } from '@/components/admin/CustomerCodeInput';
+import { AdminBlockingOverlay } from '@/components/admin/AdminBlockingOverlay';
 import { getEntityId } from '@/lib/api/unwrap';
+
+function mapInboundCustomerNotFoundError(error: ApiError, customerCode: string): string | null {
+  const trimmedCode = customerCode.trim();
+  if (!trimmedCode) return null;
+  const message = error.message || '';
+  const isKnownCustomerCodeError =
+    error.status === 404 ||
+    message.includes('客户编号不存在') ||
+    message.includes('Customer not found') ||
+    message.includes('customerCode');
+
+  return isKnownCustomerCodeError ? `客户 ${trimmedCode} 不存在，请核实后重试。` : null;
+}
 
 export default function InboundPackagesPage() {
   const [packages, setPackages] = useState<InboundPackage[]>([]);
@@ -31,6 +45,7 @@ export default function InboundPackagesPage() {
   });
   const [localFiles, setLocalFiles] = useState<File[]>([]);
   const [creating, setCreating] = useState(false);
+  const [createBlockingText, setCreateBlockingText] = useState('正在创建记录...');
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
 
@@ -74,17 +89,22 @@ export default function InboundPackagesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (createForm.customerCode && !isCustomerCodeComplete(createForm.customerCode)) {
+    if (!createForm.customerCode.trim()) {
+      setCreateError('客户编号不能为空');
+      return;
+    }
+    if (!isCustomerCodeComplete(createForm.customerCode)) {
       setCreateError('客户编号必须是 GJ 加 4 位数字');
       return;
     }
     setCreating(true);
+    setCreateBlockingText('正在创建记录...');
     setCreateError('');
     setCreateSuccess('');
     try {
       const pkg = await adminApi.createInboundPackage({
         domesticTrackingNo: createForm.domesticTrackingNo.trim() || null,
-        customerCode: createForm.customerCode.trim() || undefined,
+        customerCode: createForm.customerCode.trim(),
         adminNote: createForm.adminNote.trim() || undefined,
       });
       const packageId = getEntityId(pkg);
@@ -93,13 +113,15 @@ export default function InboundPackagesPage() {
       if (localFiles.length > 0) {
         if (!packageId) {
           setCreateSuccess('记录已创建但后端未返回 ID，无法上传图片，请刷新列表确认后重试。');
+          setCreateBlockingText('正在刷新列表...');
+          await fetchData();
           resetCreateForm();
           setShowCreate(false);
-          fetchData();
           return;
         }
         let failCount = 0;
-        for (const file of localFiles) {
+        for (const [index, file] of localFiles.entries()) {
+          setCreateBlockingText(`正在上传图片 ${index + 1} / ${localFiles.length}...`);
           try {
             await adminApi.uploadInboundPackageImage(packageId, file);
           } catch {
@@ -108,24 +130,24 @@ export default function InboundPackagesPage() {
         }
         if (failCount > 0) {
           setCreateSuccess('记录已创建，部分图片上传失败，可进入详情页补传。');
+          setCreateBlockingText('正在刷新列表...');
+          await fetchData();
           resetCreateForm();
           setShowCreate(false);
-          fetchData();
           return;
         }
       }
 
       const statusMsg = pkg.status === 'UNIDENTIFIED' || pkg.status === 'UNCLAIMED' ? '已创建为未识别包裹' : '入库包裹创建成功';
       setCreateSuccess(statusMsg + (localFiles.length > 0 ? `，已上传 ${localFiles.length} 张图片` : ''));
+      setCreateBlockingText('正在刷新列表...');
+      await fetchData();
       resetCreateForm();
       setShowCreate(false);
-      fetchData();
     } catch (err) {
       if (err instanceof ApiError) {
-        const notFoundMsg = err.status === 404 && createForm.customerCode.trim()
-          ? '客户编号不存在，请确认后重试。'
-          : err.message;
-        setCreateError(`${notFoundMsg}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
+        const knownError = mapInboundCustomerNotFoundError(err, createForm.customerCode);
+        setCreateError(knownError || `${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
       } else {
         setCreateError('创建失败');
       }
@@ -270,7 +292,17 @@ export default function InboundPackagesPage() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">新增入库包裹</h2>
-              <button onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!creating) setShowCreate(false);
+                }}
+                disabled={creating}
+                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                aria-label="关闭"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
             {createSuccess && <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">{createSuccess}</div>}
@@ -280,31 +312,38 @@ export default function InboundPackagesPage() {
               <div>
                 <label className="block text-xs font-medium mb-1">国内快递单号</label>
                 <div className="relative">
-                  <input type="text" value={createForm.domesticTrackingNo} onChange={(e) => setCreateForm(f => ({ ...f, domesticTrackingNo: e.target.value }))} placeholder="可选，支持后续补录" className="w-full px-3 py-2 pr-10 rounded-md border bg-background text-sm" />
+                  <input type="text" value={createForm.domesticTrackingNo} onChange={(e) => setCreateForm(f => ({ ...f, domesticTrackingNo: e.target.value }))} placeholder="可选，支持后续补录" className="w-full px-3 py-2 pr-10 rounded-md border bg-background text-sm" disabled={creating} />
                   <TrackingBarcodeScanner onConfirm={(value) => setCreateForm(f => ({ ...f, domesticTrackingNo: value }))} />
                 </div>
               </div>
               <CustomerCodeInput
                 value={createForm.customerCode}
                 onChange={(customerCode) => setCreateForm(f => ({ ...f, customerCode }))}
+                required
+                label="客户编号"
+                helperText="请输入客户编号后 4 位，例如 1736。"
+                disabled={creating}
               />
               <div>
                 <label className="block text-xs font-medium mb-1">管理员备注</label>
-                <textarea value={createForm.adminNote} onChange={(e) => setCreateForm(f => ({ ...f, adminNote: e.target.value }))} rows={2} placeholder="可选" className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none" />
+                <textarea value={createForm.adminNote} onChange={(e) => setCreateForm(f => ({ ...f, adminNote: e.target.value }))} rows={2} placeholder="可选" className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none" disabled={creating} />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1">图片</label>
                 <ImagePicker onSelect={(files) => setLocalFiles(prev => [...prev, ...files])} disabled={creating} />
-                <LocalImageList files={localFiles} onRemove={(i) => setLocalFiles(prev => prev.filter((_, idx) => idx !== i))} />
+                <LocalImageList files={localFiles} onRemove={(i) => {
+                  if (!creating) setLocalFiles(prev => prev.filter((_, idx) => idx !== i));
+                }} />
               </div>
               <div className="flex gap-2 justify-end">
-                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-md border text-sm hover:bg-muted">取消</button>
+                <button type="button" onClick={() => setShowCreate(false)} disabled={creating} className="px-4 py-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50">取消</button>
                 <button type="submit" disabled={creating} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50">
                   {creating ? '创建中...' : '创建'}
                 </button>
               </div>
             </form>
           </div>
+          {creating && <AdminBlockingOverlay description={createBlockingText} />}
         </div>
       )}
     </div>

@@ -8,7 +8,8 @@ import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { TransactionRecord } from '@/types/admin';
 import { TRANSACTION_TYPE_LABELS } from '@/lib/constants/status';
-import { formatAmountCents, centsToYuan, parseYuanToCents } from '@/lib/format';
+import { formatAmountCents, centsToYuan } from '@/lib/format';
+import { yuanStringToCents, type PaymentOrderType } from '@/lib/admin/payment-order';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
 
 export default function TransactionDetailPage() {
@@ -26,7 +27,7 @@ export default function TransactionDetailPage() {
   const [actionError, setActionError] = useState('');
 
   // Edit fields
-  const [editType, setEditType] = useState<'SHIPPING_FEE' | 'REFUND'>('SHIPPING_FEE');
+  const [editType, setEditType] = useState<PaymentOrderType>('SHIPPING_FEE');
   const [editAmountYuan, setEditAmountYuan] = useState('');
   const [editAdminNote, setEditAdminNote] = useState('');
 
@@ -41,7 +42,7 @@ export default function TransactionDetailPage() {
     try {
       const data = await adminApi.getTransactionById(id);
       setTxn(data);
-      setEditType(data.type);
+      setEditType(data.type === 'REFUND' ? 'REFUND' : 'SHIPPING_FEE');
       setEditAmountYuan(centsToYuan(data.amountCents));
       setEditAdminNote(data.adminNote || '');
     } catch (err) {
@@ -59,8 +60,8 @@ export default function TransactionDetailPage() {
   useEffect(() => { fetchTxn(); }, [fetchTxn]);
 
   const handleSave = async () => {
-    const amountCents = parseYuanToCents(editAmountYuan);
-    if (amountCents <= 0) { setActionError('金额必须大于 0'); return; }
+    const amountCents = yuanStringToCents(editAmountYuan);
+    if (amountCents == null) { setActionError('金额必须是大于 0 的人民币金额，最多两位小数，不能包含货币符号或逗号'); return; }
     setSaving(true); setActionMsg(''); setActionError('');
     try {
       const updated = await adminApi.updateTransaction(id, {
@@ -110,6 +111,9 @@ export default function TransactionDetailPage() {
   }
 
   if (!txn) return null;
+  const occurredAtDate = txn.occurredAt ? new Date(txn.occurredAt) : null;
+  const occurredAtText = occurredAtDate && !Number.isNaN(occurredAtDate.getTime()) ? occurredAtDate.toLocaleString('zh-CN') : '-';
+  const customerCode = txn.customer?.customerCode || txn.customerShipment?.customer?.customerCode || txn.customerId?.slice(0, 8) || '-';
 
   return (
     <div className="flex-1 overflow-auto">
@@ -119,7 +123,7 @@ export default function TransactionDetailPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">交易记录详情</h1>
+            <h1 className="text-xl md:text-2xl font-bold">支付订单详情</h1>
             <p className="text-sm text-muted-foreground font-mono">{txn.id.slice(0, 8)}...</p>
           </div>
         </div>
@@ -135,9 +139,9 @@ export default function TransactionDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div><span className="text-muted-foreground">类型：</span>{TRANSACTION_TYPE_LABELS[txn.type] || txn.type}</div>
             <div><span className="text-muted-foreground">金额：</span><span className="font-mono font-semibold">{formatAmountCents(txn.amountCents)}</span></div>
-            <div><span className="text-muted-foreground">客户：</span><span className="font-mono text-xs">{txn.customer?.customerCode || txn.customerId.slice(0, 8)}</span></div>
+            <div><span className="text-muted-foreground">客户：</span><span className="font-mono text-xs">{customerCode}</span></div>
             <div><span className="text-muted-foreground">集运单：</span><span className="font-mono text-xs">{txn.customerShipment?.shipmentNo || txn.customerShipmentId.slice(0, 8)}</span></div>
-            <div><span className="text-muted-foreground">发生时间：</span>{new Date(txn.occurredAt).toLocaleString('zh-CN')}</div>
+            <div><span className="text-muted-foreground">发生时间：</span>{occurredAtText}</div>
             <div><span className="text-muted-foreground">创建时间：</span>{new Date(txn.createdAt).toLocaleString('zh-CN')}</div>
           </div>
           {txn.adminNote && <p className="text-sm"><span className="text-muted-foreground">备注：</span>{txn.adminNote}</p>}
@@ -150,7 +154,7 @@ export default function TransactionDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium mb-1">类型</label>
-                <select value={editType} onChange={(e) => setEditType(e.target.value as 'SHIPPING_FEE' | 'REFUND')} className="w-full px-3 py-2 rounded-md border text-sm">
+                <select value={editType} onChange={(e) => setEditType(e.target.value as PaymentOrderType)} className="w-full px-3 py-2 rounded-md border text-sm">
                   {Object.entries(TRANSACTION_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
@@ -172,7 +176,7 @@ export default function TransactionDetailPage() {
         {/* Danger Zone */}
         <div className="rounded-lg border border-red-200 p-4 space-y-3">
           <h2 className="font-semibold text-red-700">危险操作</h2>
-          <p className="text-xs text-muted-foreground">永久删除此交易记录，此操作不可恢复。</p>
+          <p className="text-xs text-muted-foreground">永久删除此支付订单，此操作不可恢复。</p>
           <button onClick={() => setShowDelete(true)} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
             永久删除
           </button>
@@ -183,8 +187,8 @@ export default function TransactionDetailPage() {
         open={showDelete}
         onClose={() => { setShowDelete(false); setDeleteError(''); }}
         onConfirm={handleDelete}
-        title="永久删除交易记录"
-        description="删除后此交易记录数据将不可恢复。"
+        title="永久删除支付订单"
+        description="删除后此支付订单数据将不可恢复。"
         confirmText="DELETE"
         entityLabel={`${TRANSACTION_TYPE_LABELS[txn.type] || txn.type} ${formatAmountCents(txn.amountCents)}`}
         error={deleteError}

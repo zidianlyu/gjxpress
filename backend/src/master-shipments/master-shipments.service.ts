@@ -19,12 +19,14 @@ const VALID_STATUSES = [
   'CREATED', 'HANDED_TO_VENDOR', 'IN_TRANSIT',
   'TRANSFER_OR_CUSTOMS_PROCESSING', 'ARRIVED_OVERSEAS', 'CLOSED', 'EXCEPTION',
 ];
+const VALID_SHIPMENT_TYPES = ['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA'];
 
 @Injectable()
 export class MasterShipmentsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: {
+    shipmentType?: string;
     vendorName: string;
     vendorTrackingNo: string;
     customerShipmentIds: string[];
@@ -36,6 +38,9 @@ export class MasterShipmentsService {
     }
     if (!dto.customerShipmentIds || dto.customerShipmentIds.length === 0) {
       throw new BadRequestException('customerShipmentIds is required and must not be empty');
+    }
+    if (dto.shipmentType && !VALID_SHIPMENT_TYPES.includes(dto.shipmentType)) {
+      throw new BadRequestException(`Invalid shipmentType: ${dto.shipmentType}`);
     }
 
     const ids = dto.customerShipmentIds;
@@ -72,6 +77,7 @@ export class MasterShipmentsService {
       const master = await tx.masterShipment.create({
         data: {
           batchNo: batchNo!,
+          shipmentType: dto.shipmentType || 'AIR_GENERAL',
           vendorName: dto.vendorName,
           vendorTrackingNo: dto.vendorTrackingNo,
           status: (dto.status as any) || 'CREATED',
@@ -93,7 +99,7 @@ export class MasterShipmentsService {
               shipmentNo: true,
               status: true,
               paymentStatus: true,
-              customer: { select: { id: true, customerCode: true, wechatId: true } },
+              customer: { select: { id: true, customerCode: true } },
             },
           },
         },
@@ -135,9 +141,20 @@ export class MasterShipmentsService {
         select: {
           id: true,
           batchNo: true,
+          shipmentType: true,
           vendorName: true,
           vendorTrackingNo: true,
           status: true,
+          customerShipments: {
+            select: {
+              id: true,
+              shipmentNo: true,
+              status: true,
+              paymentStatus: true,
+              customerId: true,
+              customer: { select: { id: true, customerCode: true } },
+            },
+          },
           publicVisible: true,
           publicTitle: true,
           publicStatusText: true,
@@ -170,7 +187,7 @@ export class MasterShipmentsService {
             status: true,
             paymentStatus: true,
             customerId: true,
-            customer: { select: { id: true, customerCode: true, wechatId: true } },
+            customer: { select: { id: true, customerCode: true } },
           },
         },
       },
@@ -203,6 +220,7 @@ export class MasterShipmentsService {
   async update(
     id: string,
     dto: {
+      shipmentType?: string;
       vendorName?: string;
       vendorTrackingNo?: string;
       adminNote?: string;
@@ -214,6 +232,9 @@ export class MasterShipmentsService {
   ) {
     const master = await this.prisma.masterShipment.findUnique({ where: { id } });
     if (!master) throw new NotFoundException('MasterShipment not found');
+    if (dto.shipmentType && !VALID_SHIPMENT_TYPES.includes(dto.shipmentType)) {
+      throw new BadRequestException(`Invalid shipmentType: ${dto.shipmentType}`);
+    }
 
     const publishedAt =
       dto.publicVisible === true && !master.publishedAt ? new Date() : undefined;
@@ -221,6 +242,7 @@ export class MasterShipmentsService {
     const updated = await this.prisma.masterShipment.update({
       where: { id },
       data: {
+        ...(dto.shipmentType !== undefined && { shipmentType: dto.shipmentType }),
         ...(dto.vendorName !== undefined && { vendorName: dto.vendorName }),
         ...(dto.vendorTrackingNo !== undefined && { vendorTrackingNo: dto.vendorTrackingNo }),
         ...(dto.adminNote !== undefined && { adminNote: dto.adminNote }),

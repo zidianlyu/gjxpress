@@ -28,6 +28,8 @@ import type {
 type PaginationLike<T> =
   | T[]
   | {
+      data?: PaginationLike<T>;
+      item?: PaginationLike<T>;
       items?: T[];
       page?: number;
       pageSize?: number;
@@ -135,6 +137,11 @@ function normalizePagination<T>(
   fallbackPage = 1,
   fallbackPageSize = 20
 ): PaginatedResponse<T> {
+  if (!Array.isArray(value)) {
+    if (value.data != null) return normalizePagination(value.data, fallbackPage, fallbackPageSize);
+    if (value.item != null) return normalizePagination(value.item, fallbackPage, fallbackPageSize);
+  }
+
   if (Array.isArray(value)) {
     return {
       items: value,
@@ -177,7 +184,7 @@ function cleanInboundPackagePayload(data: CreateInboundPackagePayload): CreateIn
   return {
     ...data,
     domesticTrackingNo: domesticTrackingNo || null,
-    customerCode: customerCode || undefined,
+    customerCode: customerCode || '',
     adminNote: data.adminNote?.trim() || undefined,
   };
 }
@@ -274,9 +281,6 @@ export const adminApi = {
   updateCustomerShipment: (id: string, data: UpdateCustomerShipmentPayload) =>
     adminApiFetch<ItemLike<CustomerShipment>>(`/admin/customer-shipments/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
-  cancelCustomerShipment: (id: string) =>
-    adminApiFetch<ItemLike<CustomerShipment>>(`/admin/customer-shipments/${id}/cancel`, { method: 'PATCH' }).then((res) => unwrapApiItem(res)),
-
   updateCustomerShipmentStatus: (id: string, data: { status: string }) =>
     adminApiFetch<ItemLike<CustomerShipment>>(`/admin/customer-shipments/${id}/status`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
@@ -300,10 +304,14 @@ export const adminApi = {
     adminApiFetch<{ deleted: boolean }>(`/admin/customer-shipments/${id}/images?imageUrl=${encodeURIComponent(imageUrl)}&confirm=DELETE_HARD`, { method: 'DELETE' }),
 
   // === Master Shipments ===
-  getMasterShipments: (params?: { q?: string; status?: string; publicVisible?: boolean; page?: number; pageSize?: number }) =>
-    adminApiFetch<PaginatedResponse<MasterShipment>>(
+  getMasterShipments: async (params?: { q?: string; status?: string; publicVisible?: boolean; page?: number; pageSize?: number }) => {
+    const page = params?.page || 1;
+    const pageSize = params?.pageSize || 20;
+    const data = await adminApiFetch<PaginationLike<MasterShipment>>(
       `/admin/master-shipments${buildQuery(params || {})}`
-    ),
+    );
+    return normalizePagination(data, page, pageSize);
+  },
 
   getMasterShipmentById: (id: string) =>
     adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}`).then((res) => unwrapApiItem(res)),
@@ -324,22 +332,26 @@ export const adminApi = {
     adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}/publication`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   // === Transactions ===
-  getTransactions: (params?: { q?: string; customerId?: string; customerShipmentId?: string; type?: string; page?: number; pageSize?: number }) =>
-    adminApiFetch<PaginatedResponse<TransactionRecord>>(
+  getTransactions: async (params?: { q?: string; customerId?: string; customerShipmentId?: string; type?: string; page?: number; pageSize?: number }) => {
+    const page = params?.page || 1;
+    const pageSize = params?.pageSize || 20;
+    const data = await adminApiFetch<PaginationLike<TransactionRecord>>(
       `/admin/transactions${buildQuery(params || {})}`
-    ),
+    );
+    return normalizePagination(data, page, pageSize);
+  },
 
   getTransactionById: (id: string) =>
-    adminApiFetch<TransactionRecord>(`/admin/transactions/${id}`),
+    adminApiFetch<ItemLike<TransactionRecord>>(`/admin/transactions/${id}`).then((res) => unwrapApiItem(res)),
 
   createTransaction: (data: CreateTransactionPayload) =>
-    adminApiFetch<TransactionRecord>('/admin/transactions', { method: 'POST', body: data }),
+    adminApiFetch<ItemLike<TransactionRecord>>('/admin/transactions', { method: 'POST', body: data }).then((res) => unwrapApiItem(res)),
 
   updateTransaction: (id: string, data: UpdateTransactionPayload) =>
-    adminApiFetch<TransactionRecord>(`/admin/transactions/${id}`, { method: 'PATCH', body: data }),
+    adminApiFetch<ItemLike<TransactionRecord>>(`/admin/transactions/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   // === Master Shipment extended ===
-  updateMasterShipment: (id: string, data: Partial<{ vendorName: string; vendorTrackingNo: string; adminNote: string }>) =>
+  updateMasterShipment: (id: string, data: Partial<{ shipmentType: string; vendorName: string; vendorTrackingNo: string; adminNote: string }>) =>
     adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   // === Hard Delete ===
@@ -364,35 +376,25 @@ export const adminApi = {
       `/admin/customer-registrations${buildQuery(params || {})}`
     ),
 
-  getCustomerRegistrationById: async (id: string) => {
-    const res = await adminApiFetch<{ data: CustomerRegistration } | CustomerRegistration>(`/admin/customer-registrations/${id}`);
-    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: CustomerRegistration }).data : res as CustomerRegistration;
-  },
+  getCustomerRegistrationById: async (id: string) =>
+    unwrapApiItem(await adminApiFetch<ItemLike<CustomerRegistration>>(`/admin/customer-registrations/${id}`)),
 
   createCustomerRegistration: async (data: CreateCustomerRegistrationPayload) => {
-    const res = await adminApiFetch<{ data: CustomerRegistration } | CustomerRegistration>('/admin/customer-registrations', { method: 'POST', body: data });
-    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: CustomerRegistration }).data : res as CustomerRegistration;
+    const res = await adminApiFetch<ItemLike<CustomerRegistration>>('/admin/customer-registrations', { method: 'POST', body: data });
+    return unwrapApiItem(res);
   },
 
   updateCustomerRegistration: async (id: string, data: UpdateCustomerRegistrationPayload) => {
-    const res = await adminApiFetch<{ data: CustomerRegistration } | CustomerRegistration>(`/admin/customer-registrations/${id}`, { method: 'PATCH', body: data });
-    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: CustomerRegistration }).data : res as CustomerRegistration;
+    const res = await adminApiFetch<ItemLike<CustomerRegistration>>(`/admin/customer-registrations/${id}`, { method: 'PATCH', body: data });
+    return unwrapApiItem(res);
   },
 
-  approveCustomerRegistration: async (id: string, payload?: { reviewNote?: string }) => {
-    const res = await adminApiFetch<{ data: ApproveCustomerRegistrationResponse } | ApproveCustomerRegistrationResponse>(
+  approveCustomerRegistration: async (id: string) => {
+    const res = await adminApiFetch<ItemLike<ApproveCustomerRegistrationResponse>>(
       `/admin/customer-registrations/${id}/approve`,
-      { method: 'POST', body: payload || {} }
+      { method: 'POST' }
     );
-    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: ApproveCustomerRegistrationResponse }).data : res as ApproveCustomerRegistrationResponse;
-  },
-
-  rejectCustomerRegistration: async (id: string, payload?: { reviewNote?: string }) => {
-    const res = await adminApiFetch<{ data: CustomerRegistration } | CustomerRegistration>(
-      `/admin/customer-registrations/${id}/reject`,
-      { method: 'POST', body: payload || {} }
-    );
-    return (res && typeof res === 'object' && 'data' in res && res.data && typeof res.data === 'object') ? (res as { data: CustomerRegistration }).data : res as CustomerRegistration;
+    return unwrapApiItem(res);
   },
 
   hardDeleteCustomerRegistration: (id: string) =>

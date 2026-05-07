@@ -4,15 +4,15 @@ import JsonLd from '@/components/seo/JsonLd';
 import { buildBreadcrumbJsonLd } from '@/lib/structured-data';
 
 export const metadata: Metadata = buildMetadata({
-  title: '物流状态查询｜广骏国际快运',
-  description: '通过国内快递单号或集运单号查询低敏物流状态。公开查询仅展示状态信息，不展示手机号、微信号、图片或交易记录。',
+  title: '查询订单与批次更新｜广骏国际快运',
+  description: '通过客户编号或物流信息查询订单状态，并查看广骏国际快运中国到美国线路的批次更新说明。',
   path: '/tracking',
 });
 
 export default function TrackingLayout({ children }: { children: React.ReactNode }) {
   const breadcrumbData = buildBreadcrumbJsonLd([
     { name: '首页', path: '/' },
-    { name: '物流状态查询', path: '/tracking' },
+    { name: '查询订单', path: '/tracking' },
   ]);
 
   return (

@@ -1,7 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      {
+        source: '/batch-updates',
+        destination: '/tracking',
+        permanent: true,
+      },
+      {
+        source: '/batch-updates/:path*',
+        destination: '/tracking',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

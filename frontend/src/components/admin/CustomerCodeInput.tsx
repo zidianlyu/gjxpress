@@ -11,6 +11,7 @@ type CustomerCodeInputProps = {
   required?: boolean;
   disabled?: boolean;
   className?: string;
+  helperText?: string;
 };
 
 export function getCustomerCodeDigits(value: string): string {
@@ -35,6 +36,7 @@ export function CustomerCodeInput({
   required = false,
   disabled = false,
   className = '',
+  helperText = '只需输入 4 位数字，例如 3178',
 }: CustomerCodeInputProps) {
   const digits = useMemo(() => getCustomerCodeDigits(value), [value]);
   const hasPartialError = digits.length > 0 && digits.length < 4;
@@ -79,7 +81,7 @@ export function CustomerCodeInput({
         />
       </div>
       <p className={error ? 'mt-1 text-xs text-red-600' : 'mt-1 text-xs text-muted-foreground'}>
-        {error || '只需输入 4 位数字，例如 3178'}
+        {error || helperText}
       </p>
     </div>
   );

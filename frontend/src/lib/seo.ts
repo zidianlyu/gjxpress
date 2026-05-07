@@ -3,6 +3,7 @@ import { siteConfig } from './site-config';
 
 export function buildPageTitle(title?: string): string {
   if (!title) return `${siteConfig.name} | ${siteConfig.slogan}`;
+  if (title.includes(siteConfig.name)) return title;
   return `${title} | ${siteConfig.name}`;
 }
 

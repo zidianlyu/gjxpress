@@ -20,7 +20,7 @@ export default function CustomersPage() {
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '', notes: '' });
+  const [createForm, setCreateForm] = useState({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '' });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
@@ -69,10 +69,9 @@ export default function CustomersPage() {
         phoneNumber: createForm.phoneNumber.trim(),
         wechatId: createForm.wechatId.trim() || undefined,
         domesticReturnAddress: createForm.domesticReturnAddress.trim() || undefined,
-        notes: createForm.notes.trim() || undefined,
       });
       setCreateSuccess(`客户创建成功，客户编号：${customer.customerCode}`);
-      setCreateForm({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '', notes: '' });
+      setCreateForm({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '' });
       setShowCreate(false);
       fetchCustomers();
     } catch (err) {
@@ -281,16 +280,6 @@ export default function CustomersPage() {
                 <textarea
                   value={createForm.domesticReturnAddress}
                   onChange={(e) => setCreateForm(f => ({ ...f, domesticReturnAddress: e.target.value }))}
-                  placeholder="可选"
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">备注</label>
-                <textarea
-                  value={createForm.notes}
-                  onChange={(e) => setCreateForm(f => ({ ...f, notes: e.target.value }))}
                   placeholder="可选"
                   rows={2}
                   className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"

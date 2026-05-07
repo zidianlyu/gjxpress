@@ -12,7 +12,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { CustomerRegistrationsService } from './customer-registrations.service';
 import { CreateCustomerRegistrationDto } from './dto/create-customer-registration.dto';
@@ -40,15 +40,14 @@ export class CustomerRegistrationsController {
   @Post()
   @ApiOperation({ summary: '[Admin] Manually create a customer registration (enters PENDING queue)' })
   @ApiGenericCreated('Registration created.')
-  adminCreate(@Body() dto: CreateCustomerRegistrationDto, @Req() req: Request) {
-    const adminId = (req.user as any).sub;
-    return this.service.adminCreate(dto, adminId);
+  adminCreate(@Body() dto: CreateCustomerRegistrationDto) {
+    return this.service.adminCreate(dto);
   }
 
   @Get()
   @ApiOperation({ summary: '[Admin] List customer registrations with search and pagination' })
-  @ApiQuery({ name: 'q', required: false, type: String, description: 'Search phone, wechat id, address, notes, or generated code.' })
-  @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'], description: 'Registration review status.' })
+  @ApiQuery({ name: 'q', required: false, type: String, description: 'Search phone, wechat id, address, or generated code.' })
+  @ApiQuery({ name: 'status', required: false, enum: ['PENDING'], description: 'Registration review status. Defaults to PENDING.' })
   @ApiPaginationQueries()
   @ApiItemsPaginatedOk('Customer registrations with pagination.')
   findAll(
@@ -69,7 +68,7 @@ export class CustomerRegistrationsController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '[Admin] Update customer registration info and reviewNote (does not change status)' })
+  @ApiOperation({ summary: '[Admin] Update customer registration info (does not approve)' })
   @ApiIdParam('id', 'Customer registration id')
   @ApiGenericOk('Registration updated.')
   update(@Param('id') id: string, @Body() dto: UpdateCustomerRegistrationDto) {
@@ -78,32 +77,11 @@ export class CustomerRegistrationsController {
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '[Admin] Approve registration and create formal Customer (atomic transaction)' })
+  @ApiOperation({ summary: '[Admin] Approve registration, create formal Customer, and hard delete registration (atomic transaction)' })
   @ApiIdParam('id', 'Customer registration id')
-  @ApiBody({ required: false, schema: { type: 'object', properties: { reviewNote: { type: 'string', nullable: true } } } })
   @ApiGenericOk('Registration approved and formal customer created.')
-  approve(
-    @Param('id') id: string,
-    @Body('reviewNote') reviewNote?: string,
-    @Req() req?: Request,
-  ) {
-    const adminId = (req!.user as any).sub;
-    return this.service.approve(id, adminId, reviewNote);
-  }
-
-  @Post(':id/reject')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '[Admin] Reject customer registration' })
-  @ApiIdParam('id', 'Customer registration id')
-  @ApiBody({ required: false, schema: { type: 'object', properties: { reviewNote: { type: 'string', nullable: true } } } })
-  @ApiGenericOk('Registration rejected.')
-  reject(
-    @Param('id') id: string,
-    @Body('reviewNote') reviewNote?: string,
-    @Req() req?: Request,
-  ) {
-    const adminId = (req!.user as any).sub;
-    return this.service.reject(id, adminId, reviewNote);
+  approve(@Param('id') id: string) {
+    return this.service.approve(id);
   }
 
   @Delete(':id')
@@ -114,5 +92,24 @@ export class CustomerRegistrationsController {
   @ApiResponse({ status: 200, description: 'Registration hard deleted.', schema: deletedSchema })
   hardDelete(@Param('id') id: string, @Query('confirm') confirm: string) {
     return this.service.hardDelete(id, confirm);
+  }
+}
+
+@ApiTags('Customer Registrations')
+@ApiStandardResponses({ conflict: true })
+@Controller('customer-registrations')
+export class PublicCustomerRegistrationsController {
+  constructor(private readonly service: CustomerRegistrationsService) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Submit new customer registration application (public, no auth)' })
+  @ApiGenericCreated('Customer registration submitted; response includes generated customerCode and PENDING status.')
+  submitRegistration(
+    @Body() dto: CreateCustomerRegistrationDto,
+    @Req() req: Request,
+  ) {
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 512);
+    return this.service.createRegistration(dto, { userAgent });
   }
 }

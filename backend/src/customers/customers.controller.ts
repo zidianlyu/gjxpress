@@ -44,7 +44,7 @@ export class CustomersController {
 
   @Get()
   @ApiOperation({ summary: '[Admin] List customers with search and pagination' })
-  @ApiQuery({ name: 'q', required: false, type: String, description: 'Search customer code, phone, wechat id, address, or notes.' })
+  @ApiQuery({ name: 'q', required: false, type: String, description: 'Search customer code, phone, wechat id, or address.' })
   @ApiQuery({ name: 'status', required: false, type: String, description: 'Customer status filter.' })
   @ApiPaginationQueries()
   @ApiItemsPaginatedOk('Customers with inboundPackageCount and customerShipmentCount plus pagination.')
@@ -66,7 +66,7 @@ export class CustomersController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '[Admin] Update customer info (phone, wechatId, notes, status)' })
+  @ApiOperation({ summary: '[Admin] Update customer info (phone, wechatId, domesticReturnAddress, status)' })
   @ApiIdParam('id', 'Customer id')
   @ApiGenericOk('Customer updated.')
   update(@Param('id') id: string, @Body() dto: UpdateCustomerDto) {

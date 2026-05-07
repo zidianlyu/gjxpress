@@ -28,7 +28,6 @@ export type Customer = {
   phoneNumber?: string | null;
   wechatId?: string | null;
   domesticReturnAddress?: string | null;
-  notes?: string | null;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -39,7 +38,6 @@ export type CreateCustomerPayload = {
   phoneNumber: string;
   wechatId?: string;
   domesticReturnAddress?: string;
-  notes?: string;
 };
 
 export type UpdateCustomerPayload = {
@@ -47,39 +45,20 @@ export type UpdateCustomerPayload = {
   phoneNumber?: string;
   wechatId?: string | null;
   domesticReturnAddress?: string | null;
-  notes?: string | null;
   status?: 'ACTIVE' | 'DISABLED';
 };
 
 // Customer Registration
-export type CustomerRegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-
 export type CustomerRegistration = {
   id: string;
   customerCode: string;
-  phoneCountryCode: string;
+  phoneCountryCode?: string | null;
   phoneNumber: string;
   wechatId?: string | null;
   domesticReturnAddress?: string | null;
-  notes?: string | null;
-  status: CustomerRegistrationStatus;
-  reviewNote?: string | null;
-  approvedAt?: string | null;
-  rejectedAt?: string | null;
-  createdCustomerId?: string | null;
-  createdCustomer?: {
-    id: string;
-    customerCode: string;
-    phoneCountryCode?: string;
-    phoneNumber?: string;
-    wechatId?: string | null;
-    domesticReturnAddress?: string | null;
-    status?: 'ACTIVE' | 'DISABLED';
-    createdAt?: string;
-    updatedAt?: string;
-  } | null;
+  status?: string;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
 };
 
 export type CreateCustomerRegistrationPayload = {
@@ -87,7 +66,6 @@ export type CreateCustomerRegistrationPayload = {
   phoneNumber: string;
   wechatId?: string;
   domesticReturnAddress?: string;
-  notes?: string;
 };
 
 export type UpdateCustomerRegistrationPayload = {
@@ -95,13 +73,11 @@ export type UpdateCustomerRegistrationPayload = {
   phoneNumber?: string;
   wechatId?: string | null;
   domesticReturnAddress?: string | null;
-  notes?: string | null;
-  reviewNote?: string | null;
 };
 
 export type ApproveCustomerRegistrationResponse = {
-  registration: CustomerRegistration;
-  customer: {
+  registration?: CustomerRegistration;
+  customer?: {
     id: string;
     customerCode: string;
     status?: 'ACTIVE' | 'DISABLED';
@@ -136,7 +112,7 @@ export type InboundPackage = {
 
 export type CreateInboundPackagePayload = {
   domesticTrackingNo?: string | null;
-  customerCode?: string;
+  customerCode: string;
   warehouseReceivedAt?: string;
   adminNote?: string;
 };
@@ -202,10 +178,12 @@ export type UpdateCustomerShipmentPayload = {
 
 // Master Shipment
 export type MasterShipmentStatus = 'CREATED' | 'HANDED_TO_VENDOR' | 'IN_TRANSIT' | 'TRANSFER_OR_CUSTOMS_PROCESSING' | 'ARRIVED_OVERSEAS' | 'CLOSED' | 'EXCEPTION';
+export type MasterShipmentType = 'AIR_GENERAL' | 'AIR_SENSITIVE' | 'SEA';
 
 export type MasterShipment = {
   id: string;
   batchNo: string;
+  shipmentType?: MasterShipmentType | string | null;
   vendorName?: string | null;
   vendorTrackingNo?: string | null;
   status: string;
@@ -224,6 +202,7 @@ export type MasterShipment = {
 };
 
 export type CreateMasterShipmentPayload = {
+  shipmentType: MasterShipmentType;
   vendorName: string;
   vendorTrackingNo: string;
   customerShipmentIds: string[];
@@ -236,12 +215,12 @@ export type AdminTransactionType = 'SHIPPING_FEE' | 'REFUND';
 
 export type TransactionRecord = {
   id: string;
-  customerId: string;
+  customerId?: string | null;
   customerShipmentId: string;
-  type: 'SHIPPING_FEE' | 'REFUND';
+  type: 'SHIPPING_FEE' | 'REFUND' | string;
   amountCents: number;
   adminNote?: string | null;
-  occurredAt: string;
+  occurredAt?: string;
   createdAt: string;
   updatedAt?: string;
   customer?: {
@@ -250,11 +229,15 @@ export type TransactionRecord = {
     phoneCountryCode?: string;
     phoneNumber?: string;
     wechatId?: string | null;
-  };
+  } | null;
   customerShipment?: {
     id: string;
-    shipmentNo: string;
+    shipmentNo?: string | null;
     status?: string;
+    customer?: {
+      id: string;
+      customerCode: string;
+    } | null;
   } | null;
 };
 
@@ -277,6 +260,7 @@ export type UpdateTransactionPayload = {
 export type DeleteResponse = {
   deleted: boolean;
   id: string;
+  deletedImageCount?: number;
 };
 
 // Delete blockers (from 409)

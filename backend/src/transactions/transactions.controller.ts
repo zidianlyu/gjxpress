@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsString, IsOptional, IsInt, IsPositive, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsPositive, IsUUID, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TransactionsService } from './transactions.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -28,25 +28,21 @@ import {
 } from '../common/swagger/api-docs';
 
 class CreateTransactionDto {
-  @ApiProperty({ format: 'uuid', description: 'Customer id.' })
-  @IsUUID() customerId: string;
   @ApiProperty({ format: 'uuid', description: 'Customer shipment id.' })
   @IsUUID() customerShipmentId: string;
-  @ApiPropertyOptional({ enum: ['SHIPPING_FEE', 'REFUND'], description: 'Transaction type. Defaults in service when omitted.' })
-  @IsString() @IsOptional() type?: string;
+  @ApiProperty({ enum: ['SHIPPING_FEE', 'REFUND'], description: 'Transaction type.' })
+  @IsIn(['SHIPPING_FEE', 'REFUND']) type: string;
   @ApiProperty({ type: Number, description: 'Amount in cents.' })
   @IsInt() @IsPositive() @Type(() => Number) amountCents: number;
   @ApiPropertyOptional({ description: 'Admin note.' })
   @IsString() @IsOptional() adminNote?: string;
-  @ApiPropertyOptional({ format: 'date-time', description: 'Transaction occurrence timestamp.' })
-  @IsString() @IsOptional() occurredAt?: string;
 }
 
 class UpdateTransactionDto {
   @ApiPropertyOptional({ enum: ['SHIPPING_FEE', 'REFUND'], description: 'Transaction type.' })
-  @IsString() @IsOptional() type?: string;
+  @IsIn(['SHIPPING_FEE', 'REFUND']) @IsOptional() type?: string;
   @ApiPropertyOptional({ type: Number, description: 'Amount in cents.' })
-  @IsInt() @IsOptional() @Type(() => Number) amountCents?: number;
+  @IsInt() @IsPositive() @IsOptional() @Type(() => Number) amountCents?: number;
   @ApiPropertyOptional({ description: 'Admin note.' })
   @IsString() @IsOptional() adminNote?: string;
   @ApiPropertyOptional({ format: 'date-time', description: 'Transaction occurrence timestamp.' })
@@ -62,7 +58,7 @@ export class TransactionsController {
   constructor(private readonly service: TransactionsService) {}
 
   @Post()
-  @ApiOperation({ summary: '[Admin] Create transaction record' })
+  @ApiOperation({ summary: '[Admin] Create transaction record. customerId is derived from customerShipmentId.' })
   @ApiGenericCreated('Transaction record created.')
   create(@Body() dto: CreateTransactionDto) {
     return this.service.create(dto);
@@ -105,7 +101,7 @@ export class TransactionsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '[Admin] Hard delete transaction. Requires ?confirm=DELETE_HARD. Blocked if paymentStatus=PAID.' })
+  @ApiOperation({ summary: '[Admin] Hard delete transaction. Requires ?confirm=DELETE_HARD.' })
   @ApiIdParam('id', 'Transaction record id')
   @ApiQuery({ name: 'confirm', required: true, type: String, description: 'Must be DELETE_HARD.', example: 'DELETE_HARD' })
   @ApiResponse({ status: 200, description: 'Transaction hard deleted.', schema: deletedSchema })

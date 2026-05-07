@@ -25,16 +25,4 @@ export class UpdateCustomerRegistrationDto {
   @IsOptional()
   @MaxLength(2000)
   domesticReturnAddress?: string;
-
-  @ApiPropertyOptional({ example: '更新备注' })
-  @IsString()
-  @IsOptional()
-  @MaxLength(1000)
-  notes?: string;
-
-  @ApiPropertyOptional({ example: '资料审核中，需补充信息' })
-  @IsString()
-  @IsOptional()
-  @MaxLength(1000)
-  reviewNote?: string;
 }

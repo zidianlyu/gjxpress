@@ -22,10 +22,18 @@ export default function CustomerRegistrationsPage() {
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '', notes: '' });
+  const [createForm, setCreateForm] = useState({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '' });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
+
+  useEffect(() => {
+    const notice = window.sessionStorage.getItem('gjx_admin_notice');
+    if (notice) {
+      setCreateSuccess(notice);
+      window.sessionStorage.removeItem('gjx_admin_notice');
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -71,10 +79,9 @@ export default function CustomerRegistrationsPage() {
         phoneNumber: createForm.phoneNumber.trim(),
         wechatId: createForm.wechatId.trim() || undefined,
         domesticReturnAddress: createForm.domesticReturnAddress.trim() || undefined,
-        notes: createForm.notes.trim() || undefined,
       });
       setCreateSuccess(`申请已创建，客户编号：${reg.customerCode}`);
-      setCreateForm({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '', notes: '' });
+      setCreateForm({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '' });
       fetchData();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -104,6 +111,12 @@ export default function CustomerRegistrationsPage() {
       </header>
 
       <div className="p-4 md:p-6">
+        {createSuccess && !showCreate && (
+          <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">
+            {createSuccess}
+          </div>
+        )}
+
         {/* Search + Filter */}
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row flex-wrap gap-2 mb-6">
           <div className="relative flex-1 min-w-0 sm:max-w-md">
@@ -123,8 +136,6 @@ export default function CustomerRegistrationsPage() {
           >
             <option value="">全部状态</option>
             <option value="PENDING">待审核</option>
-            <option value="APPROVED">已通过</option>
-            <option value="REJECTED">已拒绝</option>
           </select>
           <button type="submit" className="px-4 py-2 rounded-md border bg-background text-sm hover:bg-muted">
             搜索
@@ -180,8 +191,8 @@ export default function CustomerRegistrationsPage() {
                       <td className="px-4 py-3">{r.wechatId || '-'}</td>
                       <td className="px-4 py-3 max-w-[140px] truncate text-xs text-muted-foreground" title={r.domesticReturnAddress || ''}>{r.domesticReturnAddress || '-'}</td>
                       <td className="px-4 py-3">
-                        <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[r.status] || 'bg-gray-100 text-gray-700')}>
-                          {CUSTOMER_REGISTRATION_STATUS_LABELS[r.status] || r.status}
+                        <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[r.status || ''] || 'bg-gray-100 text-gray-700')}>
+                          {CUSTOMER_REGISTRATION_STATUS_LABELS[r.status || ''] || r.status || '-'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
@@ -189,7 +200,7 @@ export default function CustomerRegistrationsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <Link href={`/admin/customer-registrations/${r.id}`} className="text-primary text-xs hover:underline">
-                          查看详情
+                          审核
                         </Link>
                       </td>
                     </tr>
@@ -204,8 +215,8 @@ export default function CustomerRegistrationsPage() {
                 <Link key={r.id} href={`/admin/customer-registrations/${r.id}`} className="block p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono text-sm font-medium">{r.customerCode}</span>
-                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[r.status] || 'bg-gray-100 text-gray-700')}>
-                      {CUSTOMER_REGISTRATION_STATUS_LABELS[r.status] || r.status}
+                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[r.status || ''] || 'bg-gray-100 text-gray-700')}>
+                      {CUSTOMER_REGISTRATION_STATUS_LABELS[r.status || ''] || r.status || '-'}
                     </span>
                   </div>
                   <div className="text-sm text-muted-foreground space-y-0.5">
@@ -281,16 +292,6 @@ export default function CustomerRegistrationsPage() {
                 <textarea
                   value={createForm.domesticReturnAddress}
                   onChange={(e) => setCreateForm(f => ({ ...f, domesticReturnAddress: e.target.value }))}
-                  placeholder="可选"
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">备注</label>
-                <textarea
-                  value={createForm.notes}
-                  onChange={(e) => setCreateForm(f => ({ ...f, notes: e.target.value }))}
                   placeholder="可选"
                   rows={2}
                   className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"

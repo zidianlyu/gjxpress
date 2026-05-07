@@ -78,10 +78,10 @@ export default function PrivacyPage() {
           <div className="p-6 rounded-lg border border-blue-200 bg-blue-50">
             <div className="flex items-center gap-2 mb-4">
               <EyeOff className="h-5 w-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-blue-900">Public 页面不会展示的信息</h2>
+              <h2 className="text-lg font-semibold text-blue-900">Public 页面不会展示的客户资料</h2>
             </div>
             <p className="text-sm text-blue-800 leading-relaxed mb-3">
-              为保护客户隐私，Public 页面（无需登录即可访问的页面）不会展示以下信息：
+              为保护客户隐私，Public 页面（无需登录即可访问的页面）不会展示以下客户资料：
             </p>
             <ul className="list-disc list-inside text-sm text-blue-800 space-y-1.5">
               <li>手机号</li>

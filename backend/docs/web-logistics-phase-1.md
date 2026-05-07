@@ -33,7 +33,6 @@ Web-facing customers with auto-generated `customerCode` (`GJ` + 4 digits).
 | phoneNumber | VARCHAR(32) | unique with countryCode |
 | wechatId | VARCHAR(64) | optional |
 | domesticReturnAddress | TEXT | optional |
-| notes | TEXT | internal notes |
 | status | CustomerStatus | ACTIVE/DISABLED |
 
 `customerCode` is the business identifier shown to admins and customers. Database relations still use UUID primary keys such as `customers.id` and `inbound_packages.customer_id`; Admin package APIs resolve `customerCode` to the UUID FK in backend service code.
@@ -182,7 +181,7 @@ All require `Authorization: Bearer <token>` where token is from `POST /api/auth/
 | POST | /api/admin/customers | Create customer (auto-generates GJ1234 code) |
 | GET | /api/admin/customers | List with search (q, status) + pagination |
 | GET | /api/admin/customers/:id | Detail with recent packages + shipments |
-| PATCH | /api/admin/customers/:id | Update phone, name, notes, status |
+| PATCH | /api/admin/customers/:id | Update phone, wechatId, domesticReturnAddress, status |
 
 ### 5.2 InboundPackages `/api/admin/inbound-packages`
 | Method | Path | Description |
@@ -341,7 +340,7 @@ Phase 1 Admin API now fully covers 5 resources:
 |---|---|
 | Customer | 客户档案 — CRUD + soft disable + hard delete |
 | InboundPackage | 入库包裹 — CRUD + assign customer by customerCode + simplified status + images + hard delete |
-| CustomerShipment | 客户集运单 — CRUD + quantity + simplified status + payment + items + cancel + hard delete |
+| CustomerShipment | 客户集运单 — CRUD + quantity + simplified status + payment + items + hard delete |
 | MasterShipment | 国际批次 — CRUD + status + publication + customer shipment links + hard delete |
 | TransactionRecord | 交易记录 — CRUD + hard delete (blocked if PAID) |
 
@@ -351,10 +350,10 @@ All endpoints protected by `JwtAuthGuard + AdminGuard`.
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/admin/master-shipments` | Create batch, auto-generate `batchNo` (GJB + yyyyMMdd + 3-digit-rand) |
-| GET | `/api/admin/master-shipments` | List with `q`, `status`, `publicVisible`, pagination |
-| GET | `/api/admin/master-shipments/:id` | Detail with linked CustomerShipment list |
-| PATCH | `/api/admin/master-shipments/:id` | General update (vendorName, vendorTrackingNo, adminNote, publicTitle, publicSummary, publicStatusText, publicVisible) |
+| POST | `/api/admin/master-shipments` | Create batch, auto-generate `batchNo` (GJB + yyyyMMdd + 3-digit-rand); `shipmentType` AIR_GENERAL/AIR_SENSITIVE/SEA |
+| GET | `/api/admin/master-shipments` | List with `q`, `status`, `publicVisible`, pagination; includes `shipmentType` |
+| GET | `/api/admin/master-shipments/:id` | Detail with `shipmentType` and linked CustomerShipment list |
+| PATCH | `/api/admin/master-shipments/:id` | General update (shipmentType, vendorName, vendorTrackingNo, adminNote, publicTitle, publicSummary, publicStatusText, publicVisible) |
 | PATCH | `/api/admin/master-shipments/:id/status` | Update status with auto-timestamps |
 | PATCH | `/api/admin/master-shipments/:id/publication` | Set publicVisible, publicTitle, publicSummary, publicStatusText, publishedAt |
 | POST | `/api/admin/master-shipments/:id/customer-shipments` | Add CustomerShipments to batch |
@@ -373,15 +372,19 @@ Auto-timestamps by status:
 
 All endpoints protected by `JwtAuthGuard + AdminGuard`. **No online payment. No payment links. Manual record only.**
 
+Frontend submits `customerShipmentId`; backend loads the CustomerShipment and writes the internal UUID `customerId` onto TransactionRecord. Creating `SHIPPING_FEE` creates the TransactionRecord and marks `CustomerShipment.paymentStatus=PAID` in the same Prisma transaction. `GET /api/admin/transactions` returns all transaction types by default, including `SHIPPING_FEE`.
+
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/admin/transactions` | Create transaction |
-| GET | `/api/admin/transactions` | List with `customerId`, `customerShipmentId`, `type`, `paymentStatus`, `q`, pagination |
-| GET | `/api/admin/transactions/:id` | Detail with customer + shipment info |
-| PATCH | `/api/admin/transactions/:id` | Update (type, amountCents, currency, paymentStatus, description, adminNote, occurredAt) |
-| DELETE | `/api/admin/transactions/:id` | Hard delete (requires `?confirm=DELETE_HARD`, blocked if paymentStatus=PAID) |
+| POST | `/api/admin/transactions` | Create transaction with `customerShipmentId`, `type`, `amountCents`, optional `adminNote` |
+| GET | `/api/admin/transactions` | List with `customerId`, `customerShipmentId`, optional `type`, `q`, pagination |
+| GET | `/api/admin/transactions/:id` | Detail with customerShipment.shipmentNo and customer.customerCode |
+| PATCH | `/api/admin/transactions/:id` | Update (type, amountCents, adminNote, occurredAt) |
+| DELETE | `/api/admin/transactions/:id` | Hard delete (requires `?confirm=DELETE_HARD`) |
 
-TransactionType values: `SERVICE_FEE`, `SHIPPING_FEE`, `LOCAL_DELIVERY_FEE`, `ADJUSTMENT`, `REFUND`, `OTHER`
+MasterShipment `shipmentType` values: `AIR_GENERAL`（空运普货）, `AIR_SENSITIVE`（空运敏货）, `SEA`（海运）. Migration `add_master_shipment_type` adds `master_shipments.shipment_type`.
+
+TransactionType values: `SHIPPING_FEE`, `REFUND`
 
 Note on REFUND: `amountCents` is always a positive integer. The meaning (credit/debit) is expressed by the `type` field. Frontend should display REFUND differently from SHIPPING_FEE.
 

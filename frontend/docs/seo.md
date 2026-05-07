@@ -141,8 +141,9 @@ export const metadata: Metadata = {
 ### 3.5 Sitemap Configuration
 
 `app/sitemap.ts` includes only public pages:
-- ✅ Includes: /, /services, /tracking, /batch-updates, /register, policy pages
+- ✅ Includes: /, /services, /tracking, /register, /contact, /faq, /compliance, /privacy, /terms, /compensation, /disclaimer
 - ❌ Excludes: /admin/*, /api/*, dynamic query pages like /tracking?query=xxx
+- ❌ Excludes: /batch-updates because it now permanently redirects to /tracking
 
 ### 3.6 Robots Configuration
 
@@ -246,8 +247,8 @@ All public pages include breadcrumb navigation:
 
 **Pages with breadcrumbs:**
 - `/services` - 首页 > 服务介绍
-- `/tracking` - 首页 > 物流状态查询
-- `/batch-updates` - 首页 > 批次更新
+- `/tracking` - 首页 > 查询订单
+- `/contact` - 首页 > 联系我们
 - `/register` - 首页 > 新客户注册
 - `/compliance` - 首页 > 合规说明
 - `/privacy` - 首页 > 隐私政策
@@ -660,21 +661,21 @@ Route: `/tracking`
 Implemented metadata:
 
 ```text
-Title: 物流状态查询｜广骏国际快运
-Description: 输入集运单号查询包裹当前物流状态，结果仅显示物流信息，不包含个人隐私信息。
+Title: 查询订单与批次更新｜广骏国际快运
+Description: 通过客户编号或物流信息查询订单状态，并查看广骏国际快运中国到美国线路的批次更新说明。
 ```
 
 ---
 
-## 4.1c-3 Batch Updates Page
+## 4.1c-3 Batch Updates Redirect
 
 Route: `/batch-updates`
 
-Implemented metadata:
+Implementation:
 
 ```text
-Title: 批次更新｜广骏国际快运
-Description: 查看公开的国际批次运输状态更新，了解批次运输进度。
+Permanent redirect to /tracking.
+No canonical, sitemap entry, or independent content page.
 ```
 
 ---
@@ -1182,9 +1183,11 @@ After deployment:
 
 1. Verify `gjxpress.net` in Google Search Console.
 2. Submit `https://gjxpress.net/sitemap.xml`.
-3. Check indexed pages.
-4. Monitor queries and impressions.
-5. Fix duplicate title/description warnings.
+3. Request indexing for `/`, `/services`, `/tracking`, `/register`, `/contact`, `/faq`, `/compliance`, `/privacy`, `/terms`, `/compensation`, and `/disclaimer`.
+4. Do not request indexing for `/batch-updates`; verify it permanently redirects to `/tracking`.
+5. Check indexed pages.
+6. Monitor queries and impressions.
+7. Fix duplicate title/description warnings.
 
 ---
 
@@ -1203,4 +1206,11 @@ Before launch:
 - [ ] Canonical domain configured
 - [ ] Internal links added
 - [ ] Contact CTA available
+- [ ] Home page includes a prominent contact highlight near the hero
+- [ ] Every indexable public page shows visible contact information through ContactStrip/Footer
+- [ ] `/contact` is included in sitemap
+- [ ] Contact page has title, description, canonical, and breadcrumb JSON-LD
+- [ ] Organization / LocalBusiness JSON-LD uses public contactPoint telephone values and does not output private address fields
+- [ ] Public nav merges 查询 and 批次更新 into 查询订单 at `/tracking`
+- [ ] `/batch-updates` is absent from sitemap/nav/footer and permanently redirects to `/tracking`
 - [ ] 404 page created

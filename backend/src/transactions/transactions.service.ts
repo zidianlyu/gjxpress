@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { PaymentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const VALID_TYPES = ['SHIPPING_FEE', 'REFUND'];
@@ -12,37 +13,66 @@ export class TransactionsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: {
-    customerId: string;
     customerShipmentId: string;
-    type?: string;
+    type: string;
     amountCents: number;
     adminNote?: string;
-    occurredAt?: string;
   }) {
-    const customer = await this.prisma.customer.findUnique({ where: { id: dto.customerId } });
-    if (!customer) throw new NotFoundException('Customer not found');
-
-    const shipment = await this.prisma.customerShipment.findUnique({
-      where: { id: dto.customerShipmentId },
-    });
-    if (!shipment) throw new NotFoundException('CustomerShipment not found');
-    if (shipment.customerId !== dto.customerId) {
-      throw new BadRequestException('CustomerShipment does not belong to this customer');
-    }
-
-    if (dto.type && !VALID_TYPES.includes(dto.type)) {
+    if (!VALID_TYPES.includes(dto.type)) {
       throw new BadRequestException(`Invalid type: ${dto.type}. Must be one of: ${VALID_TYPES.join(', ')}`);
     }
+    if (!Number.isInteger(dto.amountCents) || dto.amountCents <= 0) {
+      throw new BadRequestException('amountCents must be a positive integer');
+    }
 
-    return this.prisma.transactionRecord.create({
-      data: {
-        customerId: dto.customerId,
-        customerShipmentId: dto.customerShipmentId,
-        type: (dto.type as any) || 'REFUND',
-        amountCents: dto.amountCents,
-        adminNote: dto.adminNote,
-        occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : undefined,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const shipment = await tx.customerShipment.findUnique({
+        where: { id: dto.customerShipmentId },
+        select: {
+          id: true,
+          shipmentNo: true,
+          customerId: true,
+          customer: { select: { id: true, customerCode: true } },
+        },
+      });
+      if (!shipment) throw new NotFoundException('CustomerShipment not found');
+
+      const type = dto.type;
+      const created = await tx.transactionRecord.create({
+        data: {
+          customerId: shipment.customerId,
+          customerShipmentId: shipment.id,
+          type: type as any,
+          amountCents: dto.amountCents,
+          adminNote: dto.adminNote,
+        },
+        select: {
+          id: true,
+          customerShipmentId: true,
+          customerId: true,
+          type: true,
+          amountCents: true,
+          adminNote: true,
+          createdAt: true,
+          updatedAt: true,
+          customerShipment: {
+            select: {
+              id: true,
+              shipmentNo: true,
+              customer: { select: { id: true, customerCode: true } },
+            },
+          },
+        },
+      });
+
+      if (type === 'SHIPPING_FEE') {
+        await tx.customerShipment.update({
+          where: { id: shipment.id },
+          data: { paymentStatus: PaymentStatus.PAID },
+        });
+      }
+
+      return created;
     });
   }
 
@@ -76,9 +106,22 @@ export class TransactionsService {
         where,
         skip,
         take,
-        include: {
-          customer: { select: { id: true, customerCode: true, wechatId: true } },
-          customerShipment: { select: { id: true, shipmentNo: true, status: true } },
+        select: {
+          id: true,
+          customerShipmentId: true,
+          customerId: true,
+          type: true,
+          amountCents: true,
+          adminNote: true,
+          createdAt: true,
+          updatedAt: true,
+          customerShipment: {
+            select: {
+              id: true,
+              shipmentNo: true,
+              customer: { select: { id: true, customerCode: true } },
+            },
+          },
         },
         orderBy: { occurredAt: 'desc' },
       }),
@@ -86,6 +129,10 @@ export class TransactionsService {
     ]);
 
     return {
+      items: data,
+      page,
+      pageSize: take,
+      total,
       data,
       pagination: { page, pageSize: take, total, totalPages: Math.ceil(total / take) },
     };
@@ -94,9 +141,22 @@ export class TransactionsService {
   async findOne(id: string) {
     const tx = await this.prisma.transactionRecord.findUnique({
       where: { id },
-      include: {
-        customer: { select: { id: true, customerCode: true, wechatId: true, phoneCountryCode: true, phoneNumber: true } },
-        customerShipment: { select: { id: true, shipmentNo: true, status: true } },
+      select: {
+        id: true,
+        customerShipmentId: true,
+        customerId: true,
+        type: true,
+        amountCents: true,
+        adminNote: true,
+        createdAt: true,
+        updatedAt: true,
+        customerShipment: {
+          select: {
+            id: true,
+            shipmentNo: true,
+            customer: { select: { id: true, customerCode: true } },
+          },
+        },
       },
     });
     if (!tx) throw new NotFoundException('TransactionRecord not found');

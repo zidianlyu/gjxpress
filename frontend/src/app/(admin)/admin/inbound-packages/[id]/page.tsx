@@ -329,7 +329,7 @@ export default function InboundPackageDetailPage() {
         onClose={() => { setShowDelete(false); setDeleteError(''); }}
         onConfirm={handleDeletePkg}
         title="永久删除入库包裹"
-        description="删除后此入库包裹数据将不可恢复。"
+        description="删除后此入库包裹数据将不可恢复。删除后将同时彻底删除该记录已上传的图片，无法恢复。"
         confirmText="DELETE"
         entityLabel={pkg.domesticTrackingNo || '未填写单号包裹'}
         error={deleteError}

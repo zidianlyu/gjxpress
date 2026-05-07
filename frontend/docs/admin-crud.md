@@ -74,7 +74,6 @@ NEXT_PUBLIC_API_DEBUG=true  # optional, defaults based on NODE_ENV
 | GET `/admin/customer-shipments/:id`                                            | `adminApi.getCustomerShipmentById(id)`                                 |
 | POST `/admin/customer-shipments`                                               | `adminApi.createCustomerShipment(data)`                                |
 | PATCH `/admin/customer-shipments/:id`                                          | `adminApi.updateCustomerShipment(id, data)`                            |
-| PATCH `/admin/customer-shipments/:id/cancel`                                   | `adminApi.cancelCustomerShipment(id)`                                  |
 | PATCH `/admin/customer-shipments/:id/status`                                   | `adminApi.updateCustomerShipmentStatus(id, data)`                      |
 | PATCH `/admin/customer-shipments/:id/payment-status`                           | `adminApi.updateCustomerShipmentPaymentStatus(id, data)`               |
 | POST `/admin/customer-shipments/:id/items`                                     | `adminApi.addItemToShipment(id, data)`                                 |
@@ -96,11 +95,11 @@ NEXT_PUBLIC_API_DEBUG=true  # optional, defaults based on NODE_ENV
 | `/admin/inbound-packages`        | `(admin)/admin/inbound-packages/page.tsx`        | List + search + status filter + create modal with image upload                              |
 | `/admin/inbound-packages/[id]`   | `(admin)/admin/inbound-packages/[id]/page.tsx`   | Detail + assign customer + status + image upload/preview/delete                             |
 | `/admin/customer-shipments`      | `(admin)/admin/customer-shipments/page.tsx`      | List + search + status filter + create modal with billing fields, images, default notes     |
-| `/admin/customer-shipments/[id]` | `(admin)/admin/customer-shipments/[id]/page.tsx` | Detail + billing fields + status + payment status + image upload/preview/delete + cancel    |
+| `/admin/customer-shipments/[id]` | `(admin)/admin/customer-shipments/[id]/page.tsx` | Detail + billing fields + status + payment status + image upload/preview/delete             |
 | `/admin/master-shipments`        | `(admin)/admin/master-shipments/page.tsx`        | List + search + filters + create modal with customerShipmentIds multi-select + mobile cards |
 | `/admin/master-shipments/[id]`   | `(admin)/admin/master-shipments/[id]/page.tsx`   | Detail + edit + status + publication + CS management + hard delete                          |
-| `/admin/transactions`            | `(admin)/admin/transactions/page.tsx`            | List + type/payment filters + create modal + mobile cards                                   |
-| `/admin/transactions/[id]`       | `(admin)/admin/transactions/[id]/page.tsx`       | Detail + edit amount/status + hard delete                                                   |
+| `/admin/transactions`            | `(admin)/admin/transactions/page.tsx`            | Admin display name: 支付订单. List + type filters + create modal + mobile cards              |
+| `/admin/transactions/[id]`       | `(admin)/admin/transactions/[id]/page.tsx`       | Payment order detail + edit amount/status + hard delete                                     |
 
 ---
 
@@ -155,6 +154,12 @@ All 5 entities support hard delete via `?confirm=DELETE_HARD` query param:
 - `adminApi.hardDeleteCustomerShipment(id)`
 - `adminApi.hardDeleteMasterShipment(id)`
 - `adminApi.hardDeleteTransaction(id)`
+
+Inbound package and customer shipment entity hard deletes call only backend DELETE endpoints. Uploaded images are cleaned by the backend as part of the hard delete; the frontend must not delete Supabase Storage objects or construct storage paths.
+
+Customer shipments are not cancelled from Admin. Use status updates such as `EXCEPTION` for problem handling.
+
+`支付订单` is the Admin display name for `/admin/transactions`; API paths and payload enums remain transaction-based (`SHIPPING_FEE`, `REFUND`). The UI does not implement online payment, payment links, or payment QR codes. Unpaid customer shipment rows can open the payment order create modal with shipment id, calculated shipping fee, and type `SHIPPING_FEE` prefilled; backend owns any resulting shipment payment-status update.
 
 ---
 

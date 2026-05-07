@@ -15,7 +15,6 @@ export default function RegisterPage() {
     phoneNumber: '',
     wechatId: '',
     domesticReturnAddress: '',
-    notes: '',
   });
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +42,6 @@ export default function RegisterPage() {
         phoneNumber: form.phoneNumber.trim(),
         wechatId: form.wechatId.trim() || undefined,
         domesticReturnAddress: form.domesticReturnAddress.trim() || undefined,
-        notes: form.notes.trim() || undefined,
       });
       setSuccess({ customerCode: response.data.customerCode });
     } catch (err) {
@@ -204,17 +202,9 @@ export default function RegisterPage() {
                 <p className="text-xs text-muted-foreground mt-1">用于特殊情况下协助处理退回需求，可不填。</p>
               </div>
 
-              {/* Notes */}
-              <div>
-                <label className="block text-xs font-medium mb-1.5">备注</label>
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="可选"
-                  rows={2}
-                  className="w-full px-3 py-2.5 rounded-md border bg-background text-sm resize-none"
-                />
-                <p className="text-xs text-muted-foreground mt-1">可填写其他需要工作人员注意的信息。</p>
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                注册前需要咨询？请先
+                <Link href="/contact" className="text-primary hover:underline">联系我们</Link>。
               </div>
 
               {/* Privacy Checkbox */}
@@ -274,7 +264,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Info notes */}
+            {/* Info sidebar */}
             <div className="rounded-xl border bg-muted/30 p-5 space-y-3">
               <div className="flex items-start gap-2">
                 <UserPlus className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -311,6 +301,7 @@ export default function RegisterPage() {
             links={[
               { label: "隐私政策", href: "/privacy" },
               { label: "服务介绍", href: "/services" },
+              { label: "联系我们", href: "/contact" },
               { label: "合规说明", href: "/compliance" },
               { label: "常见问题", href: "/faq" },
             ]}

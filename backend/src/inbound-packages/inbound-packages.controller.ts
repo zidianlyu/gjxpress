@@ -188,7 +188,10 @@ export class InboundPackagesController {
     if (confirm !== 'DELETE_HARD') {
       throw new BadRequestException('Must pass confirm=DELETE_HARD to confirm image deletion');
     }
-    await this.service.findOne(id);
+    const images = await this.service.getImages(id);
+    if (!images.items.includes(imageUrl)) {
+      throw new BadRequestException('imageUrl not found in this package');
+    }
     await this.imageService.delete(imageUrl);
     return this.service.removeImage(id, imageUrl, confirm);
   }

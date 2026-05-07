@@ -14,8 +14,8 @@ const quickLinks = [
   { href: '/admin/customers', label: '客户管理', icon: Users, color: 'bg-blue-100 text-blue-600' },
   { href: '/admin/inbound-packages', label: '入库包裹', icon: Package, color: 'bg-green-100 text-green-600' },
   { href: '/admin/customer-shipments', label: '客户集运单', icon: ClipboardList, color: 'bg-cyan-100 text-cyan-600' },
+  { href: '/admin/transactions', label: '支付订单', icon: FileText, color: 'bg-amber-100 text-amber-600' },
   { href: '/admin/master-shipments', label: '国际批次', icon: Truck, color: 'bg-purple-100 text-purple-600' },
-  { href: '/admin/transactions', label: '交易记录', icon: FileText, color: 'bg-amber-100 text-amber-600' },
 ];
 
 export default function AdminPage() {
@@ -49,7 +49,7 @@ export default function AdminPage() {
         <div className="mt-8 p-5 rounded-lg border bg-card">
           <h3 className="font-semibold mb-2">系统说明</h3>
           <p className="text-sm text-muted-foreground">
-            本系统提供客户管理、入库包裹管理、客户集运单管理、国际批次管理和交易记录管理功能。
+            本系统提供客户管理、入库包裹管理、客户集运单管理、支付订单管理和国际批次管理功能。
             左侧导航栏可快速切换各功能模块。
           </p>
         </div>

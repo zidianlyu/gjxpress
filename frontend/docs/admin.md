@@ -55,6 +55,14 @@ List/detail/edit display `件数`.
 
 Shipment statuses are simplified to 已打包, 已发货, 已到达, 待自提, 已取货, 异常.
 
+Customer shipments are not cancelled after creation. Admins should use `EXCEPTION` or another existing status for problem handling.
+
+Unpaid customer shipments show a payment-order action. It opens the `新建支付订单` modal with shipment id, payable amount (`billingRateCnyPerKg * billingWeightKg`), and type `运费` prefilled when the amount can be calculated.
+
+`支付订单` is the Admin display name for `/admin/transactions`; API paths remain `/admin/transactions`. The Admin UI does not create payment links or online payment flows.
+
+Inbound package and customer shipment hard deletes call the backend entity DELETE endpoint. Uploaded images are deleted by backend storage cleanup; the frontend does not delete storage objects directly.
+
 Admin detail pages unwrap raw object / `{ item }` / `{ data }` API responses before setting entity state. Short id display uses `safeShortId()`; pages should not call `.slice()` on possibly missing ids.
 
 Admin create modals close and reset after successful creation. Failed creates keep the modal open, preserve entered values, and show the API error/request id. Image uploads only start after the create response contains a real entity id, so `/undefined/images` must never be called.

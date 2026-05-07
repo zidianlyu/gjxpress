@@ -1098,13 +1098,12 @@ Table: `customer_registrations`
 | `phone_number` | VARCHAR(32) | required |
 | `wechat_id` | VARCHAR(64) nullable | |
 | `domestic_return_address` | TEXT nullable | |
-| `notes` | TEXT nullable | |
 | `status` | CustomerRegistrationStatus | default PENDING |
 | `approved_at` | TIMESTAMP nullable | |
 | `approved_by_admin_id` | UUID nullable | admin who approved |
 | `rejected_at` | TIMESTAMP nullable | |
 | `rejected_by_admin_id` | UUID nullable | admin who rejected |
-| `review_note` | TEXT nullable | internal note |
+| `review_note` | TEXT nullable | legacy column; no longer used by API |
 | `created_customer_id` | UUID nullable FK→customers(id) SET NULL | set after approve |
 | `ip_hash` | VARCHAR(128) nullable | hashed IP for audit |
 | `user_agent` | VARCHAR(512) nullable | browser UA |
@@ -1126,11 +1125,13 @@ FK: `created_customer_id` → `customers.id` ON DELETE SET NULL (deleting regist
 
 `POST /admin/customer-registrations/:id/approve` uses a single `$transaction`:
 
-1. Check registration exists + not already APPROVED
-2. Check phone not already a formal Customer (409)
-3. Check customerCode not already in Customer table (409 — should never happen but defensive)
-4. `tx.customer.create(...)` — copies customerCode, phoneCountryCode, phoneNumber, wechatId, domesticReturnAddress, notes; status=ACTIVE
-5. `tx.customerRegistration.update(...)` — status=APPROVED, approvedAt=now, approvedByAdminId, createdCustomerId=customer.id, reviewNote
+1. Check registration exists
+2. Check customerCode not already in Customer table (409 — defensive)
+3. Check phone not already a formal Customer (409)
+4. `tx.customer.create(...)` — copies customerCode, phoneCountryCode, phoneNumber, wechatId, domesticReturnAddress; status=ACTIVE
+5. `tx.customerRegistration.delete(...)` — hard deletes the reviewed registration row
+
+The API no longer stores APPROVED registration rows and no longer accepts review notes.
 
 ### 16.6 Duplicate Submission Policy
 
@@ -1139,18 +1140,18 @@ FK: `created_customer_id` → `customers.id` ON DELETE SET NULL (deleting regist
 | PENDING same phone | 409 — 该手机号已有待审核申请 |
 | APPROVED same phone | 409 — 该手机号已关联正式客户 |
 | Already formal Customer | 409 — 该手机号已登记为正式客户 |
-| REJECTED same phone | Allowed — new submission creates new registration with new customerCode |
+| Legacy REJECTED same phone | Allowed — new submission creates new registration with new customerCode |
 
 ### 16.7 Hard Delete Behaviour
 
 - Hard delete `CustomerRegistration` removes the row only.
-- `customers.created_customer_id` FK uses `ON DELETE SET NULL` — the formal Customer is unaffected.
+- Formal Customer records are unaffected.
 - `confirm=DELETE_HARD` required; 400 otherwise.
 
 ### 16.8 Privacy
 
-- Public `POST /public/customer-registrations` response returns only: `id`, `customerCode`, `status`, `message`
-- Never returns: ipHash, userAgent, reviewNote, approvedByAdminId, rejectedByAdminId, other registrations' data
+- Public `POST /customer-registrations` response returns only: `id`, `customerCode`, `status`, `message`
+- Never returns: ipHash, userAgent, reviewNote, approvedByAdminId, rejectedByAdminId, notes, other registrations' data
 - Backend request log does not include phoneNumber, wechatId, or domesticReturnAddress in log output
 - Rate limit and CAPTCHA not implemented yet. Recommended for production: add rate limit per IP on `POST /public/customer-registrations`
 
@@ -1163,6 +1164,8 @@ Operations:
 - `ALTER TABLE "customers" ADD COLUMN "domestic_return_address" TEXT`
 - `CREATE TABLE "customer_registrations"` with all columns and indexes
 - `ADD CONSTRAINT` FK to customers
+
+Current cleanup migration removes `customer_registrations.notes` and `customers.notes`.
 
 ---
 
@@ -1242,6 +1245,22 @@ Migration status mapping:
 | `READY_FOR_PICKUP`, `LOCAL_DELIVERY_REQUESTED`, `LOCAL_DELIVERY_IN_PROGRESS` | `READY_FOR_PICKUP` |
 | `PICKED_UP`, `COMPLETED` | `PICKED_UP` |
 | `EXCEPTION` | `EXCEPTION` |
+
+### 17.4 MasterShipment
+
+Table: `master_shipments`
+
+| Column | Type | Notes |
+|---|---|---|
+| `shipment_type` | `TEXT NOT NULL DEFAULT 'AIR_GENERAL'` | Internal values: `AIR_GENERAL`（空运普货）, `AIR_SENSITIVE`（空运敏货）, `SEA`（海运） |
+
+Migration `add_master_shipment_type` adds `master_shipments.shipment_type` for existing and future batch records.
+
+### 17.5 TransactionRecord
+
+Table: `transaction_records`
+
+Admin transaction records are internal bookkeeping only. Frontend submits `customer_shipment_id` via API as `customerShipmentId`; backend derives internal UUID `customer_id` from `CustomerShipment.customerId`. Creating `SHIPPING_FEE` creates the TransactionRecord and marks the related `CustomerShipment.payment_status=PAID` in one Prisma transaction. Listing transactions defaults to all types, including `SHIPPING_FEE`.
 
 **Status: create-only (not yet applied)**. Apply with:
 ```bash

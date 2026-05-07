@@ -1,5 +1,6 @@
 import { SiteHeader } from '@/components/layout/SiteHeader';
-import { SiteFooter } from '@/components/layout/SiteFooter';
+import { PublicContactStrip } from '@/components/public/PublicContactStrip';
+import { PublicFooter } from '@/components/public/PublicFooter';
 
 export default function PublicLayout({
   children,
@@ -10,7 +11,8 @@ export default function PublicLayout({
     <>
       <SiteHeader />
       <main className="flex-1">{children}</main>
-      <SiteFooter />
+      <PublicContactStrip />
+      <PublicFooter />
     </>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Menu, X, Package } from 'lucide-react';
 import { SITE_CONFIG, PUBLIC_NAV_LINKS } from '@/lib/constants';
@@ -8,6 +9,12 @@ import { cn } from '@/lib/utils';
 
 export function SiteHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isActive = (href: string) => {
+    if (href === '/admin/login') return pathname.startsWith('/admin');
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -29,7 +36,10 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-foreground/60 transition-colors hover:text-foreground whitespace-nowrap"
+              className={cn(
+                'whitespace-nowrap transition-colors hover:text-foreground',
+                isActive(link.href) ? 'font-medium text-foreground' : 'text-foreground/60'
+              )}
             >
               {link.label}
             </Link>
@@ -62,7 +72,10 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-foreground/60 transition-colors hover:text-foreground"
+              className={cn(
+                'transition-colors hover:text-foreground',
+                isActive(link.href) ? 'font-medium text-foreground' : 'text-foreground/60'
+              )}
               onClick={() => setMobileMenuOpen(false)}
             >
               {link.label}

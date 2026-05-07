@@ -10,6 +10,10 @@ export interface DeleteConfirmDialogProps {
   title?: string;
   description?: string;
   confirmText?: string;
+  confirmButtonText?: string;
+  cancelButtonText?: string;
+  requireTypedConfirmation?: boolean;
+  typedConfirmationText?: string;
   entityLabel?: string;
   blockers?: Record<string, number>;
   error?: string;
@@ -22,6 +26,10 @@ export function DeleteConfirmDialog({
   title = '永久删除',
   description = '此操作不可恢复。删除后数据将被永久移除。',
   confirmText = 'DELETE',
+  confirmButtonText = '永久删除',
+  cancelButtonText = '取消',
+  requireTypedConfirmation = true,
+  typedConfirmationText,
   entityLabel,
   blockers,
   error,
@@ -31,7 +39,8 @@ export function DeleteConfirmDialog({
 
   if (!open) return null;
 
-  const canDelete = input === confirmText;
+  const expectedConfirmation = typedConfirmationText || confirmText;
+  const canDelete = !requireTypedConfirmation || input === expectedConfirmation;
 
   const handleConfirm = async () => {
     if (!canDelete) return;
@@ -82,7 +91,7 @@ export function DeleteConfirmDialog({
                   <li>客户集运单：{blockers.customerShipments} 条</li>
                 )}
                 {blockers.transactions != null && blockers.transactions > 0 && (
-                  <li>交易记录：{blockers.transactions} 条</li>
+                  <li>支付订单：{blockers.transactions} 条</li>
                 )}
               </ul>
               <p className="mt-2 text-yellow-600 text-xs">请先移除关联记录后再删除。</p>
@@ -97,26 +106,28 @@ export function DeleteConfirmDialog({
 
           {!blockers || Object.keys(blockers).length === 0 ? (
             <>
-              <div>
-                <label className="block text-xs font-medium mb-1">
-                  请输入 <span className="font-mono font-bold text-red-600">{confirmText}</span> 确认删除
-                </label>
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={confirmText}
-                  className="w-full px-3 py-2 rounded-md border bg-background text-sm font-mono"
-                  autoFocus
-                />
-              </div>
+              {requireTypedConfirmation && (
+                <div>
+                  <label className="block text-xs font-medium mb-1">
+                    请输入 <span className="font-mono font-bold text-red-600">{expectedConfirmation}</span> 确认删除
+                  </label>
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={expectedConfirmation}
+                    className="w-full px-3 py-2 rounded-md border bg-background text-sm font-mono"
+                    autoFocus
+                  />
+                </div>
+              )}
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
                   onClick={handleClose}
                   className="px-4 py-2 rounded-md border text-sm hover:bg-muted"
                 >
-                  取消
+                  {cancelButtonText}
                 </button>
                 <button
                   type="button"
@@ -125,7 +136,7 @@ export function DeleteConfirmDialog({
                   className="px-4 py-2 rounded-md bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
                 >
                   {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  永久删除
+                  {confirmButtonText}
                 </button>
               </div>
             </>

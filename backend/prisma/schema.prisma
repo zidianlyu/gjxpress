@@ -661,7 +661,6 @@ model Customer {
   phoneNumber           String         @map("phone_number") @db.VarChar(32)
   wechatId              String?        @map("wechat_id") @db.VarChar(64)
   domesticReturnAddress String?        @map("domestic_return_address") @db.Text
-  notes                 String?
   status                CustomerStatus @default(ACTIVE)
   createdAt             DateTime       @default(now()) @map("created_at")
   updatedAt             DateTime       @updatedAt @map("updated_at")
@@ -687,7 +686,6 @@ model CustomerRegistration {
   phoneNumber           String  @map("phone_number") @db.VarChar(32)
   wechatId              String? @map("wechat_id") @db.VarChar(64)
   domesticReturnAddress String? @map("domestic_return_address") @db.Text
-  notes                 String?
 
   status CustomerRegistrationStatus @default(PENDING)
 
@@ -802,6 +800,7 @@ model MasterShipment {
 
   vendorName       String @map("vendor_name") @db.VarChar(64)
   vendorTrackingNo String @map("vendor_tracking_no") @db.VarChar(128)
+  shipmentType     String @default("AIR_GENERAL") @map("shipment_type")
 
   status MasterShipmentStatus @default(CREATED)
 
