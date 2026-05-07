@@ -57,20 +57,20 @@ Centralized site configuration used across the application:
 
 ```typescript
 export const siteConfig = {
-  name: '广骏国际快运',
-  legalName: '广骏供应链服务',
-  englishName: 'GJXpress',
-  slogan: '看得见的跨境物流',
-  domain: 'gjxpress.net',
-  url: 'https://gjxpress.net',
-  description: '...',
-  locale: 'zh_CN',
+  name: "广骏国际快运",
+  legalName: "广骏供应链服务",
+  englishName: "GJXpress",
+  slogan: "看得见的跨境物流",
+  domain: "gjxpress.net",
+  url: "https://gjxpress.net",
+  description: "...",
+  locale: "zh_CN",
   address: {
-    addressRegion: 'CA',
-    postalCode: '95051',
-    addressCountry: 'US',
+    addressRegion: "CA",
+    postalCode: "95051",
+    addressCountry: "US",
   },
-}
+};
 ```
 
 ### 3.2 Metadata System
@@ -80,16 +80,17 @@ export const siteConfig = {
 Standardized metadata generation:
 
 ```typescript
-import { buildMetadata } from '@/lib/seo';
+import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: '页面标题｜广骏国际快运',
-  description: '页面描述...',
-  path: '/page-path',
+  title: "页面标题｜广骏国际快运",
+  description: "页面描述...",
+  path: "/page-path",
 });
 ```
 
 **Features:**
+
 - Automatic title suffix with site name
 - Canonical URL generation
 - OpenGraph and Twitter Card support
@@ -98,6 +99,7 @@ export const metadata: Metadata = buildMetadata({
 ### 3.3 Structured Data System
 
 **Files:**
+
 - `components/seo/JsonLd.tsx` - JSON-LD component
 - `lib/structured-data.ts` - Structured data helpers
 - `lib/faq.ts` - FAQ data and categorization
@@ -109,6 +111,7 @@ export const metadata: Metadata = buildMetadata({
 - `app/twitter-image.png` - Twitter card image
 
 **Component Usage:**
+
 ```typescript
 import JsonLd from '@/components/seo/JsonLd';
 import { buildOrganizationJsonLd, buildBreadcrumbJsonLd } from '@/lib/structured-data';
@@ -129,6 +132,7 @@ export default function Page() {
 ```
 
 **Available Helpers:**
+
 - `buildOrganizationJsonLd()` - Organization schema
 - `buildLocalBusinessJsonLd()` - LocalBusiness schema
 - `buildBreadcrumbJsonLd(items)` - BreadcrumbList schema
@@ -141,12 +145,14 @@ export default function Page() {
 ### 4.1 Route Groups
 
 **Public Routes (`(public)/`)**
+
 - SEO-optimized pages with structured data
 - Standardized metadata via `buildMetadata()`
 - Breadcrumb JSON-LD on all pages
 - No authentication required
 
 **Admin Routes (`(admin)/`)**
+
 - Admin dashboard and management pages
 - `noindex, nofollow` metadata
 - No structured data injection
@@ -175,13 +181,25 @@ Supported backend shapes include top-level `{ items, page, pageSize, total }`, l
 
 Status labels are centralized in `src/lib/constants/status.ts`. Inbound package and customer shipment UI submit only canonical simplified statuses while retaining display compatibility for old enum values during migration.
 
-Admin-facing customer identity uses `customerCode` such as `GJ3178`. Internal `customerId` UUID values are backend foreign keys and should not be presented as customer numbers. If a backend endpoint explicitly requires `customerId`, the frontend should resolve from `customerCode` before submit.
+Admin-facing customer identity uses `customerCode` such as `GJ3178`. Internal `customerId` UUID values are backend foreign keys and should not be presented as customer numbers. Admin create forms must not ask for or submit `customerId` unless an endpoint explicitly requires an internal id.
 
 `src/components/admin/CustomerCodeInput.tsx` is the reusable admin customer-code input. It renders a fixed left `GJ` segment and lets admins enter only four digits. The component value and parent form state always use the full code (`""` or `GJ3178`), so payloads can submit `customerCode` directly.
 
+Admin customer shipment create submits `customerCode`; the backend resolves it to the internal `customer_id` UUID FK. Customer shipment decimal fields (`actualWeightKg`, `billingRateCnyPerKg`, and `billingWeightKg`) are sent as trimmed strings in API payloads. The displayed payable amount is `billingRateCnyPerKg * billingWeightKg`, formatted as CNY when both decimal strings are valid.
+
+Customer shipment create notes end with exactly one `应付费用：...` line. If the amount can be calculated, the line uses the formatted payable amount; otherwise it uses `应付费用：待确认`.
+
 Admin detail pages must hydrate from their detail APIs on page load using route params, not from list-page state. This keeps `/admin/customers/:id` and `/admin/inbound-packages/:id` refresh-safe and direct-link safe.
 
+Admin detail pages must unwrap detail API responses before storing entity state. Backend detail responses may arrive as a raw object, `{ item }`, or `{ data }`; pages should use the shared unwrap helper instead of putting wrapper objects into state.
+
+When displaying a shortened id, use `safeShortId()` instead of calling `value.slice(...)` directly. Detail pages should fall back to the route id or `未编号` when the entity id is missing.
+
+Admin create modals close and reset after successful creation, then refresh the list. If the create request fails, the modal remains open and keeps the admin's entered values.
+
 Inbound package image uploads must only run after create returns a real package `id`. If the create response does not include an id in raw object, `{ item }`, or `{ data }`, the frontend stops image upload and shows an explicit error instead of calling `/undefined/images`.
+
+Customer shipment image uploads follow the same rule: create first through the backend API, extract a real shipment `id`, then upload images through `/admin/customer-shipments/:id/images`.
 
 ---
 
@@ -210,6 +228,7 @@ export const faqCategories: FaqCategory[] = [
 ```
 
 **Categories:**
+
 - 服务流程 (4 FAQs)
 - 费用与计费 (3 FAQs)
 - 时效 (3 FAQs)
@@ -222,12 +241,14 @@ export const faqCategories: FaqCategory[] = [
 ### 5.2 FAQ Components
 
 **FaqAccordion Component (`components/public/FaqAccordion.tsx`)**
+
 - Client component for interactive accordion behavior
 - Accessible with proper ARIA attributes
 - Mobile-friendly touch interactions
 - Smooth expand/collapse animations
 
 **FaqSection Component (`components/public/FaqSection.tsx`)**
+
 - Server component wrapper for FAQ sections
 - Supports both categorized and simple FAQ displays
 - Consistent styling and layout
@@ -236,6 +257,7 @@ export const faqCategories: FaqCategory[] = [
 ### 5.3 FAQ Implementation Pattern
 
 **FAQ Page (`app/(public)/faq/page.tsx`)**
+
 ```typescript
 import FaqSection from '@/components/public/FaqSection';
 import { faqData, faqCategories } from '@/lib/faq';
@@ -253,6 +275,7 @@ import { buildFaqJsonLd } from '@/lib/structured-data';
 ```
 
 **Selected FAQs on Service Pages**
+
 ```typescript
 import { servicesFaqs } from '@/lib/faq';
 
@@ -269,6 +292,7 @@ import { servicesFaqs } from '@/lib/faq';
 ### 5.4 FAQ Content Guidelines
 
 **Content Principles:**
+
 - Serve users, not keyword stuffing
 - No high-risk promises or guarantees
 - No fixed prices, timelines, or compensation amounts
@@ -276,6 +300,7 @@ import { servicesFaqs } from '@/lib/faq';
 - Answers must be helpful and accurate
 
 **Risk Boundaries:**
+
 - ❌ Fixed pricing promises
 - ❌ Guaranteed delivery times
 - ❌ Guaranteed customs clearance
@@ -291,12 +316,14 @@ import { servicesFaqs } from '@/lib/faq';
 ### 6.1 Component Strategy
 
 **Server Components (Preferred):**
+
 - All public content pages: `/`, `/services`, `/faq`, `/compliance`, `/privacy`, `/terms`, `/compensation`, `/disclaimer`
 - Static content rendering
 - SEO-optimized pages
 - Pages without user interaction
 
 **Client Components (Necessary):**
+
 - `/tracking` - Query form with state management
 - `/register` - Registration form with API calls
 - `SiteHeader` - Mobile menu toggle
@@ -304,6 +331,7 @@ import { servicesFaqs } from '@/lib/faq';
 - Admin components - All admin functionality
 
 **Rules:**
+
 - Public content pages should be Server Components
 - Only add `'use client'` when absolutely necessary
 - Extract interactive parts into separate Client Components
@@ -312,18 +340,21 @@ import { servicesFaqs } from '@/lib/faq';
 ### 6.2 Performance Guidelines
 
 **Mobile Layout:**
+
 - Grid layouts start with `grid-cols-1` for mobile
 - Forms use responsive flex layouts (`flex-col sm:flex-row`)
 - No horizontal overflow on mobile devices
 - Sticky header with proper height (h-14)
 
 **Image & Font Performance:**
+
 - Public pages use icon components instead of images
 - No next/image usage in public pages (reduces bundle)
 - Geist fonts loaded with proper subsets
 - No external analytics scripts
 
 **Core Web Vitals:**
+
 - Server Components reduce JavaScript bundle
 - Proper image dimensions prevent CLS
 - Efficient font loading
@@ -332,12 +363,14 @@ import { servicesFaqs } from '@/lib/faq';
 ### 6.3 Address Privacy Rules
 
 **No Public Full Address:**
+
 - Current address is private apartment, not displayed on public website
 - siteConfig does not expose full street address in public exports
 - Use serviceAreas array instead of complete address
 - Footer displays service area list, not street address
 
 **Service Area Configuration:**
+
 ```typescript
 serviceAreas: [
   'Santa Clara', 'San Jose', 'Milpitas',
@@ -348,6 +381,7 @@ handoffSummary: '支持本地上门递送或预约交接，具体安排由工作
 ```
 
 **Structured Data:**
+
 - Organization JSON-LD uses areaServed, not PostalAddress
 - LocalBusiness JSON-LD removes streetAddress, postalCode
 - No complete address in any public JSON-LD
@@ -355,6 +389,7 @@ handoffSummary: '支持本地上门递送或预约交接，具体安排由工作
 ### 6.4 Internal Linking Strategy
 
 **RelatedLinks Component:**
+
 ```typescript
 // components/public/RelatedLinks.tsx
 <RelatedLinks
@@ -366,6 +401,7 @@ handoffSummary: '支持本地上门递送或预约交接，具体安排由工作
 ```
 
 **Link Distribution:**
+
 - Homepage: Core service and registration links
 - Services: Registration, tracking, compliance, FAQ
 - Register: Privacy, services, compliance
@@ -373,6 +409,7 @@ handoffSummary: '支持本地上门递送或预约交接，具体安排由工作
 - FAQ: Services, registration, tracking, compliance
 
 **SEO Benefits:**
+
 - Improved crawlability
 - Better user navigation
 - Distributed page authority
@@ -385,6 +422,7 @@ handoffSummary: '支持本地上门递送或预约交接，具体安排由工作
 ### 5.1 SEO Components
 
 **JsonLd Component (`components/seo/JsonLd.tsx`)**
+
 ```typescript
 interface JsonLdProps {
   data: Record<string, any>;
@@ -394,6 +432,7 @@ interface JsonLdProps {
 ```
 
 **Features:**
+
 - Automatic JSON stringification
 - Undefined value filtering
 - Type-safe structured data
@@ -401,12 +440,14 @@ interface JsonLdProps {
 ### 5.2 Layout Components
 
 **Root Layout (`app/layout.tsx`)**
+
 - Global metadata configuration
 - Organization and LocalBusiness JSON-LD
 - Font and styling setup
 - HTML structure
 
 **Route Layouts**
+
 - Public: SEO-friendly, structured data
 - Admin: Noindex, minimal SEO
 
@@ -478,6 +519,7 @@ npm run typecheck    # TypeScript (if configured)
 ### 8.2 SEO Verification
 
 After deployment, verify:
+
 - `sitemap.xml` accessible
 - `robots.txt` accessible
 - JSON-LD scripts in page source

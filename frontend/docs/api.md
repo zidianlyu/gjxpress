@@ -43,7 +43,10 @@ Legacy labels are kept for display compatibility only. Frontend status submissio
 - `listCustomerShipments(params)` calls `GET /admin/customer-shipments` and normalizes pagination.
 - `createCustomerShipment(payload)` calls `POST /admin/customer-shipments`.
 - `quantity` is included in create/update payloads, defaults to `1`, and must be an integer >= 1.
-- The create form accepts admin-facing `customerCode` and submits `customerCode` in the create payload.
+- The create form accepts admin-facing `customerCode` and submits `customerCode` in the create payload. It does not submit admin-entered `customerId`; the backend resolves `customerCode` to the internal `customer_id` UUID FK.
+- Decimal fields in create payloads use trimmed strings: `actualWeightKg`, `billingRateCnyPerKg`, and `billingWeightKg`.
+- 应付费用 is calculated as `billingRateCnyPerKg * billingWeightKg`.
+- Create notes must end with exactly one `应付费用：...` line.
 - `updateCustomerShipmentStatus(id, payload)` calls `PATCH /admin/customer-shipments/:id/status`.
 
 Canonical statuses:

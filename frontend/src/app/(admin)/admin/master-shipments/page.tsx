@@ -10,6 +10,7 @@ import { Pagination } from '@/components/common/Pagination';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MasterShipmentStatusBadge } from '@/components/common/StatusBadge';
 import { MASTER_SHIPMENT_STATUS_LABELS } from '@/lib/constants/status';
+import { safeShortId } from '@/lib/api/unwrap';
 
 export default function MasterShipmentsPage() {
   const [shipments, setShipments] = useState<MasterShipment[]>([]);
@@ -25,7 +26,11 @@ export default function MasterShipmentsPage() {
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({ vendorName: '', vendorTrackingNo: '', adminNote: '' });
+  const [createForm, setCreateForm] = useState({
+    vendorName: '',
+    vendorTrackingNo: '',
+    adminNote: '',
+  });
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
 
@@ -34,6 +39,13 @@ export default function MasterShipmentsPage() {
   const [unbatchedShipments, setUnbatchedShipments] = useState<CustomerShipment[]>([]);
   const [csSearch, setCsSearch] = useState('');
   const [csLoading, setCsLoading] = useState(false);
+
+  const resetCreateForm = () => {
+    setCreateForm({ vendorName: '', vendorTrackingNo: '', adminNote: '' });
+    setSelectedCsIds([]);
+    setCsSearch('');
+    setCreateError('');
+  };
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -61,7 +73,9 @@ export default function MasterShipmentsPage() {
     }
   }, [search, statusFilter, publicFilter, page]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +86,10 @@ export default function MasterShipmentsPage() {
   const fetchUnbatchedShipments = useCallback(async () => {
     setCsLoading(true);
     try {
-      const data = await adminApi.getCustomerShipments({ unbatched: true, pageSize: 200 });
+      const data = await adminApi.getCustomerShipments({
+        unbatched: true,
+        pageSize: 200,
+      });
       setUnbatchedShipments(data?.items || []);
     } catch {
       // silently fail — user can still type IDs
@@ -82,14 +99,13 @@ export default function MasterShipmentsPage() {
   }, []);
 
   const toggleCsSelection = (id: string) => {
-    setSelectedCsIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    setSelectedCsIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  const filteredUnbatched = unbatchedShipments.filter(s => {
+  const filteredUnbatched = unbatchedShipments.filter((s) => {
     if (!csSearch) return true;
     const q = csSearch.toLowerCase();
-    return s.shipmentNo.toLowerCase().includes(q)
-      || (s.customer?.customerCode || '').toLowerCase().includes(q);
+    return (s.shipmentNo || '').toLowerCase().includes(q) || (s.customer?.customerCode || '').toLowerCase().includes(q);
   });
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -113,10 +129,9 @@ export default function MasterShipmentsPage() {
         adminNote: createForm.adminNote || undefined,
       });
       setCreateSuccess(`创建成功！批次号：${result.batchNo}，包含 ${selectedCsIds.length} 个集运单`);
-      setCreateForm({ vendorName: '', vendorTrackingNo: '', adminNote: '' });
-      setSelectedCsIds([]);
+      resetCreateForm();
+      setShowCreate(false);
       fetchData();
-      setTimeout(() => { setShowCreate(false); setCreateSuccess(''); }, 1500);
     } catch (err) {
       if (err instanceof ApiError) {
         setCreateError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
@@ -136,7 +151,11 @@ export default function MasterShipmentsPage() {
           <p className="text-sm text-muted-foreground">管理国际运输批次</p>
         </div>
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => {
+            setShowCreate(true);
+            setCreateError('');
+            setCreateSuccess('');
+          }}
           className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
@@ -154,11 +173,23 @@ export default function MasterShipmentsPage() {
               {createError && <div className="p-2 rounded bg-red-50 border border-red-200 text-red-700 text-sm break-all">{createError}</div>}
               <div>
                 <label className="block text-xs font-medium mb-1">物流商名称 *</label>
-                <input type="text" value={createForm.vendorName} onChange={(e) => setCreateForm(f => ({ ...f, vendorName: e.target.value }))} className="w-full px-3 py-2 rounded-md border text-sm" required placeholder="如：顺丰国际" />
+                <input type="text" value={createForm.vendorName} onChange={(e) => setCreateForm((f) => ({ ...f, vendorName: e.target.value }))} className="w-full px-3 py-2 rounded-md border text-sm" required placeholder="如：顺丰国际" />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1">物流商运单号 *</label>
-                <input type="text" value={createForm.vendorTrackingNo} onChange={(e) => setCreateForm(f => ({ ...f, vendorTrackingNo: e.target.value }))} className="w-full px-3 py-2 rounded-md border text-sm" required placeholder="必填" />
+                <input
+                  type="text"
+                  value={createForm.vendorTrackingNo}
+                  onChange={(e) =>
+                    setCreateForm((f) => ({
+                      ...f,
+                      vendorTrackingNo: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 rounded-md border text-sm"
+                  required
+                  placeholder="必填"
+                />
               </div>
 
               {/* Customer Shipment Multi-Select */}
@@ -166,11 +197,11 @@ export default function MasterShipmentsPage() {
                 <label className="block text-xs font-medium mb-1">客户集运单 * ({selectedCsIds.length} 已选)</label>
                 {selectedCsIds.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
-                    {selectedCsIds.map(csId => {
-                      const cs = unbatchedShipments.find(s => s.id === csId);
+                    {selectedCsIds.map((csId) => {
+                      const cs = unbatchedShipments.find((s) => s.id === csId);
                       return (
                         <span key={csId} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs">
-                          {cs ? cs.shipmentNo : csId.slice(0, 8)}
+                          {cs?.shipmentNo || safeShortId(csId)}
                           <button type="button" onClick={() => toggleCsSelection(csId)} className="hover:text-red-600">
                             <XIcon className="h-3 w-3" />
                           </button>
@@ -187,29 +218,27 @@ export default function MasterShipmentsPage() {
                     onChange={(e) => setCsSearch(e.target.value)}
                     placeholder="搜索集运单号或客户编号..."
                     className="w-full pl-8 pr-3 py-2 rounded-md border text-sm"
-                    onFocus={() => { if (unbatchedShipments.length === 0) fetchUnbatchedShipments(); }}
+                    onFocus={() => {
+                      if (unbatchedShipments.length === 0) fetchUnbatchedShipments();
+                    }}
                   />
                 </div>
                 <div className="max-h-40 overflow-y-auto rounded-md border">
                   {csLoading ? (
-                    <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
                   ) : filteredUnbatched.length === 0 ? (
                     <p className="text-center py-3 text-xs text-muted-foreground">{unbatchedShipments.length === 0 ? '点击搜索框加载未归批集运单' : '无匹配结果'}</p>
                   ) : (
                     <ul className="divide-y">
-                      {filteredUnbatched.map(cs => {
+                      {filteredUnbatched.map((cs) => {
                         const selected = selectedCsIds.includes(cs.id);
                         return (
                           <li key={cs.id}>
-                            <button
-                              type="button"
-                              onClick={() => toggleCsSelection(cs.id)}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors ${selected ? 'bg-primary/5' : ''}`}
-                            >
-                              <span className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${selected ? 'bg-primary border-primary text-white' : 'border-gray-300'}`}>
-                                {selected && <Check className="h-3 w-3" />}
-                              </span>
-                              <span className="font-mono text-xs">{cs.shipmentNo}</span>
+                            <button type="button" onClick={() => toggleCsSelection(cs.id)} className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors ${selected ? 'bg-primary/5' : ''}`}>
+                              <span className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${selected ? 'bg-primary border-primary text-white' : 'border-gray-300'}`}>{selected && <Check className="h-3 w-3" />}</span>
+                              <span className="font-mono text-xs">{cs.shipmentNo || safeShortId(cs.id)}</span>
                               <span className="text-xs text-muted-foreground">{cs.customer?.customerCode || ''}</span>
                             </button>
                           </li>
@@ -222,10 +251,12 @@ export default function MasterShipmentsPage() {
 
               <div>
                 <label className="block text-xs font-medium mb-1">管理员备注</label>
-                <textarea value={createForm.adminNote} onChange={(e) => setCreateForm(f => ({ ...f, adminNote: e.target.value }))} rows={2} className="w-full px-3 py-2 rounded-md border text-sm" placeholder="可选" />
+                <textarea value={createForm.adminNote} onChange={(e) => setCreateForm((f) => ({ ...f, adminNote: e.target.value }))} rows={2} className="w-full px-3 py-2 rounded-md border text-sm" placeholder="可选" />
               </div>
               <div className="flex gap-2 justify-end pt-2">
-                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-md border text-sm hover:bg-muted">取消</button>
+                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-md border text-sm hover:bg-muted">
+                  取消
+                </button>
                 <button type="submit" disabled={creating} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50">
                   {creating ? '创建中...' : '创建'}
                 </button>
@@ -236,30 +267,34 @@ export default function MasterShipmentsPage() {
       )}
 
       <div className="p-4 md:p-6">
+        {createSuccess && <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">{createSuccess}</div>}
+
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row flex-wrap gap-2 mb-6">
           <div className="relative flex-1 min-w-0 sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索批次号/供应商/运单号..."
-              className="w-full pl-9 pr-3 py-2 rounded-md border bg-background text-sm"
-            />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索批次号/供应商/运单号..." className="w-full pl-9 pr-3 py-2 rounded-md border bg-background text-sm" />
           </div>
           <select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
             className="px-3 py-2 rounded-md border bg-background text-sm"
           >
             <option value="">全部状态</option>
             {Object.entries(MASTER_SHIPMENT_STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
+              <option key={k} value={k}>
+                {v}
+              </option>
             ))}
           </select>
           <select
             value={publicFilter}
-            onChange={(e) => { setPublicFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setPublicFilter(e.target.value);
+              setPage(1);
+            }}
             className="px-3 py-2 rounded-md border bg-background text-sm"
           >
             <option value="">全部公开状态</option>
@@ -278,13 +313,13 @@ export default function MasterShipmentsPage() {
           <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm mb-4">
             <p>{error}</p>
             {errorRequestId && <p className="mt-1 text-xs">Request ID: {errorRequestId}</p>}
-            <button onClick={fetchData} className="mt-2 text-xs underline">重试</button>
+            <button onClick={fetchData} className="mt-2 text-xs underline">
+              重试
+            </button>
           </div>
         )}
 
-        {!isLoading && !error && shipments.length === 0 && (
-          <EmptyState title="暂无国际批次" description="点击新建批次开始" />
-        )}
+        {!isLoading && !error && shipments.length === 0 && <EmptyState title="暂无国际批次" description="点击新建批次开始" />}
 
         {!isLoading && !error && shipments.length > 0 && (
           <>
@@ -308,15 +343,13 @@ export default function MasterShipmentsPage() {
                       <td className="px-4 py-3 font-mono text-xs">{s.batchNo}</td>
                       <td className="px-4 py-3">{s.vendorName || '-'}</td>
                       <td className="px-4 py-3 font-mono text-xs">{s.vendorTrackingNo || '-'}</td>
-                      <td className="px-4 py-3"><MasterShipmentStatusBadge status={s.status} /></td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs ${s.publicVisible ? 'text-green-600' : 'text-muted-foreground'}`}>
-                          {s.publicVisible ? '已公开' : '未公开'}
-                        </span>
+                        <MasterShipmentStatusBadge status={s.status} />
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {s.updatedAt ? new Date(s.updatedAt).toLocaleDateString('zh-CN') : '-'}
+                      <td className="px-4 py-3">
+                        <span className={`text-xs ${s.publicVisible ? 'text-green-600' : 'text-muted-foreground'}`}>{s.publicVisible ? '已公开' : '未公开'}</span>
                       </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{s.updatedAt ? new Date(s.updatedAt).toLocaleDateString('zh-CN') : '-'}</td>
                       <td className="px-4 py-3">
                         <Link href={`/admin/master-shipments/${s.id}`} className="text-primary hover:underline text-xs inline-flex items-center gap-1">
                           <Eye className="h-3 w-3" /> 查看

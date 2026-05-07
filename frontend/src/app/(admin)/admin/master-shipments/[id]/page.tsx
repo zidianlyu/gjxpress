@@ -10,6 +10,7 @@ import type { MasterShipment } from '@/types/admin';
 import { MasterShipmentStatusBadge } from '@/components/common/StatusBadge';
 import { MASTER_SHIPMENT_STATUS_LABELS } from '@/lib/constants/status';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
+import { safeShortId } from '@/lib/api/unwrap';
 
 const ALL_STATUSES = ['CREATED', 'HANDED_TO_VENDOR', 'IN_TRANSIT', 'TRANSFER_OR_CUSTOMS_PROCESSING', 'ARRIVED_OVERSEAS', 'CLOSED', 'EXCEPTION'];
 
@@ -50,6 +51,12 @@ export default function MasterShipmentDetailPage() {
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlockers, setDeleteBlockers] = useState<Record<string, number> | undefined>(undefined);
 
+  const formatDateTime = (value?: string | null) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('zh-CN');
+  };
+
   const fetchShipment = useCallback(async () => {
     setIsLoading(true);
     setError('');
@@ -77,33 +84,51 @@ export default function MasterShipmentDetailPage() {
     }
   }, [id]);
 
-  useEffect(() => { fetchShipment(); }, [fetchShipment]);
+  useEffect(() => {
+    fetchShipment();
+  }, [fetchShipment]);
 
   const handleSaveBasic = async () => {
-    setSaving(true); setActionMsg(''); setActionError('');
+    setSaving(true);
+    setActionMsg('');
+    setActionError('');
     try {
-      const updated = await adminApi.updateMasterShipment(id, { vendorName, vendorTrackingNo, adminNote });
+      const updated = await adminApi.updateMasterShipment(id, {
+        vendorName,
+        vendorTrackingNo,
+        adminNote,
+      });
       setShipment(updated);
       setActionMsg('基础信息已保存');
     } catch (err) {
       setActionError(err instanceof ApiError ? `${err.message}${err.requestId ? ` (${err.requestId})` : ''}` : '保存失败');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleStatusUpdate = async () => {
     if (!newStatus || newStatus === shipment?.status) return;
-    setSaving(true); setActionMsg(''); setActionError('');
+    setSaving(true);
+    setActionMsg('');
+    setActionError('');
     try {
-      const updated = await adminApi.updateMasterShipmentStatus(id, { status: newStatus });
+      const updated = await adminApi.updateMasterShipmentStatus(id, {
+        status: newStatus,
+      });
       setShipment(updated);
       setActionMsg('状态已更新');
     } catch (err) {
       setActionError(err instanceof ApiError ? `${err.message}${err.requestId ? ` (${err.requestId})` : ''}` : '更新失败');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePublicationUpdate = async () => {
-    setSaving(true); setActionMsg(''); setActionError('');
+    setSaving(true);
+    setActionMsg('');
+    setActionError('');
     try {
       const updated = await adminApi.updateMasterShipmentPublication(id, {
         publicVisible: pubVisible,
@@ -115,34 +140,49 @@ export default function MasterShipmentDetailPage() {
       setActionMsg('公开状态已更新');
     } catch (err) {
       setActionError(err instanceof ApiError ? `${err.message}${err.requestId ? ` (${err.requestId})` : ''}` : '更新失败');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAddCS = async () => {
     if (!csIdsInput.trim()) return;
-    const ids = csIdsInput.split(/[,\n]+/).map(s => s.trim()).filter(Boolean);
+    const ids = csIdsInput
+      .split(/[,\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (ids.length === 0) return;
-    setSaving(true); setActionMsg(''); setActionError('');
+    setSaving(true);
+    setActionMsg('');
+    setActionError('');
     try {
-      await adminApi.addCustomerShipmentsToMaster(id, { customerShipmentIds: ids });
+      await adminApi.addCustomerShipmentsToMaster(id, {
+        customerShipmentIds: ids,
+      });
       setActionMsg(`已添加 ${ids.length} 个集运单`);
       setCsIdsInput('');
       fetchShipment();
     } catch (err) {
       setActionError(err instanceof ApiError ? `${err.message}${err.requestId ? ` (${err.requestId})` : ''}` : '添加失败');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleRemoveCS = async (csId: string) => {
     if (!confirm('确定移除此集运单？')) return;
-    setSaving(true); setActionMsg(''); setActionError('');
+    setSaving(true);
+    setActionMsg('');
+    setActionError('');
     try {
       await adminApi.removeCustomerShipmentFromMaster(id, csId);
       setActionMsg('已移除集运单');
       fetchShipment();
     } catch (err) {
       setActionError(err instanceof ApiError ? `${err.message}${err.requestId ? ` (${err.requestId})` : ''}` : '移除失败');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -166,7 +206,11 @@ export default function MasterShipmentDetailPage() {
   };
 
   if (isLoading) {
-    return <div className="flex-1 flex justify-center items-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="flex-1 flex justify-center items-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   if (error) {
@@ -175,7 +219,9 @@ export default function MasterShipmentDetailPage() {
         <div className="p-4 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
           <p>{error}</p>
           {errorRequestId && <p className="mt-1 text-xs break-all">Request ID: {errorRequestId}</p>}
-          <button onClick={fetchShipment} className="mt-2 text-xs underline">重试</button>
+          <button onClick={fetchShipment} className="mt-2 text-xs underline">
+            重试
+          </button>
         </div>
         <Link href="/admin/master-shipments" className="mt-4 inline-flex items-center gap-1 text-sm text-primary hover:underline">
           <ArrowLeft className="h-4 w-4" /> 返回列表
@@ -208,10 +254,22 @@ export default function MasterShipmentDetailPage() {
         <div className="rounded-lg border p-4 space-y-3">
           <h2 className="font-semibold">基础信息</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div><span className="text-muted-foreground">批次号：</span><span className="font-mono">{shipment.batchNo}</span></div>
-            <div className="flex items-center gap-2"><span className="text-muted-foreground">状态：</span><MasterShipmentStatusBadge status={shipment.status} /></div>
-            <div><span className="text-muted-foreground">公开：</span>{shipment.publicVisible ? '是' : '否'}</div>
-            <div><span className="text-muted-foreground">创建时间：</span>{new Date(shipment.createdAt).toLocaleString('zh-CN')}</div>
+            <div>
+              <span className="text-muted-foreground">批次号：</span>
+              <span className="font-mono">{shipment.batchNo}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">状态：</span>
+              <MasterShipmentStatusBadge status={shipment.status} />
+            </div>
+            <div>
+              <span className="text-muted-foreground">公开：</span>
+              {shipment.publicVisible ? '是' : '否'}
+            </div>
+            <div>
+              <span className="text-muted-foreground">创建时间：</span>
+              {formatDateTime(shipment.createdAt)}
+            </div>
           </div>
         </div>
 
@@ -242,7 +300,11 @@ export default function MasterShipmentDetailPage() {
           <h2 className="font-semibold">更新状态</h2>
           <div className="flex flex-col sm:flex-row gap-2">
             <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="flex-1 px-3 py-2 rounded-md border text-sm">
-              {ALL_STATUSES.map(s => <option key={s} value={s}>{MASTER_SHIPMENT_STATUS_LABELS[s] || s}</option>)}
+              {ALL_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {MASTER_SHIPMENT_STATUS_LABELS[s] || s}
+                </option>
+              ))}
             </select>
             <button onClick={handleStatusUpdate} disabled={saving || newStatus === shipment.status} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm disabled:opacity-50 w-full sm:w-auto">
               更新
@@ -283,8 +345,10 @@ export default function MasterShipmentDetailPage() {
             <div className="space-y-2">
               {shipment.customerShipments.map((cs) => (
                 <div key={cs.id} className="flex items-center justify-between p-2 rounded border text-sm">
-                  <span className="font-mono text-xs">{cs.shipmentNo}</span>
-                  <button onClick={() => handleRemoveCS(cs.id)} disabled={saving} className="text-red-600 text-xs hover:underline">移除</button>
+                  <span className="font-mono text-xs">{cs.shipmentNo || safeShortId(cs.id)}</span>
+                  <button onClick={() => handleRemoveCS(cs.id)} disabled={saving} className="text-red-600 text-xs hover:underline">
+                    移除
+                  </button>
                 </div>
               ))}
             </div>
@@ -312,7 +376,11 @@ export default function MasterShipmentDetailPage() {
 
       <DeleteConfirmDialog
         open={showDelete}
-        onClose={() => { setShowDelete(false); setDeleteError(''); setDeleteBlockers(undefined); }}
+        onClose={() => {
+          setShowDelete(false);
+          setDeleteError('');
+          setDeleteBlockers(undefined);
+        }}
         onConfirm={handleDelete}
         title="永久删除国际批次"
         description="删除后此批次数据将不可恢复。如果存在关联集运单，系统会阻止删除。"

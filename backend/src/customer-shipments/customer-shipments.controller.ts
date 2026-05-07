@@ -15,7 +15,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, IsUUID, IsBoolean, IsInt, Min } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsUUID, IsBoolean, IsInt, Min, Matches, ValidateIf } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomerShipmentsService } from './customer-shipments.service';
@@ -35,7 +35,16 @@ import {
   imageMutationSchema,
 } from '../common/swagger/api-docs';
 
+const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
+
+function normalizeDecimalInput(value: unknown): unknown {
+  if (value === undefined || value === null) return value;
+  return String(value).trim();
+}
+
 class UpdateCustomerShipmentDto {
+  @ApiPropertyOptional({ description: 'Customer business code. If present, resolves to internal customerId.', example: 'GJ5901' })
+  @IsString() @IsOptional() @Transform(({ value }) => String(value).trim().toUpperCase()) @Matches(/^GJ\d{4}$/, { message: 'customerCode must match /^GJ\\d{4}$/' }) customerCode?: string;
   @ApiPropertyOptional({ description: 'Admin/customer shipment notes.' })
   @IsString() @IsOptional() notes?: string;
   @ApiPropertyOptional({ description: 'International carrier tracking number.' })
@@ -48,33 +57,59 @@ class UpdateCustomerShipmentDto {
   @IsString() @IsOptional() paymentStatus?: string;
   @ApiPropertyOptional({ type: Number, description: 'Number of pieces in this customer shipment.' })
   @IsInt() @Min(1) @Type(() => Number) @IsOptional() quantity?: number;
-  @ApiPropertyOptional({ description: 'Actual weight in kg, accepted as decimal string.' })
-  @IsString() @IsOptional() actualWeightKg?: string;
+  @ApiPropertyOptional({ description: 'Actual weight in kg, accepted as a non-negative decimal string or number.', example: '2.50' })
+  @Transform(({ value }) => normalizeDecimalInput(value))
+  @IsString()
+  @ValidateIf((_, value) => value !== undefined)
+  @Matches(DECIMAL_PATTERN, { message: 'actualWeightKg must be a non-negative decimal string, e.g. "2", "2.5", or "2.50"' })
+  actualWeightKg?: string;
   @ApiPropertyOptional({ description: 'Volume formula text.' })
   @IsString() @IsOptional() volumeFormula?: string;
-  @ApiPropertyOptional({ description: 'Billing rate CNY per kg, accepted as decimal string.' })
-  @IsString() @IsOptional() billingRateCnyPerKg?: string;
-  @ApiPropertyOptional({ description: 'Billing weight in kg, accepted as decimal string.' })
-  @IsString() @IsOptional() billingWeightKg?: string;
+  @ApiPropertyOptional({ description: 'Billing rate CNY per kg, accepted as a non-negative decimal string or number.', example: '80' })
+  @Transform(({ value }) => normalizeDecimalInput(value))
+  @IsString()
+  @ValidateIf((_, value) => value !== undefined)
+  @Matches(DECIMAL_PATTERN, { message: 'billingRateCnyPerKg must be a non-negative decimal string, e.g. "80" or "80.50"' })
+  billingRateCnyPerKg?: string;
+  @ApiPropertyOptional({ description: 'Billing weight in kg, accepted as a non-negative decimal string or number.', example: '3' })
+  @Transform(({ value }) => normalizeDecimalInput(value))
+  @IsString()
+  @ValidateIf((_, value) => value !== undefined)
+  @Matches(DECIMAL_PATTERN, { message: 'billingWeightKg must be a non-negative decimal string, e.g. "3", "3.5", or "3.50"' })
+  billingWeightKg?: string;
 }
 
 class CreateCustomerShipmentDto {
-  @ApiProperty({ format: 'uuid', description: 'Customer id.' })
-  @IsUUID() customerId: string;
+  @ApiProperty({ description: 'Customer business code. Backend resolves this to internal customerId.', example: 'GJ5901' })
+  @IsString() @Transform(({ value }) => String(value).trim().toUpperCase()) @Matches(/^GJ\d{4}$/, { message: 'customerCode must match /^GJ\\d{4}$/' }) customerCode: string;
+  @ApiPropertyOptional({ format: 'uuid', description: 'Deprecated compatibility field. customerCode takes precedence.' })
+  @IsUUID() @IsOptional() customerId?: string;
   @ApiPropertyOptional({ type: [String], description: 'Inbound package ids to include.' })
-  @IsArray() @IsOptional() inboundPackageIds?: string[];
+  @IsArray() @IsUUID(undefined, { each: true }) @IsOptional() inboundPackageIds?: string[];
   @ApiPropertyOptional({ description: 'Notes.' })
   @IsString() @IsOptional() notes?: string;
   @ApiPropertyOptional({ type: Number, default: 1, description: 'Number of pieces in this customer shipment.' })
   @IsInt() @Min(1) @Type(() => Number) @IsOptional() quantity?: number;
-  @ApiPropertyOptional({ description: 'Actual weight in kg, accepted as decimal string.' })
-  @IsString() @IsOptional() actualWeightKg?: string;
+  @ApiPropertyOptional({ description: 'Actual weight in kg, accepted as a non-negative decimal string or number.', example: '2.50' })
+  @Transform(({ value }) => normalizeDecimalInput(value))
+  @IsString()
+  @ValidateIf((_, value) => value !== undefined)
+  @Matches(DECIMAL_PATTERN, { message: 'actualWeightKg must be a non-negative decimal string, e.g. "2", "2.5", or "2.50"' })
+  actualWeightKg?: string;
   @ApiPropertyOptional({ description: 'Volume formula text.' })
   @IsString() @IsOptional() volumeFormula?: string;
-  @ApiPropertyOptional({ description: 'Billing rate CNY per kg, accepted as decimal string.' })
-  @IsString() @IsOptional() billingRateCnyPerKg?: string;
-  @ApiPropertyOptional({ description: 'Billing weight in kg, accepted as decimal string.' })
-  @IsString() @IsOptional() billingWeightKg?: string;
+  @ApiPropertyOptional({ description: 'Billing rate CNY per kg, accepted as a non-negative decimal string or number.', example: '80' })
+  @Transform(({ value }) => normalizeDecimalInput(value))
+  @IsString()
+  @ValidateIf((_, value) => value !== undefined)
+  @Matches(DECIMAL_PATTERN, { message: 'billingRateCnyPerKg must be a non-negative decimal string, e.g. "80" or "80.50"' })
+  billingRateCnyPerKg?: string;
+  @ApiPropertyOptional({ description: 'Billing weight in kg, accepted as a non-negative decimal string or number.', example: '3' })
+  @Transform(({ value }) => normalizeDecimalInput(value))
+  @IsString()
+  @ValidateIf((_, value) => value !== undefined)
+  @Matches(DECIMAL_PATTERN, { message: 'billingWeightKg must be a non-negative decimal string, e.g. "3", "3.5", or "3.50"' })
+  billingWeightKg?: string;
 }
 
 class UpdateShipmentStatusDto {

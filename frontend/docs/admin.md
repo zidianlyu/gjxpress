@@ -46,11 +46,18 @@ Create rules:
 - Default `quantity` is `1`.
 - It must be an integer >= 1.
 - The frontend submits `quantity` to the backend.
-- The form accepts admin-facing `customerCode` and submits `customerCode` in the create payload.
+- The form accepts admin-facing `customerCode` and submits `customerCode` in the create payload. `customerId` is an internal UUID FK resolved by the backend and is not an admin input.
+- `actualWeightKg`, `billingRateCnyPerKg`, and `billingWeightKg` are submitted as strings.
+- 应付费用 is displayed as `billingRateCnyPerKg * billingWeightKg`.
+- New shipment notes end with `应付费用：...`, using `待确认` when the amount cannot be calculated.
 
 List/detail/edit display `件数`.
 
 Shipment statuses are simplified to 已打包, 已发货, 已到达, 待自提, 已取货, 异常.
+
+Admin detail pages unwrap raw object / `{ item }` / `{ data }` API responses before setting entity state. Short id display uses `safeShortId()`; pages should not call `.slice()` on possibly missing ids.
+
+Admin create modals close and reset after successful creation. Failed creates keep the modal open, preserve entered values, and show the API error/request id. Image uploads only start after the create response contains a real entity id, so `/undefined/images` must never be called.
 
 ## Detail Pages
 

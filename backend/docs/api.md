@@ -1816,7 +1816,7 @@ Create a customer shipment (集运单).
 **Request:**
 ```json
 {
-  "customerId": "uuid",
+  "customerCode": "GJ0427",
   "inboundPackageIds": ["uuid1", "uuid2"],
   "quantity": 3,
   "actualWeightKg": "2",
@@ -1829,6 +1829,8 @@ Create a customer shipment (集运单).
 
 **Rules:**
 - `shipmentNo` auto-generated: `GJS{yyyyMMdd}{3-digit-rand}` e.g. `GJS20260505001`.
+- Admin submits `customerCode`; backend resolves and stores internal `customerId` UUID FK.
+- Decimal fields accept JSON strings or numbers and are persisted as decimal values.
 - Packages must belong to same customer.
 - Packages already in another shipment → 409.
 - Packages added → their status set to `CONSOLIDATED`.
@@ -1860,6 +1862,7 @@ General update.
 **Request (all optional):**
 ```json
 {
+  "customerCode": "GJ0427",
   "notes": "...",
   "internationalTrackingNo": "...",
   "publicTrackingEnabled": true,
@@ -2031,7 +2034,7 @@ curl -s -X PATCH "$BASE/admin/inbound-packages/<id>/assign-customer" \
 curl -s -X POST "$BASE/admin/customer-shipments" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"customerId":"<uuid>","inboundPackageIds":["<pkg-uuid>"],"quantity":3}'
+  -d '{"customerCode":"GJ0001","inboundPackageIds":["<pkg-uuid>"],"quantity":3}'
 
 curl -s "$BASE/admin/customer-shipments?status=PACKED" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
@@ -2164,7 +2167,7 @@ Billing fields can be set on **create** (`POST`) and **update** (`PATCH`). All a
 **Create example:**
 ```json
 {
-  "customerId": "uuid",
+  "customerCode": "GJ0427",
   "inboundPackageIds": ["uuid"],
   "actualWeightKg": "1.800",
   "volumeFormula": "30x20x15/6000",

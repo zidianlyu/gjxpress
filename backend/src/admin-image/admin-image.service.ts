@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
@@ -7,18 +7,20 @@ const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 
 @Injectable()
-export class AdminImageService {
+export class AdminImageService implements OnModuleInit {
   private readonly logger = new Logger(AdminImageService.name);
   private supabase: SupabaseClient;
   private bucket: string;
   private readonly bucketEnvName = 'SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES';
+  private readonly supabaseUrl: string;
 
   constructor(private config: ConfigService) {
-    const url = this.config.get<string>('SUPABASE_URL');
+    const url = this.config.get<string>('SUPABASE_URL')?.trim();
     const key = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
     if (!url || !key) {
       throw new InternalServerErrorException('Supabase credentials not configured');
     }
+    this.supabaseUrl = url;
     this.supabase = createClient(url, key, { auth: { persistSession: false } });
     const bucket = this.config.get<string>(this.bucketEnvName)?.trim();
     if (!bucket) {
@@ -27,6 +29,13 @@ export class AdminImageService {
       );
     }
     this.bucket = bucket;
+  }
+
+  onModuleInit() {
+    const urlInfo = this.describeSupabaseUrl(this.supabaseUrl);
+    this.logger.log(
+      `Admin image storage configured env=${this.bucketEnvName} bucket=${this.bucket} supabaseHost=${urlInfo.host} projectRef=${urlInfo.projectRef} keySource=SUPABASE_SERVICE_ROLE_KEY`,
+    );
   }
 
   async upload(
@@ -47,7 +56,6 @@ export class AdminImageService {
     }
 
     const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
-    const ext = safeName.split('.').pop() || 'jpg';
     const path = `${folder}/${resourceId}/${randomUUID()}-${safeName}`;
 
     const { error } = await this.supabase.storage
@@ -59,10 +67,10 @@ export class AdminImageService {
 
     if (error) {
       this.logger.error(
-        `Storage upload failed bucket=${this.bucket} env=${this.bucketEnvName} requestId=${context?.requestId ?? 'n/a'} code=${(error as any).statusCode ?? (error as any).code ?? 'n/a'} message=${error.message}`,
+        `Storage upload failed env=${this.bucketEnvName} bucket=${this.bucket} objectPath=${path} requestId=${context?.requestId ?? 'n/a'} statusCode=${(error as any).statusCode ?? 'n/a'} code=${(error as any).code ?? 'n/a'} message=${error.message}`,
       );
       throw new InternalServerErrorException(
-        `Storage upload failed for bucket ${this.bucket} (${this.bucketEnvName}): ${error.message}`,
+        `Storage upload failed: ${error.message}`,
       );
     }
 
@@ -78,12 +86,23 @@ export class AdminImageService {
 
     const { error } = await this.supabase.storage.from(this.bucket).remove([path]);
     if (error) {
-      const msg = error.message?.toLowerCase() ?? '';
-      if (msg.includes('not found') || msg.includes('does not exist') || msg.includes('no such')) {
-        this.logger.warn(`Storage object not found during delete (already removed?): ${path}`);
-        return;
-      }
+      this.logger.error(
+        `Storage delete failed env=${this.bucketEnvName} bucket=${this.bucket} objectPath=${path} statusCode=${(error as any).statusCode ?? 'n/a'} code=${(error as any).code ?? 'n/a'} message=${error.message}`,
+      );
       throw new InternalServerErrorException(`Storage delete failed: ${error.message}`);
+    }
+  }
+
+  private describeSupabaseUrl(rawUrl: string): { host: string; projectRef: string } {
+    try {
+      const url = new URL(rawUrl);
+      const host = url.host;
+      return {
+        host,
+        projectRef: host.endsWith('.supabase.co') ? host.split('.')[0] : 'n/a',
+      };
+    } catch {
+      return { host: 'invalid-url', projectRef: 'n/a' };
     }
   }
 

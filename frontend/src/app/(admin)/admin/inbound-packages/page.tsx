@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Loader2, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { InboundPackage } from '@/types/admin';
@@ -13,34 +12,9 @@ import { InboundPackageStatusBadge } from '@/components/common/StatusBadge';
 import { TrackingBarcodeScanner } from '@/components/admin/TrackingBarcodeScanner';
 import { INBOUND_PACKAGE_STATUS_OPTIONS } from '@/lib/constants/status';
 import { CustomerCodeInput, isCustomerCodeComplete } from '@/components/admin/CustomerCodeInput';
-
-function getCreatedEntityId(value: unknown): string | null {
-  if (!value || typeof value !== 'object') return null;
-  const record = value as Record<string, unknown>;
-  if (typeof record.id === 'string' && record.id) return record.id;
-  for (const key of ['item', 'data']) {
-    const nested = record[key];
-    if (nested && typeof nested === 'object') {
-      const nestedId = (nested as Record<string, unknown>).id;
-      if (typeof nestedId === 'string' && nestedId) return nestedId;
-    }
-  }
-  return null;
-}
-
-function getLowSensitivityShape(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object') return { type: typeof value };
-  const record = value as Record<string, unknown>;
-  return {
-    keys: Object.keys(record),
-    hasId: typeof record.id === 'string',
-    itemKeys: record.item && typeof record.item === 'object' ? Object.keys(record.item as Record<string, unknown>) : undefined,
-    dataKeys: record.data && typeof record.data === 'object' ? Object.keys(record.data as Record<string, unknown>) : undefined,
-  };
-}
+import { getEntityId } from '@/lib/api/unwrap';
 
 export default function InboundPackagesPage() {
-  const router = useRouter();
   const [packages, setPackages] = useState<InboundPackage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -59,6 +33,12 @@ export default function InboundPackagesPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
+
+  const resetCreateForm = () => {
+    setCreateForm({ domesticTrackingNo: '', customerCode: '', adminNote: '' });
+    setLocalFiles([]);
+    setCreateError('');
+  };
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -107,15 +87,14 @@ export default function InboundPackagesPage() {
         customerCode: createForm.customerCode.trim() || undefined,
         adminNote: createForm.adminNote.trim() || undefined,
       });
-      const packageId = getCreatedEntityId(pkg);
+      const packageId = getEntityId(pkg);
 
       // Upload images if any
       if (localFiles.length > 0) {
         if (!packageId) {
-          if (process.env.NODE_ENV === 'development') {
-            console.debug('[admin:inbound:create:missing-id]', getLowSensitivityShape(pkg));
-          }
-          setCreateError('入库包裹已提交但后端未返回包裹 ID，无法上传图片，请刷新列表确认后重试。');
+          setCreateSuccess('记录已创建但后端未返回 ID，无法上传图片，请刷新列表确认后重试。');
+          resetCreateForm();
+          setShowCreate(false);
           fetchData();
           return;
         }
@@ -128,18 +107,18 @@ export default function InboundPackagesPage() {
           }
         }
         if (failCount > 0) {
-          setCreateError(`入库包裹已创建，但 ${failCount} 张图片上传失败，请进入详情页继续上传。`);
-          setLocalFiles([]);
-          setCreateForm({ domesticTrackingNo: '', customerCode: '', adminNote: '' });
-          setTimeout(() => router.push(`/admin/inbound-packages/${packageId}`), 1500);
+          setCreateSuccess('记录已创建，部分图片上传失败，可进入详情页补传。');
+          resetCreateForm();
+          setShowCreate(false);
+          fetchData();
           return;
         }
       }
 
       const statusMsg = pkg.status === 'UNIDENTIFIED' || pkg.status === 'UNCLAIMED' ? '已创建为未识别包裹' : '入库包裹创建成功';
       setCreateSuccess(statusMsg + (localFiles.length > 0 ? `，已上传 ${localFiles.length} 张图片` : ''));
-      setCreateForm({ domesticTrackingNo: '', customerCode: '', adminNote: '' });
-      setLocalFiles([]);
+      resetCreateForm();
+      setShowCreate(false);
       fetchData();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -172,6 +151,8 @@ export default function InboundPackagesPage() {
       </header>
 
       <div className="p-4 md:p-6">
+        {createSuccess && <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">{createSuccess}</div>}
+
         {/* Filters */}
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row flex-wrap gap-2 mb-6">
           <div className="relative flex-1 min-w-0 sm:max-w-md">

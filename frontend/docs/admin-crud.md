@@ -5,6 +5,7 @@
 ## Overview
 
 Full admin CRUD for **all 6 entities** (Customers, Customer Registrations, Inbound Packages, Customer Shipments, Master Shipments, Transactions) is implemented with:
+
 - List pages with search, status filters, pagination, mobile card view
 - Detail pages with edit, status update, and special actions
 - Create modals on list pages
@@ -42,61 +43,64 @@ NEXT_PUBLIC_API_DEBUG=true  # optional, defaults based on NODE_ENV
 ## Admin API Wrapper (`src/lib/api/admin.ts`)
 
 ### Customers
-| Method | Function |
-|--------|----------|
-| GET `/admin/customers` | `adminApi.getCustomers(params)` |
-| GET `/admin/customers/:id` | `adminApi.getCustomerById(id)` |
-| POST `/admin/customers` | `adminApi.createCustomer(data)` |
-| PATCH `/admin/customers/:id` | `adminApi.updateCustomer(id, data)` |
-| PATCH `/admin/customers/:id/disable` | `adminApi.disableCustomer(id)` |
+
+| Method                               | Function                            |
+| ------------------------------------ | ----------------------------------- |
+| GET `/admin/customers`               | `adminApi.getCustomers(params)`     |
+| GET `/admin/customers/:id`           | `adminApi.getCustomerById(id)`      |
+| POST `/admin/customers`              | `adminApi.createCustomer(data)`     |
+| PATCH `/admin/customers/:id`         | `adminApi.updateCustomer(id, data)` |
+| PATCH `/admin/customers/:id/disable` | `adminApi.disableCustomer(id)`      |
 
 ### Inbound Packages
-| Method | Function |
-|--------|----------|
-| GET `/admin/inbound-packages` | `adminApi.getInboundPackages(params)` |
-| GET `/admin/inbound-packages/:id` | `adminApi.getInboundPackageById(id)` |
-| POST `/admin/inbound-packages` | `adminApi.createInboundPackage(data)` |
-| PATCH `/admin/inbound-packages/:id` | `adminApi.updateInboundPackage(id, data)` |
-| PATCH `/admin/inbound-packages/:id/assign-customer` | `adminApi.assignCustomerToPackage(id, data)` |
-| PATCH `/admin/inbound-packages/:id/status` | `adminApi.updateInboundPackageStatus(id, data)` |
-| GET `/admin/inbound-packages/:id/images` | `adminApi.listInboundPackageImages(id)` |
-| POST `/admin/inbound-packages/:id/images` | `adminApi.uploadInboundPackageImage(id, file)` — multipart/form-data |
-| DELETE `/admin/inbound-packages/:id/images?imageUrl=...&confirm=DELETE_HARD` | `adminApi.deleteInboundPackageImage(id, imageUrl)` |
+
+| Method                                                                       | Function                                                             |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| GET `/admin/inbound-packages`                                                | `adminApi.getInboundPackages(params)`                                |
+| GET `/admin/inbound-packages/:id`                                            | `adminApi.getInboundPackageById(id)`                                 |
+| POST `/admin/inbound-packages`                                               | `adminApi.createInboundPackage(data)`                                |
+| PATCH `/admin/inbound-packages/:id`                                          | `adminApi.updateInboundPackage(id, data)`                            |
+| PATCH `/admin/inbound-packages/:id/assign-customer`                          | `adminApi.assignCustomerToPackage(id, data)`                         |
+| PATCH `/admin/inbound-packages/:id/status`                                   | `adminApi.updateInboundPackageStatus(id, data)`                      |
+| GET `/admin/inbound-packages/:id/images`                                     | `adminApi.listInboundPackageImages(id)`                              |
+| POST `/admin/inbound-packages/:id/images`                                    | `adminApi.uploadInboundPackageImage(id, file)` — multipart/form-data |
+| DELETE `/admin/inbound-packages/:id/images?imageUrl=...&confirm=DELETE_HARD` | `adminApi.deleteInboundPackageImage(id, imageUrl)`                   |
 
 ### Customer Shipments
-| Method | Function |
-|--------|----------|
-| GET `/admin/customer-shipments` | `adminApi.getCustomerShipments(params)` |
-| GET `/admin/customer-shipments/:id` | `adminApi.getCustomerShipmentById(id)` |
-| POST `/admin/customer-shipments` | `adminApi.createCustomerShipment(data)` |
-| PATCH `/admin/customer-shipments/:id` | `adminApi.updateCustomerShipment(id, data)` |
-| PATCH `/admin/customer-shipments/:id/cancel` | `adminApi.cancelCustomerShipment(id)` |
-| PATCH `/admin/customer-shipments/:id/status` | `adminApi.updateCustomerShipmentStatus(id, data)` |
-| PATCH `/admin/customer-shipments/:id/payment-status` | `adminApi.updateCustomerShipmentPaymentStatus(id, data)` |
-| POST `/admin/customer-shipments/:id/items` | `adminApi.addItemToShipment(id, data)` |
-| DELETE `/admin/customer-shipments/:id/items/:itemId` | `adminApi.removeItemFromShipment(shipmentId, itemId)` |
-| GET `/admin/customer-shipments/:id/images` | `adminApi.listCustomerShipmentImages(id)` |
-| POST `/admin/customer-shipments/:id/images` | `adminApi.uploadCustomerShipmentImage(id, file)` — multipart/form-data |
-| DELETE `/admin/customer-shipments/:id/images?imageUrl=...&confirm=DELETE_HARD` | `adminApi.deleteCustomerShipmentImage(id, imageUrl)` |
+
+| Method                                                                         | Function                                                               |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| GET `/admin/customer-shipments`                                                | `adminApi.getCustomerShipments(params)`                                |
+| GET `/admin/customer-shipments/:id`                                            | `adminApi.getCustomerShipmentById(id)`                                 |
+| POST `/admin/customer-shipments`                                               | `adminApi.createCustomerShipment(data)`                                |
+| PATCH `/admin/customer-shipments/:id`                                          | `adminApi.updateCustomerShipment(id, data)`                            |
+| PATCH `/admin/customer-shipments/:id/cancel`                                   | `adminApi.cancelCustomerShipment(id)`                                  |
+| PATCH `/admin/customer-shipments/:id/status`                                   | `adminApi.updateCustomerShipmentStatus(id, data)`                      |
+| PATCH `/admin/customer-shipments/:id/payment-status`                           | `adminApi.updateCustomerShipmentPaymentStatus(id, data)`               |
+| POST `/admin/customer-shipments/:id/items`                                     | `adminApi.addItemToShipment(id, data)`                                 |
+| DELETE `/admin/customer-shipments/:id/items/:itemId`                           | `adminApi.removeItemFromShipment(shipmentId, itemId)`                  |
+| GET `/admin/customer-shipments/:id/images`                                     | `adminApi.listCustomerShipmentImages(id)`                              |
+| POST `/admin/customer-shipments/:id/images`                                    | `adminApi.uploadCustomerShipmentImage(id, file)` — multipart/form-data |
+| DELETE `/admin/customer-shipments/:id/images?imageUrl=...&confirm=DELETE_HARD` | `adminApi.deleteCustomerShipmentImage(id, imageUrl)`                   |
 
 ---
 
 ## Admin Routes
 
-| Route | File | Features |
-|-------|------|----------|
-| `/admin/login` | `(admin)/admin/login/page.tsx` | Phone+password login |
-| `/admin` | `(admin)/admin/page.tsx` | Dashboard with quick links |
-| `/admin/customers` | `(admin)/admin/customers/page.tsx` | List + search + status filter + create modal |
-| `/admin/customers/[id]` | `(admin)/admin/customers/[id]/page.tsx` | Detail + edit + disable |
-| `/admin/inbound-packages` | `(admin)/admin/inbound-packages/page.tsx` | List + search + status filter + create modal with image upload |
-| `/admin/inbound-packages/[id]` | `(admin)/admin/inbound-packages/[id]/page.tsx` | Detail + assign customer + status + image upload/preview/delete |
-| `/admin/customer-shipments` | `(admin)/admin/customer-shipments/page.tsx` | List + search + status filter + create modal with billing fields, images, default notes |
-| `/admin/customer-shipments/[id]` | `(admin)/admin/customer-shipments/[id]/page.tsx` | Detail + billing fields + status + payment status + image upload/preview/delete + cancel |
-| `/admin/master-shipments` | `(admin)/admin/master-shipments/page.tsx` | List + search + filters + create modal with customerShipmentIds multi-select + mobile cards |
-| `/admin/master-shipments/[id]` | `(admin)/admin/master-shipments/[id]/page.tsx` | Detail + edit + status + publication + CS management + hard delete |
-| `/admin/transactions` | `(admin)/admin/transactions/page.tsx` | List + type/payment filters + create modal + mobile cards |
-| `/admin/transactions/[id]` | `(admin)/admin/transactions/[id]/page.tsx` | Detail + edit amount/status + hard delete |
+| Route                            | File                                             | Features                                                                                    |
+| -------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `/admin/login`                   | `(admin)/admin/login/page.tsx`                   | Phone+password login                                                                        |
+| `/admin`                         | `(admin)/admin/page.tsx`                         | Dashboard with quick links                                                                  |
+| `/admin/customers`               | `(admin)/admin/customers/page.tsx`               | List + search + status filter + create modal                                                |
+| `/admin/customers/[id]`          | `(admin)/admin/customers/[id]/page.tsx`          | Detail + edit + disable                                                                     |
+| `/admin/inbound-packages`        | `(admin)/admin/inbound-packages/page.tsx`        | List + search + status filter + create modal with image upload                              |
+| `/admin/inbound-packages/[id]`   | `(admin)/admin/inbound-packages/[id]/page.tsx`   | Detail + assign customer + status + image upload/preview/delete                             |
+| `/admin/customer-shipments`      | `(admin)/admin/customer-shipments/page.tsx`      | List + search + status filter + create modal with billing fields, images, default notes     |
+| `/admin/customer-shipments/[id]` | `(admin)/admin/customer-shipments/[id]/page.tsx` | Detail + billing fields + status + payment status + image upload/preview/delete + cancel    |
+| `/admin/master-shipments`        | `(admin)/admin/master-shipments/page.tsx`        | List + search + filters + create modal with customerShipmentIds multi-select + mobile cards |
+| `/admin/master-shipments/[id]`   | `(admin)/admin/master-shipments/[id]/page.tsx`   | Detail + edit + status + publication + CS management + hard delete                          |
+| `/admin/transactions`            | `(admin)/admin/transactions/page.tsx`            | List + type/payment filters + create modal + mobile cards                                   |
+| `/admin/transactions/[id]`       | `(admin)/admin/transactions/[id]/page.tsx`       | Detail + edit amount/status + hard delete                                                   |
 
 ---
 
@@ -120,12 +124,15 @@ NEXT_PUBLIC_API_DEBUG=true  # optional, defaults based on NODE_ENV
 6. **Amount formatting** uses `formatAmountCents()` from `src/lib/format.ts` (cents → `¥25.00`)
 7. **Yuan input** uses `parseDollarsToCents()` / `centsToYuan()` for CNY conversions
 8. **Image components** (`components/admin/ImageManager.tsx` + `components/common/ImagePreviewModal.tsx`):
-   - `ImagePicker` — button triggering file input (accept=image/*, capture=environment, multiple)
+   - `ImagePicker` — button triggering file input (accept=image/\*, capture=environment, multiple)
    - `LocalImageList` — grid preview of selected local files with remove, uses `URL.createObjectURL`
    - `ServerImageGrid` — grid of uploaded images with preview modal, delete confirmation, and upload button
    - `ImagePreviewModal` — fullscreen modal with open-in-new-tab link
-9. **Default notes** — Customer shipment create form auto-generates notes with CN/US West timestamps via `Intl.DateTimeFormat`
+9. **Default notes** — Customer shipment create form auto-generates notes with CN/US West timestamps via `Intl.DateTimeFormat`, uses `customerCode`, and keeps a single final `应付费用：...` line
 10. **Customer shipment multi-select** — Master shipment create form fetches unbatched customer shipments, shows searchable checkbox list with chips for selected items
+11. **Detail response unwrap** — Detail pages unwrap raw object / `{ item }` / `{ data }` responses before setting entity state
+12. **Create modal lifecycle** — Admin create modals close, reset, and refresh lists after successful creation; failed creates stay open with the entered values intact
+13. **Safe short IDs** — Use `safeShortId()` for shortened id display and never call `.slice()` on maybe-missing ids
 
 ---
 
@@ -134,6 +141,7 @@ NEXT_PUBLIC_API_DEBUG=true  # optional, defaults based on NODE_ENV
 Component: `src/components/common/DeleteConfirmDialog.tsx`
 
 Features:
+
 - User must type "DELETE" to enable the confirm button
 - Displays entity label being deleted
 - Shows blocker counts from 409 responses (e.g., "关联入库包裹: 3")
@@ -141,6 +149,7 @@ Features:
 - Error display with requestId
 
 All 5 entities support hard delete via `?confirm=DELETE_HARD` query param:
+
 - `adminApi.hardDeleteCustomer(id)`
 - `adminApi.hardDeleteInboundPackage(id)`
 - `adminApi.hardDeleteCustomerShipment(id)`

@@ -2,6 +2,7 @@
 // Uses adminApiFetch from admin-auth.ts which auto-attaches Bearer token
 
 import { adminApiFetch } from './admin-auth';
+import { unwrapApiItem } from './unwrap';
 import type { PaginatedResponse } from '@/types/api';
 import type {
   Customer,
@@ -181,14 +182,6 @@ function cleanInboundPackagePayload(data: CreateInboundPackagePayload): CreateIn
   };
 }
 
-function unwrapApiItem<T>(value: ItemLike<T>): T {
-  if (value && typeof value === 'object') {
-    if ('item' in value && value.item && typeof value.item === 'object') return value.item as T;
-    if ('data' in value && value.data && typeof value.data === 'object') return value.data as T;
-  }
-  return value as T;
-}
-
 export const adminApi = {
   // === Customers ===
   listCustomers: async (params?: { q?: string; status?: string; page?: number; pageSize?: number }) => {
@@ -207,7 +200,7 @@ export const adminApi = {
     unwrapApiItem(await adminApiFetch<ItemLike<Customer>>(`/admin/customers/${id}`)),
 
   createCustomer: (data: CreateCustomerPayload) =>
-    adminApiFetch<Customer>('/admin/customers', { method: 'POST', body: data }),
+    adminApiFetch<ItemLike<Customer>>('/admin/customers', { method: 'POST', body: data }).then((res) => unwrapApiItem(res)),
 
   updateCustomer: async (id: string, data: UpdateCustomerPayload) =>
     unwrapApiItem(await adminApiFetch<ItemLike<Customer>>(`/admin/customers/${id}`, { method: 'PATCH', body: data })),
@@ -241,13 +234,13 @@ export const adminApi = {
     adminNote: string | null;
     issueNote: string | null;
     status: string;
-  }>) => adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}`, { method: 'PATCH', body: data }).then(unwrapApiItem),
+  }>) => adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   assignCustomerToPackage: (id: string, data: { customerCode: string }) =>
-    adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}/assign-customer`, { method: 'PATCH', body: data }).then(unwrapApiItem),
+    adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}/assign-customer`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   updateInboundPackageStatus: (id: string, data: { status: string }) =>
-    adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}/status`, { method: 'PATCH', body: data }).then(unwrapApiItem),
+    adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}/status`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   // Inbound Package images
   listInboundPackageImages: (id: string) =>
@@ -273,22 +266,22 @@ export const adminApi = {
     adminApi.listCustomerShipments(params),
 
   getCustomerShipmentById: (id: string) =>
-    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}`),
+    adminApiFetch<ItemLike<CustomerShipment>>(`/admin/customer-shipments/${id}`).then((res) => unwrapApiItem(res)),
 
   createCustomerShipment: (data: CreateCustomerShipmentPayload) =>
-    adminApiFetch<ItemLike<CustomerShipment>>('/admin/customer-shipments', { method: 'POST', body: data }).then(unwrapApiItem),
+    adminApiFetch<ItemLike<CustomerShipment>>('/admin/customer-shipments', { method: 'POST', body: data }).then((res) => unwrapApiItem(res)),
 
   updateCustomerShipment: (id: string, data: UpdateCustomerShipmentPayload) =>
-    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}`, { method: 'PATCH', body: data }),
+    adminApiFetch<ItemLike<CustomerShipment>>(`/admin/customer-shipments/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   cancelCustomerShipment: (id: string) =>
-    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}/cancel`, { method: 'PATCH' }),
+    adminApiFetch<ItemLike<CustomerShipment>>(`/admin/customer-shipments/${id}/cancel`, { method: 'PATCH' }).then((res) => unwrapApiItem(res)),
 
   updateCustomerShipmentStatus: (id: string, data: { status: string }) =>
-    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}/status`, { method: 'PATCH', body: data }),
+    adminApiFetch<ItemLike<CustomerShipment>>(`/admin/customer-shipments/${id}/status`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   updateCustomerShipmentPaymentStatus: (id: string, data: { paymentStatus: string }) =>
-    adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}/payment-status`, { method: 'PATCH', body: data }),
+    adminApiFetch<ItemLike<CustomerShipment>>(`/admin/customer-shipments/${id}/payment-status`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   addItemToShipment: (id: string, data: { inboundPackageId: string }) =>
     adminApiFetch<unknown>(`/admin/customer-shipments/${id}/items`, { method: 'POST', body: data }),
@@ -313,13 +306,13 @@ export const adminApi = {
     ),
 
   getMasterShipmentById: (id: string) =>
-    adminApiFetch<MasterShipment>(`/admin/master-shipments/${id}`),
+    adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}`).then((res) => unwrapApiItem(res)),
 
   createMasterShipment: (data: CreateMasterShipmentPayload) =>
-    adminApiFetch<MasterShipment>('/admin/master-shipments', { method: 'POST', body: data }),
+    adminApiFetch<ItemLike<MasterShipment>>('/admin/master-shipments', { method: 'POST', body: data }).then((res) => unwrapApiItem(res)),
 
   updateMasterShipmentStatus: (id: string, data: { status: string }) =>
-    adminApiFetch<MasterShipment>(`/admin/master-shipments/${id}/status`, { method: 'PATCH', body: data }),
+    adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}/status`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   addCustomerShipmentsToMaster: (id: string, data: { customerShipmentIds: string[] }) =>
     adminApiFetch<unknown>(`/admin/master-shipments/${id}/customer-shipments`, { method: 'POST', body: data }),
@@ -328,7 +321,7 @@ export const adminApi = {
     adminApiFetch<unknown>(`/admin/master-shipments/${masterId}/customer-shipments/${csId}`, { method: 'DELETE' }),
 
   updateMasterShipmentPublication: (id: string, data: { publicVisible: boolean; publicTitle?: string; publicSummary?: string; publicStatusText?: string }) =>
-    adminApiFetch<MasterShipment>(`/admin/master-shipments/${id}/publication`, { method: 'PATCH', body: data }),
+    adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}/publication`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   // === Transactions ===
   getTransactions: (params?: { q?: string; customerId?: string; customerShipmentId?: string; type?: string; page?: number; pageSize?: number }) =>
@@ -347,7 +340,7 @@ export const adminApi = {
 
   // === Master Shipment extended ===
   updateMasterShipment: (id: string, data: Partial<{ vendorName: string; vendorTrackingNo: string; adminNote: string }>) =>
-    adminApiFetch<MasterShipment>(`/admin/master-shipments/${id}`, { method: 'PATCH', body: data }),
+    adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   // === Hard Delete ===
   hardDeleteCustomer: (id: string) =>

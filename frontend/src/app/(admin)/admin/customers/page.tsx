@@ -73,6 +73,7 @@ export default function CustomersPage() {
       });
       setCreateSuccess(`客户创建成功，客户编号：${customer.customerCode}`);
       setCreateForm({ phoneCountryCode: '+86', phoneNumber: '', wechatId: '', domesticReturnAddress: '', notes: '' });
+      setShowCreate(false);
       fetchCustomers();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -102,6 +103,13 @@ export default function CustomersPage() {
       </header>
 
       <div className="p-4 md:p-6">
+        {createSuccess && (
+          <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">
+            <p>{createSuccess}</p>
+            <p className="text-xs mt-1 text-green-600">客户编号用于包裹归属，不是登录密码。</p>
+          </div>
+        )}
+
         {/* Search + Filter */}
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row flex-wrap gap-2 mb-6">
           <div className="relative flex-1 min-w-0 sm:max-w-md">
@@ -229,12 +237,6 @@ export default function CustomersPage() {
               </button>
             </div>
 
-            {createSuccess && (
-              <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">
-                <p>{createSuccess}</p>
-                <p className="text-xs mt-1 text-green-600">客户编号用于包裹归属，不是登录密码。</p>
-              </div>
-            )}
             {createError && (
               <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm">{createError}</div>
             )}

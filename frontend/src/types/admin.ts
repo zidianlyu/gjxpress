@@ -109,20 +109,9 @@ export type ApproveCustomerRegistrationResponse = {
 };
 
 // Inbound Package
-export type InboundPackageStatus =
-  | 'UNIDENTIFIED'
-  | 'ARRIVED'
-  | 'CONSOLIDATED';
+export type InboundPackageStatus = 'UNIDENTIFIED' | 'ARRIVED' | 'CONSOLIDATED';
 
-export type LegacyInboundPackageStatus =
-  | 'UNCLAIMED'
-  | 'CLAIMED'
-  | 'PREALERTED_NOT_ARRIVED'
-  | 'ARRIVED_WAREHOUSE'
-  | 'PENDING_CONFIRMATION'
-  | 'CONFIRMED'
-  | 'ISSUE_REPORTED'
-  | 'INBOUND_EXCEPTION';
+export type LegacyInboundPackageStatus = 'UNCLAIMED' | 'CLAIMED' | 'PREALERTED_NOT_ARRIVED' | 'ARRIVED_WAREHOUSE' | 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'ISSUE_REPORTED' | 'INBOUND_EXCEPTION';
 
 export type InboundPackage = {
   id: string;
@@ -153,58 +142,49 @@ export type CreateInboundPackagePayload = {
 };
 
 // Customer Shipment
-export type CustomerShipmentStatus =
-  | 'PACKED'
-  | 'SHIPPED'
-  | 'ARRIVED'
-  | 'READY_FOR_PICKUP'
-  | 'PICKED_UP'
-  | 'EXCEPTION';
+export type CustomerShipmentStatus = 'PACKED' | 'SHIPPED' | 'ARRIVED' | 'READY_FOR_PICKUP' | 'PICKED_UP' | 'EXCEPTION';
 
-export type LegacyCustomerShipmentStatus =
-  | 'DRAFT'
-  | 'SENT_TO_OVERSEAS'
-  | 'ARRIVED_OVERSEAS'
-  | 'LOCAL_DELIVERY_REQUESTED'
-  | 'LOCAL_DELIVERY_IN_PROGRESS'
-  | 'COMPLETED';
+export type LegacyCustomerShipmentStatus = 'DRAFT' | 'SENT_TO_OVERSEAS' | 'ARRIVED_OVERSEAS' | 'LOCAL_DELIVERY_REQUESTED' | 'LOCAL_DELIVERY_IN_PROGRESS' | 'COMPLETED';
 
-export type PaymentStatus =
-  | 'UNPAID'
-  | 'PENDING'
-  | 'PAID'
-  | 'WAIVED'
-  | 'REFUNDED';
+export type PaymentStatus = 'UNPAID' | 'PENDING' | 'PAID' | 'WAIVED' | 'REFUNDED';
 
 export type CustomerShipment = {
   id: string;
-  shipmentNo: string;
-  customer?: Customer;
-  status: CustomerShipmentStatus | LegacyCustomerShipmentStatus;
-  paymentStatus: string;
-  quantity: number;
+  shipmentNo?: string | null;
+  customerId?: string | null;
+  customer?: {
+    id: string;
+    customerCode: string;
+    status?: string;
+    phoneCountryCode?: string | null;
+    phoneNumber?: string | null;
+    wechatId?: string | null;
+  } | null;
   masterShipmentId?: string | null;
+  status: string;
+  paymentStatus?: string | null;
   internationalTrackingNo?: string | null;
   publicTrackingEnabled?: boolean;
   actualWeightKg?: string | number | null;
   volumeFormula?: string | null;
   billingRateCnyPerKg?: string | number | null;
   billingWeightKg?: string | number | null;
+  quantity?: number | null;
+  imageUrls?: string[];
   notes?: string | null;
-  imageUrls: string[];
-  createdAt: string;
-  updatedAt?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 };
 
 export type CreateCustomerShipmentPayload = {
   customerCode: string;
   inboundPackageIds?: string[];
-  quantity?: number;
-  notes?: string;
-  actualWeightKg?: number;
+  quantity: number;
+  actualWeightKg: string;
   volumeFormula?: string;
-  billingRateCnyPerKg?: number;
-  billingWeightKg?: number;
+  billingRateCnyPerKg: string;
+  billingWeightKg: string;
+  notes?: string;
 };
 
 export type UpdateCustomerShipmentPayload = {
@@ -214,21 +194,14 @@ export type UpdateCustomerShipmentPayload = {
   status?: string;
   paymentStatus?: string;
   quantity?: number;
-  actualWeightKg?: number | null;
+  actualWeightKg?: string | null;
   volumeFormula?: string | null;
-  billingRateCnyPerKg?: number | null;
-  billingWeightKg?: number | null;
+  billingRateCnyPerKg?: string | null;
+  billingWeightKg?: string | null;
 };
 
 // Master Shipment
-export type MasterShipmentStatus =
-  | 'CREATED'
-  | 'HANDED_TO_VENDOR'
-  | 'IN_TRANSIT'
-  | 'TRANSFER_OR_CUSTOMS_PROCESSING'
-  | 'ARRIVED_OVERSEAS'
-  | 'CLOSED'
-  | 'EXCEPTION';
+export type MasterShipmentStatus = 'CREATED' | 'HANDED_TO_VENDOR' | 'IN_TRANSIT' | 'TRANSFER_OR_CUSTOMS_PROCESSING' | 'ARRIVED_OVERSEAS' | 'CLOSED' | 'EXCEPTION';
 
 export type MasterShipment = {
   id: string;

@@ -22,6 +22,14 @@ const VALID_STATUSES = [
 
 const VALID_PAYMENT_STATUSES = ['UNPAID', 'PROCESSING', 'PENDING', 'PAID', 'WAIVED', 'REFUNDED'];
 const BLOCKED_ITEM_MUTATION_STATUSES = ['SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP'];
+const CUSTOMER_CODE_PATTERN = /^GJ\d{4}$/;
+const CUSTOMER_SELECT = {
+  id: true,
+  customerCode: true,
+  status: true,
+  phoneCountryCode: true,
+  phoneNumber: true,
+} as const;
 
 function assertCustomerShipmentStatus(status: string) {
   if (!VALID_STATUSES.includes(status)) {
@@ -39,9 +47,19 @@ function normalizeQuantity(quantity?: number): number {
   return value;
 }
 
+function normalizeCustomerCode(value?: string | null): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  const normalized = value.trim().toUpperCase();
+  if (!CUSTOMER_CODE_PATTERN.test(normalized)) {
+    throw new BadRequestException('customerCode must match /^GJ\\d{4}$/');
+  }
+  return normalized;
+}
+
 function formatCustomerShipment(shipment: any) {
   return {
     ...shipment,
+    imageUrls: shipment.imageUrls ?? [],
     statusText: CUSTOMER_SHIPMENT_STATUS_LABELS[shipment.status] ?? shipment.status,
     itemCount: shipment.itemCount ?? shipment._count?.items,
     _count: undefined,
@@ -53,7 +71,8 @@ export class CustomerShipmentsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: {
-    customerId: string;
+    customerCode?: string;
+    customerId?: string;
     inboundPackageIds?: string[];
     quantity?: number;
     notes?: string;
@@ -62,8 +81,19 @@ export class CustomerShipmentsService {
     billingRateCnyPerKg?: string;
     billingWeightKg?: string;
   }) {
-    const customer = await this.prisma.customer.findUnique({ where: { id: dto.customerId } });
-    if (!customer) throw new NotFoundException('Customer not found');
+    const customerCode = normalizeCustomerCode(dto.customerCode);
+    const customer = customerCode
+      ? await this.prisma.customer.findUnique({ where: { customerCode } })
+      : dto.customerId
+        ? await this.prisma.customer.findUnique({ where: { id: dto.customerId } })
+        : null;
+    if (!customer) {
+      if (customerCode) {
+        throw new NotFoundException(`Customer not found for customerCode ${customerCode}`);
+      }
+      throw new BadRequestException('customerCode is required');
+    }
+    const customerId = customer.id;
 
     let shipmentNo: string;
     for (let i = 0; i < 20; i++) {
@@ -93,7 +123,7 @@ export class CustomerShipmentsService {
       }
 
       const wrongCustomer = pkgs.filter(
-        (p) => p.customerId !== null && p.customerId !== dto.customerId,
+        (p) => p.customerId !== null && p.customerId !== customerId,
       );
       if (wrongCustomer.length > 0) {
         throw new ConflictException(
@@ -106,7 +136,7 @@ export class CustomerShipmentsService {
       const shipment = await tx.customerShipment.create({
         data: {
           shipmentNo: shipmentNo!,
-          customerId: dto.customerId,
+          customerId,
           quantity,
           notes: dto.notes,
           ...(dto.actualWeightKg !== undefined && { actualWeightKg: dto.actualWeightKg }),
@@ -120,7 +150,7 @@ export class CustomerShipmentsService {
             : undefined,
         },
         include: {
-          customer: { select: { id: true, customerCode: true, wechatId: true } },
+          customer: { select: CUSTOMER_SELECT },
           items: { include: { inboundPackage: { select: { id: true, domesticTrackingNo: true, status: true } } } },
         },
       });
@@ -174,7 +204,7 @@ export class CustomerShipmentsService {
         skip,
         take,
         include: {
-          customer: { select: { id: true, customerCode: true, wechatId: true } },
+          customer: { select: CUSTOMER_SELECT },
           masterShipment: { select: { id: true, batchNo: true, status: true } },
           _count: { select: { items: true } },
         },
@@ -195,7 +225,7 @@ export class CustomerShipmentsService {
     const shipment = await this.prisma.customerShipment.findUnique({
       where: { id },
       include: {
-        customer: { select: { id: true, customerCode: true, wechatId: true, phoneCountryCode: true, phoneNumber: true } },
+        customer: { select: CUSTOMER_SELECT },
         masterShipment: { select: { id: true, batchNo: true, status: true, vendorName: true } },
         items: {
           include: {
@@ -217,6 +247,7 @@ export class CustomerShipmentsService {
     id: string,
     dto: {
       notes?: string;
+      customerCode?: string;
       internationalTrackingNo?: string;
       publicTrackingEnabled?: boolean;
       status?: string;
@@ -236,6 +267,22 @@ export class CustomerShipmentsService {
       throw new BadRequestException(`Invalid paymentStatus: ${dto.paymentStatus}`);
     }
 
+    let customerIdUpdate: string | undefined;
+    if (dto.customerCode !== undefined) {
+      const customerCode = normalizeCustomerCode(dto.customerCode);
+      if (!customerCode) {
+        throw new BadRequestException('customerCode must match /^GJ\\d{4}$/');
+      }
+      const customer = await this.prisma.customer.findUnique({
+        where: { customerCode },
+        select: { id: true },
+      });
+      if (!customer) {
+        throw new NotFoundException(`Customer not found for customerCode ${customerCode}`);
+      }
+      customerIdUpdate = customer.id;
+    }
+
     const now = new Date();
     const timestamps: any = {};
     if (dto.status) {
@@ -249,6 +296,7 @@ export class CustomerShipmentsService {
       where: { id },
       data: {
         ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(customerIdUpdate !== undefined && { customerId: customerIdUpdate }),
         ...(dto.internationalTrackingNo !== undefined && { internationalTrackingNo: dto.internationalTrackingNo }),
         ...(dto.publicTrackingEnabled !== undefined && { publicTrackingEnabled: dto.publicTrackingEnabled }),
         ...(dto.status !== undefined && { status: dto.status as any }),
@@ -261,7 +309,7 @@ export class CustomerShipmentsService {
         ...timestamps,
       },
       include: {
-        customer: { select: { id: true, customerCode: true, wechatId: true } },
+        customer: { select: CUSTOMER_SELECT },
       },
     });
     return { data: formatCustomerShipment(updated) };

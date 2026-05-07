@@ -784,12 +784,15 @@ Responsibilities:
 Example shape:
 
 ```ts
-export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  options?: RequestInit,
+): Promise<T> {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const res = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(options?.headers || {}),
     },
   });
@@ -837,16 +840,16 @@ Order statuses:
 
 ```ts
 export const ORDER_STATUS_LABELS = {
-  UNINBOUND: '未入库',
-  INBOUNDED: '已入库',
-  USER_CONFIRM_PENDING: '待用户确认',
-  REVIEW_PENDING: '待审核',
-  PAYMENT_PENDING: '待支付',
-  PAID: '已支付',
-  READY_TO_SHIP: '待发货',
-  SHIPPED: '已发货',
-  COMPLETED: '已完成',
-  EXCEPTION: '异常处理中',
+  UNINBOUND: "未入库",
+  INBOUNDED: "已入库",
+  USER_CONFIRM_PENDING: "待用户确认",
+  REVIEW_PENDING: "待审核",
+  PAYMENT_PENDING: "待支付",
+  PAID: "已支付",
+  READY_TO_SHIP: "待发货",
+  SHIPPED: "已发货",
+  COMPLETED: "已完成",
+  EXCEPTION: "异常处理中",
 };
 ```
 
@@ -854,9 +857,9 @@ Payment statuses:
 
 ```ts
 export const PAYMENT_STATUS_LABELS = {
-  UNPAID: '未支付',
-  PROCESSING: '支付处理中',
-  PAID: '已支付',
+  UNPAID: "未支付",
+  PROCESSING: "支付处理中",
+  PAID: "已支付",
 };
 ```
 
@@ -864,9 +867,9 @@ Exception statuses:
 
 ```ts
 export const EXCEPTION_STATUS_LABELS = {
-  OPEN: '待处理',
-  PROCESSING: '处理中',
-  RESOLVED: '已解决',
+  OPEN: "待处理",
+  PROCESSING: "处理中",
+  RESOLVED: "已解决",
 };
 ```
 
@@ -1002,6 +1005,8 @@ Features:
 - Create modal accepts admin-facing customerCode and submits `customerCode` in payload
 - CustomerCodeInput shows fixed `GJ`; admin enters four digits, payload keeps full `GJxxxx`
 - Create modal includes `件数` number input, default 1, min 1
+- Create modal submits shipment decimal fields as strings and displays 应付费用 = 单价 × 计费重量
+- Create notes end with one `应付费用：...` line
 - List and mobile cards display quantity
 
 Route: `/admin/customer-shipments/[id]`
@@ -1140,21 +1145,21 @@ All public pages use centered layout: /, /about, /services, /services/china-us-s
 
 All public pages use the standardized `buildMetadata()` helper from `lib/seo.ts`:
 
-| Path | Title | Description | Canonical |
-|------|-------|-------------|-----------|
-| `/` | 广骏国际快运｜看得见的跨境物流 | 广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务，支持入库记录、包裹拍照、合箱整理、物流状态查询与美国段取货状态管理。 | `/` |
-| `/services` | 服务介绍｜广骏国际快运 | 了解广骏国际快运的中国到美国跨境物流信息服务，包括入库记录、包裹拍照、合箱出库、费用参考、计费说明和时效说明。 | `/services` |
-| `/tracking` | 物流状态查询｜广骏国际快运 | 通过国内快递单号或集运单号查询低敏物流状态。公开查询仅展示状态信息，不展示手机号、微信号、图片或交易记录。 | `/tracking` |
-| `/batch-updates` | 批次更新｜广骏国际快运 | 查看广骏国际快运公开发布的批次状态更新，了解已公开的低敏物流进度信息。 | `/batch-updates` |
-| `/register` | 新客户注册｜广骏国际快运 | 填写新客户联系信息，提交后生成客户编号，工作人员审核通过后用于后续包裹归属。 | `/register` |
-| `/faq` | 常见问题｜广骏国际快运 | 了解广骏国际快运的新客户注册、客户编号、包裹入库、计费规则、时效参考、品类限制和异常处理常见问题。 | `/faq` |
-| `/about` | 关于我们｜广骏国际快运 | 了解广骏国际快运的品牌故事、服务理念与核心价值。 | `/about` |
-| `/team` | 团队介绍｜广骏国际快运 | 了解广骏国际快运的服务团队与分工，包括国内仓储、海外仓管理和系统客服团队。 | `/team` |
-| `/compliance` | 合规说明｜广骏供应链服务 | 了解广骏供应链服务的品类说明、用户责任、时效边界和暂不承接物品说明。 | `/compliance` |
-| `/privacy` | 隐私政策｜广骏供应链服务 | 了解广骏供应链服务如何处理联系方式、客户编号、包裹记录、图片、交易记录和注册申请信息。 | `/privacy` |
-| `/terms` | 服务条款｜广骏供应链服务 | 了解广骏供应链服务的费用说明、计费规则、时效说明、客户责任和异常处理规则。 | `/terms` |
-| `/compensation` | 异常与赔付说明｜广骏供应链服务 | 了解包裹异常、少件、破损、延误和承运商异常情况下的处理原则与反馈要求。 | `/compensation` |
-| `/disclaimer` | 免责声明｜广骏供应链服务 | 了解广骏供应链服务页面信息、费用、时效和状态查询的免责声明。 | `/disclaimer` |
+| Path             | Title                          | Description                                                                                                                        | Canonical        |
+| ---------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `/`              | 广骏国际快运｜看得见的跨境物流 | 广骏供应链服务提供中国到美国方向的跨境物流信息与转运协助服务，支持入库记录、包裹拍照、合箱整理、物流状态查询与美国段取货状态管理。 | `/`              |
+| `/services`      | 服务介绍｜广骏国际快运         | 了解广骏国际快运的中国到美国跨境物流信息服务，包括入库记录、包裹拍照、合箱出库、费用参考、计费说明和时效说明。                     | `/services`      |
+| `/tracking`      | 物流状态查询｜广骏国际快运     | 通过国内快递单号或集运单号查询低敏物流状态。公开查询仅展示状态信息，不展示手机号、微信号、图片或交易记录。                         | `/tracking`      |
+| `/batch-updates` | 批次更新｜广骏国际快运         | 查看广骏国际快运公开发布的批次状态更新，了解已公开的低敏物流进度信息。                                                             | `/batch-updates` |
+| `/register`      | 新客户注册｜广骏国际快运       | 填写新客户联系信息，提交后生成客户编号，工作人员审核通过后用于后续包裹归属。                                                       | `/register`      |
+| `/faq`           | 常见问题｜广骏国际快运         | 了解广骏国际快运的新客户注册、客户编号、包裹入库、计费规则、时效参考、品类限制和异常处理常见问题。                                 | `/faq`           |
+| `/about`         | 关于我们｜广骏国际快运         | 了解广骏国际快运的品牌故事、服务理念与核心价值。                                                                                   | `/about`         |
+| `/team`          | 团队介绍｜广骏国际快运         | 了解广骏国际快运的服务团队与分工，包括国内仓储、海外仓管理和系统客服团队。                                                         | `/team`          |
+| `/compliance`    | 合规说明｜广骏供应链服务       | 了解广骏供应链服务的品类说明、用户责任、时效边界和暂不承接物品说明。                                                               | `/compliance`    |
+| `/privacy`       | 隐私政策｜广骏供应链服务       | 了解广骏供应链服务如何处理联系方式、客户编号、包裹记录、图片、交易记录和注册申请信息。                                             | `/privacy`       |
+| `/terms`         | 服务条款｜广骏供应链服务       | 了解广骏供应链服务的费用说明、计费规则、时效说明、客户责任和异常处理规则。                                                         | `/terms`         |
+| `/compensation`  | 异常与赔付说明｜广骏供应链服务 | 了解包裹异常、少件、破损、延误和承运商异常情况下的处理原则与反馈要求。                                                             | `/compensation`  |
+| `/disclaimer`    | 免责声明｜广骏供应链服务       | 了解广骏供应链服务页面信息、费用、时效和状态查询的免责声明。                                                                       | `/disclaimer`    |
 
 **Notes:**
 

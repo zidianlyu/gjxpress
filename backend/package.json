@@ -22,6 +22,7 @@
     "prisma:db:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
+    "storage:bucket:verify": "ts-node scripts/verify-storage-bucket.ts",
     "admin:create": "ts-node scripts/create-admin.ts"
   },
   "prisma": {
