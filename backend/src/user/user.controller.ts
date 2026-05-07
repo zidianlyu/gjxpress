@@ -3,9 +3,11 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ApiGenericOk, ApiStandardResponses } from '../common/swagger/api-docs';
 
 @ApiTags('User')
 @ApiBearerAuth()
+@ApiStandardResponses({ auth: true, notFound: true })
 @UseGuards(JwtAuthGuard)
 @Controller('user')
 export class UserController {
@@ -13,12 +15,14 @@ export class UserController {
 
   @Get('profile')
   @ApiOperation({ summary: 'Get current user profile' })
+  @ApiGenericOk('Current user profile.')
   getProfile(@CurrentUser() user: any) {
     return this.userService.getProfile(user.id);
   }
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile (alias for /user/profile)' })
+  @ApiGenericOk('Current user profile.')
   getMe(@CurrentUser() user: any) {
     return this.userService.getProfile(user.id);
   }

@@ -14,9 +14,11 @@ import { UpdateExceptionDto } from './dto/update-exception.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ApiGenericCreated, ApiGenericOk, ApiIdParam, ApiStandardResponses } from '../common/swagger/api-docs';
 
 @ApiTags('Exception')
 @ApiBearerAuth()
+@ApiStandardResponses({ auth: true, forbidden: true, notFound: true, conflict: true })
 @UseGuards(JwtAuthGuard)
 @Controller('packages/:packageId/exceptions')
 export class ExceptionController {
@@ -24,6 +26,8 @@ export class ExceptionController {
 
   @Post()
   @ApiOperation({ summary: 'User reports an exception on a package' })
+  @ApiIdParam('packageId', 'Package id')
+  @ApiGenericCreated('Exception created for package.')
   create(
     @Param('packageId') packageId: string,
     @Body() dto: CreateExceptionDto,
@@ -34,6 +38,8 @@ export class ExceptionController {
 
   @Get()
   @ApiOperation({ summary: 'List exceptions for a package' })
+  @ApiIdParam('packageId', 'Package id')
+  @ApiGenericOk('Exception array for package.')
   list(@Param('packageId') packageId: string) {
     return this.exceptionService.listByPackage(packageId);
   }
@@ -41,6 +47,9 @@ export class ExceptionController {
   @Patch(':exceptionId/status')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: '[Admin] Update exception status' })
+  @ApiIdParam('packageId', 'Package id')
+  @ApiIdParam('exceptionId', 'Exception id')
+  @ApiGenericOk('Exception status updated.')
   updateStatus(
     @Param('exceptionId') exceptionId: string,
     @Body() dto: UpdateExceptionDto,

@@ -3,9 +3,11 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NotificationService } from './notification.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ApiGenericOk, ApiStandardResponses } from '../common/swagger/api-docs';
 
 @ApiTags('Notification')
 @ApiBearerAuth()
+@ApiStandardResponses({ auth: true })
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationController {
@@ -13,6 +15,7 @@ export class NotificationController {
 
   @Get()
   @ApiOperation({ summary: 'List notifications for current user' })
+  @ApiGenericOk('Notification array for current user.')
   list(@CurrentUser() user: any) {
     return this.notificationService.listByUser(user.id);
   }

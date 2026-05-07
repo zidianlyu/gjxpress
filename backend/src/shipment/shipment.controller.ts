@@ -5,9 +5,11 @@ import { CreateShipmentDto } from './dto/create-shipment.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ApiGenericCreated, ApiGenericOk, ApiIdParam, ApiStandardResponses } from '../common/swagger/api-docs';
 
 @ApiTags('Shipment')
 @ApiBearerAuth()
+@ApiStandardResponses({ auth: true, forbidden: true, notFound: true, conflict: true })
 @UseGuards(JwtAuthGuard)
 @Controller('shipments')
 export class ShipmentController {
@@ -26,6 +28,8 @@ export class ShipmentController {
     type: Boolean,
     description: 'Force shipment even if order is not paid (admin override)',
   })
+  @ApiIdParam('orderId', 'Order id')
+  @ApiGenericCreated('Shipment created for order.')
   create(
     @Param('orderId') orderId: string,
     @Body() dto: CreateShipmentDto,
@@ -37,6 +41,8 @@ export class ShipmentController {
 
   @Get(':orderId')
   @ApiOperation({ summary: 'Get shipment for an order' })
+  @ApiIdParam('orderId', 'Order id')
+  @ApiGenericOk('Shipment for order.')
   findByOrder(@Param('orderId') orderId: string) {
     return this.shipmentService.findByOrder(orderId);
   }

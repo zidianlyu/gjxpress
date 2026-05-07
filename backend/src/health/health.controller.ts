@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 
@@ -13,6 +13,23 @@ export class HealthController {
 
   @Get()
   @ApiOperation({ summary: 'Health check endpoint with database and storage status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Service health including database and storage checks.',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['ok', 'degraded'] },
+        timestamp: { type: 'string', format: 'date-time' },
+        service: { type: 'string', example: 'gjxpress-api' },
+        database: { type: 'string', enum: ['ok', 'error'] },
+        databaseError: { type: 'string', nullable: true },
+        storage: { type: 'string', enum: ['ok', 'error'] },
+        storageError: { type: 'string', nullable: true },
+      },
+      required: ['status', 'timestamp', 'service', 'database', 'storage'],
+    },
+  })
   async check() {
     const timestamp = new Date().toISOString();
 

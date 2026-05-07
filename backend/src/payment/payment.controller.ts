@@ -5,9 +5,11 @@ import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ApiGenericOk, ApiIdParam, ApiStandardResponses } from '../common/swagger/api-docs';
 
 @ApiTags('Payment')
 @ApiBearerAuth()
+@ApiStandardResponses({ auth: true, forbidden: true, notFound: true, conflict: true })
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('orders/:orderId/payment')
 export class PaymentController {
@@ -15,6 +17,8 @@ export class PaymentController {
 
   @Patch('status')
   @ApiOperation({ summary: '[Admin] Update order payment status' })
+  @ApiIdParam('orderId', 'Order id')
+  @ApiGenericOk('Order payment status updated.')
   update(
     @Param('orderId') orderId: string,
     @Body() dto: UpdatePaymentDto,
