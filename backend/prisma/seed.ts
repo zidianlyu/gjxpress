@@ -12,10 +12,9 @@ async function main() {
 
   // 1. 创建测试用户
   const testUser = await prisma.user.upsert({
-    where: { openid: 'test_openid_12345' },
+    where: { userCode: '8888' },
     update: {},
     create: {
-      openid: 'test_openid_12345',
       userCode: '8888',
       nickname: '测试用户',
       avatarUrl: 'https://via.placeholder.com/100x100/1890ff/ffffff?text=Test',

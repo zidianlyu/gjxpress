@@ -112,7 +112,7 @@ export class AdminService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        user: { select: { id: true, userCode: true, nickname: true, openid: true } },
+        user: { select: { id: true, userCode: true, nickname: true } },
         packages: { include: { images: true, goodsItems: true, exceptions: true } },
         paymentRecords: true,
         shipment: { include: { events: true } },
@@ -122,12 +122,7 @@ export class AdminService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
-    const { user, ...rest } = order;
-    const openidMasked = user.openid
-      ? user.openid.slice(0, 4) + '***' + user.openid.slice(-3)
-      : null;
-
-    return { data: { ...rest, user: { ...user, openid: undefined, openidMasked } } };
+    return { data: order };
   }
 
   async createOrder(body: { userId?: string; userCode?: string; remark?: string }, adminId: string) {

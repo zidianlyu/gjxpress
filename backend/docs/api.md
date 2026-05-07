@@ -11,13 +11,13 @@
 ## 1. API Principles
 
 1. All clients call the backend API.
-2. Mini Program does not call Supabase directly.
+2. Retired clients must not be reintroduced as active API consumers.
 3. Frontend does not call Supabase directly for private data.
 4. Backend validates all ownership and permissions.
 5. Admin operations must be logged.
 6. Response shape should be predictable.
 7. Use explicit status enums.
-8. Do not expose internal secrets, raw openid in public APIs, service keys, or password hashes.
+8. Do not expose internal secrets, service keys, Authorization headers, JWTs, or password hashes.
 
 ---
 
@@ -257,53 +257,7 @@ GET /health
 
 ## 8. Auth APIs
 
-## 8.1 WeChat Login
-
-Used by Mini Program.
-
-```http
-POST /auth/wechat-login
-```
-
-### Request
-
-```json
-{
-  "code": "wx_login_code",
-  "nickname": "optional nickname",
-  "avatarUrl": "https://optional-avatar-url"
-}
-```
-
-### Response
-
-```json
-{
-  "data": {
-    "accessToken": "jwt_token",
-    "tokenType": "Bearer",
-    "expiresIn": 604800,
-    "user": {
-      "id": "usr_123",
-      "userCode": "1023",
-      "nickname": "张三",
-      "avatarUrl": "https://...",
-      "createdAt": "2026-05-04T00:00:00.000Z"
-    }
-  }
-}
-```
-
-### Notes
-
-- Backend exchanges `code` with WeChat.
-- Backend stores `openid`.
-- Do not return `openid` unless explicitly needed for admin debugging.
-- `code` can only be used once.
-
----
-
-## 8.2 Admin Login
+## 8.1 Admin Login
 
 ```http
 POST /auth/admin-login
@@ -338,7 +292,7 @@ POST /auth/admin-login
 
 ---
 
-## 8.3 Current Session
+## 8.2 Current Session
 
 ```http
 GET /auth/me
@@ -472,7 +426,7 @@ Auth: User optional, but if authenticated include user-specific formatted addres
     "instructions": [
       "请在淘宝/京东下单时复制本地址。",
       "收件人中请保留您的用户ID，方便仓库识别。",
-      "仓库收到包裹后会拍照上传至小程序。"
+      "仓库收到包裹后会拍照上传，客户可在官网查询状态。"
     ]
   }
 }
@@ -697,8 +651,7 @@ Response same as user detail but includes admin-only fields:
     "user": {
       "id": "usr_123",
       "userCode": "1023",
-      "nickname": "张三",
-      "openidMasked": "oAbc***xyz"
+      "nickname": "张三"
     },
     "status": "PAYMENT_PENDING",
     "paymentStatus": "UNPAID",
@@ -762,7 +715,7 @@ Auth: Admin
   "paymentStatus": "PAID",
   "amount": 68.0,
   "currency": "USD",
-  "paymentMethod": "WECHAT_EXTERNAL",
+  "paymentMethod": "OFFLINE",
   "proofImageId": "img_123",
   "reason": "Payment confirmed outside mini program."
 }
@@ -1327,7 +1280,7 @@ Auth: User
 ```json
 {
   "templateIds": ["template_id_1", "template_id_2"],
-  "source": "WECHAT_SUBSCRIBE_MESSAGE"
+  "source": "SYSTEM"
 }
 ```
 

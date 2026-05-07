@@ -227,8 +227,8 @@ const nextConfig = {
 
 ## 注意事项
 
-1. **不实现微信小程序页面** - 微信小程序是独立项目
-2. **不实现微信支付** - 支付逻辑在后端处理
+1. **不实现已废弃的小程序页面** - 当前主线是 Public 官网 + Admin Portal
+2. **不实现在线支付** - 当前不接入支付
 3. **SEO页面使用 Server Components** - 保持静态渲染
 4. **Admin页面使用 Client Components** - 支持交互功能
 

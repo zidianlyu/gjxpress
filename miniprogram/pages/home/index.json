@@ -1,7 +1,0 @@
-{
-  "usingComponents": {
-    "error-state": "../../components/error-state/index"
-  },
-  "enablePullDownRefresh": true,
-  "backgroundTextStyle": "dark"
-}

@@ -25,24 +25,6 @@ export const envValidationSchema = Joi.object({
   JWT_EXPIRES_IN: Joi.string().default('7d'),
   ADMIN_JWT_EXPIRES_IN: Joi.string().default('1d'),
 
-  // WeChat (conditional)
-  WECHAT_MOCK_LOGIN: Joi.string().valid('true', 'false').default('false'),
-  WECHAT_APP_ID: Joi.string().when('WECHAT_MOCK_LOGIN', {
-    is: 'false',
-    then: Joi.string().required().messages({
-      'any.required': 'WECHAT_APP_ID is required when WECHAT_MOCK_LOGIN is not true.',
-    }),
-    otherwise: Joi.string().allow('').optional(),
-  }),
-  WECHAT_APP_SECRET: Joi.string().when('WECHAT_MOCK_LOGIN', {
-    is: 'false',
-    then: Joi.string().required().messages({
-      'any.required': 'WECHAT_APP_SECRET is required when WECHAT_MOCK_LOGIN is not true.',
-    }),
-    otherwise: Joi.string().allow('').optional(),
-  }),
-  WECHAT_CODE2SESSION_URL: Joi.string().default('https://api.weixin.qq.com/sns/jscode2session'),
-
   // Warehouse address
   WAREHOUSE_RECIPIENT_NAME: Joi.string().default('广骏仓库'),
   WAREHOUSE_PHONE: Joi.string().allow('').default(''),

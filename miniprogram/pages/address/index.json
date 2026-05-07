@@ -1,6 +1,0 @@
-{
-  "usingComponents": {
-    "error-state": "../../components/error-state/index"
-  },
-  "navigationBarTitleText": "国内仓地址"
-}

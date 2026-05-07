@@ -99,15 +99,15 @@ The frontend app should include:
 
 The frontend must not implement:
 
-- WeChat Mini Program UI
-- WeChat login flow for Mini Program users
+- Retired mini program UI
+- Retired mini program login flow
 - WeChat Pay
 - Alipay
 - Direct Supabase database calls from browser
 - Direct Supabase Storage service-role calls from browser
 - Backend business rules
 - Package status mutation without authenticated admin API
-- Customer package tracking workflow that belongs in `miniprogram/`
+- Direct Supabase calls from browser runtime
 
 ---
 
@@ -185,13 +185,14 @@ Admin user
   -> NestJS backend
   -> Supabase Postgres + Storage
 
-WeChat Mini Program user
-  -> miniprogram/
+Public visitor
+  -> gjxpress.net
+  -> Vercel Next.js frontend
   -> api.gjxpress.net
   -> NestJS backend
 ```
 
-The frontend and the mini program are separate clients. The frontend should not assume it can access mini program runtime APIs.
+The frontend calls backend APIs for business data and does not access Supabase directly.
 
 ---
 
@@ -414,7 +415,7 @@ Must include numbered steps:
 2. 在淘宝/京东等平台下单
 3. 包裹到达国内仓
 4. 仓库拍照/称重/入库
-5. 用户在微信小程序确认
+5. 用户在官网查询状态或联系工作人员确认
 6. 管理员安排发货
 7. 用户查看物流状态
 ```

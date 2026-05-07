@@ -1,6 +1,6 @@
 # Web Logistics Phase 1 — Implementation Notes
 
-> Scope: Backend only. No frontend, no miniprogram, no SMS, no payment integration.
+> Scope: Backend only. No frontend runtime changes, no SMS, no payment integration.
 > Base prefix: `/api`
 > Auth: JWT Bearer token required for Admin APIs. No auth for Public APIs.
 
@@ -261,14 +261,11 @@ Source: `src/common/status-labels.ts`
 
 ---
 
-## 8. Old API Compatibility
+## 8. API Compatibility
 
 The following existing endpoints are **unchanged** and remain fully operational:
 
-- `POST /api/auth/wechat-login` — WeChat Mini Program login
 - `POST /api/auth/admin-login` — still works with `username` + `password` (legacy Admin model)
-- `GET /api/orders`, `POST /api/orders/*` — mini program order APIs
-- `GET /api/packages`, `POST /api/packages/*` — mini program package APIs
 - `GET /api/warehouse-address/*` — warehouse address APIs
 - All existing `/api/admin/*` endpoints (users, orders, packages, exceptions, shipments, QR codes, notifications, action logs, recommendations)
 - `GET /api/public/recommendations`, `GET /api/public/recommendations/:slug`

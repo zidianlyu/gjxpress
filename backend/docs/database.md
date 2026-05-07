@@ -231,8 +231,6 @@ enum RecommendationStatus {
 
 model User {
   id        String   @id @default(cuid())
-  openid    String   @unique
-  unionid   String?
   nickname  String?
   avatarUrl String?
   userCode  String   @unique
@@ -669,8 +667,6 @@ model Recommendation {
 
 ## 5.1 User
 
-`openid` is unique and private.
-
 `userCode` must be 4 digits in V1.
 
 Generation strategy:
@@ -950,7 +946,6 @@ Cannot access:
 other users' data
 admin logs
 all orders
-raw openid
 payment records beyond displayable status
 ```
 
@@ -1021,7 +1016,6 @@ shipment tracking number
 
 Recommended:
 
-- unique `User.openid`
 - unique `User.userCode`
 - unique `Order.orderNo`
 - unique `Package.packageNo`

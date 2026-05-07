@@ -19,6 +19,6 @@
 6. /health endpoint
 7. README backend 启动和部署说明
 
-不要修改 frontend/ 或 miniprogram/。
+不要修改 frontend/ runtime，除非清理过期引用。
 不要硬编码任何 secret。
 所有敏感配置必须从环境变量读取。
