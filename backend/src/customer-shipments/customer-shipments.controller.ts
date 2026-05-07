@@ -15,8 +15,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, IsUUID, IsBoolean } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsString, IsOptional, IsArray, IsUUID, IsBoolean, IsInt, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomerShipmentsService } from './customer-shipments.service';
 import { AdminImageService } from '../admin-image/admin-image.service';
@@ -27,7 +27,7 @@ import {
   ApiGenericOk,
   ApiIdParam,
   ApiMultipartFile,
-  ApiPaginatedOk,
+  ApiItemsPaginatedOk,
   ApiPaginationQueries,
   ApiStandardResponses,
   deletedSchema,
@@ -46,6 +46,8 @@ class UpdateCustomerShipmentDto {
   @IsString() @IsOptional() status?: string;
   @ApiPropertyOptional({ description: 'Payment status.' })
   @IsString() @IsOptional() paymentStatus?: string;
+  @ApiPropertyOptional({ type: Number, description: 'Number of pieces in this customer shipment.' })
+  @IsInt() @Min(1) @Type(() => Number) @IsOptional() quantity?: number;
   @ApiPropertyOptional({ description: 'Actual weight in kg, accepted as decimal string.' })
   @IsString() @IsOptional() actualWeightKg?: string;
   @ApiPropertyOptional({ description: 'Volume formula text.' })
@@ -63,6 +65,8 @@ class CreateCustomerShipmentDto {
   @IsArray() @IsOptional() inboundPackageIds?: string[];
   @ApiPropertyOptional({ description: 'Notes.' })
   @IsString() @IsOptional() notes?: string;
+  @ApiPropertyOptional({ type: Number, default: 1, description: 'Number of pieces in this customer shipment.' })
+  @IsInt() @Min(1) @Type(() => Number) @IsOptional() quantity?: number;
   @ApiPropertyOptional({ description: 'Actual weight in kg, accepted as decimal string.' })
   @IsString() @IsOptional() actualWeightKg?: string;
   @ApiPropertyOptional({ description: 'Volume formula text.' })
@@ -74,7 +78,7 @@ class CreateCustomerShipmentDto {
 }
 
 class UpdateShipmentStatusDto {
-  @ApiProperty({ description: 'Customer shipment status.' })
+  @ApiProperty({ enum: ['PACKED', 'SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP', 'EXCEPTION'], description: 'Customer shipment status.' })
   @IsString() status: string;
   @ApiPropertyOptional({ format: 'date-time', description: 'Optional forced timestamp.' })
   @IsString() @IsOptional() forcedAt?: string;
@@ -112,13 +116,13 @@ export class CustomerShipmentsController {
   @Get()
   @ApiOperation({ summary: '[Admin] List customer shipments' })
   @ApiQuery({ name: 'q', required: false, type: String, description: 'Search shipment number, customer code, tracking number, or notes.' })
-  @ApiQuery({ name: 'status', required: false, type: String, description: 'Shipment status filter.' })
+  @ApiQuery({ name: 'status', required: false, enum: ['PACKED', 'SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP', 'EXCEPTION'], description: 'Shipment status filter.' })
   @ApiQuery({ name: 'paymentStatus', required: false, type: String, description: 'Payment status filter.' })
   @ApiQuery({ name: 'customerId', required: false, type: String, description: 'Customer id filter.' })
   @ApiQuery({ name: 'masterShipmentId', required: false, type: String, description: 'Master shipment id filter.' })
   @ApiQuery({ name: 'unbatched', required: false, type: Boolean, description: 'true = only shipments not yet in any batch.' })
   @ApiPaginationQueries()
-  @ApiPaginatedOk('Customer shipments with itemCount plus pagination.')
+  @ApiItemsPaginatedOk('Customer shipments with itemCount plus pagination.')
   findAll(
     @Query('q') q?: string,
     @Query('status') status?: string,
@@ -149,7 +153,7 @@ export class CustomerShipmentsController {
   }
 
   @Patch(':id/cancel')
-  @ApiOperation({ summary: '[Admin] Cancel shipment (DRAFT/PACKED/EXCEPTION only). Restores package statuses to CLAIMED.' })
+  @ApiOperation({ summary: '[Admin] Cancel shipment (PACKED/EXCEPTION only). Restores package statuses to ARRIVED.' })
   @ApiIdParam('id', 'Customer shipment id')
   @ApiGenericOk('Shipment cancelled.')
   cancel(@Param('id') id: string) {

@@ -208,9 +208,9 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 | Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
 | Create customer | POST | `/admin/customers` | `customers.controller.ts` | `create()` | `CreateCustomerDto` | ✅ | ✅ Updated | Phone uniqueness check; auto GJ#### code; accepts domesticReturnAddress |
-| List customers | GET | `/admin/customers` | `customers.controller.ts` | `findAll()` | query params | ✅ | ✅ Implemented | q, status, page, pageSize; returns domesticReturnAddress |
+| List customers | GET | `/admin/customers` | `customers.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, status, page, pageSize; returns `{ items, page, pageSize, total }`; q searches customerCode/phoneNumber/wechatId |
 | Get customer detail | GET | `/admin/customers/:id` | `customers.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes packages, shipments, counts, domesticReturnAddress |
-| Update customer | PATCH | `/admin/customers/:id` | `customers.controller.ts` | `update()` | `UpdateCustomerDto` | ✅ | ✅ Updated | phone, wechatId, **domesticReturnAddress**, notes, status |
+| Update customer | PATCH | `/admin/customers/:id` | `customers.controller.ts` | `update()` | `UpdateCustomerDto` | ✅ | ✅ Updated | phone, wechatId, **domesticReturnAddress**, notes, status (`ACTIVE`/`DISABLED`); customerCode immutable |
 | Soft-disable customer | PATCH | `/admin/customers/:id/disable` | `customers.controller.ts` | `disable()` | — | ✅ | ✅ Implemented | Sets status=DISABLED |
 | Hard delete | DELETE | `/admin/customers/:id` | `customers.controller.ts` | `hardDelete()` | `?confirm=DELETE_HARD` | ✅ | ✅ Implemented | 409 if inboundPackages/customerShipments/transactions > 0 |
 
@@ -218,12 +218,12 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 
 | Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Create inbound package | POST | `/admin/inbound-packages` | `inbound-packages.controller.ts` | `create()` | `CreateInboundPackageDto` | ✅ | ✅ Implemented | customerCode not found → 404 (not silent) |
-| List packages | GET | `/admin/inbound-packages` | `inbound-packages.controller.ts` | `findAll()` | query params | ✅ | ✅ Implemented | q, status, customerId, page, pageSize |
+| Create inbound package | POST | `/admin/inbound-packages` | `inbound-packages.controller.ts` | `create()` | `CreateInboundPackageDto` | ✅ | ✅ Updated | domesticTrackingNo optional; customerCode resolves customerId; no code → UNIDENTIFIED; code → ARRIVED |
+| List packages | GET | `/admin/inbound-packages` | `inbound-packages.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | returns `{ items, page, pageSize, total }`; q searches domesticTrackingNo/customerCode/phoneNumber/wechatId; includes customer and imageUrls |
 | Get package detail | GET | `/admin/inbound-packages/:id` | `inbound-packages.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customer, shipmentItems |
 | General update | PATCH | `/admin/inbound-packages/:id` | `inbound-packages.controller.ts` | `update()` | inline DTO | ✅ | ✅ Updated | domesticTrackingNo, warehouseReceivedAt, issueNote, adminNote, status (no dimensions) |
 | Assign customer | PATCH | `/admin/inbound-packages/:id/assign-customer` | `inbound-packages.controller.ts` | `assignCustomer()` | inline DTO | ✅ | ✅ Implemented | 409 if already assigned; 404 if code not found |
-| Update status | PATCH | `/admin/inbound-packages/:id/status` | `inbound-packages.controller.ts` | `updateStatus()` | inline DTO | ✅ | ✅ Implemented | Validates against InboundPackageStatus enum |
+| Update status | PATCH | `/admin/inbound-packages/:id/status` | `inbound-packages.controller.ts` | `updateStatus()` | inline DTO | ✅ | ✅ Updated | Valid values: UNIDENTIFIED, ARRIVED, CONSOLIDATED |
 | List images | GET | `/admin/inbound-packages/:id/images` | `inbound-packages.controller.ts` | `getImages()` | — | ✅ | ✅ **New** | Returns `{ items: string[] }` |
 | Upload image | POST | `/admin/inbound-packages/:id/images` | `inbound-packages.controller.ts` | `uploadImage()` | multipart/form-data `file` | ✅ | ✅ **New** | Uploads to Supabase Storage; appends URL to imageUrls; returns `{ url, imageUrls }` |
 | Delete image | DELETE | `/admin/inbound-packages/:id/images` | `inbound-packages.controller.ts` | `deleteImage()` | `?imageUrl=<encoded>&confirm=DELETE_HARD` | ✅ | ✅ **Updated** | Query params only; removes from storage and imageUrls; returns `{ deleted, url, imageUrls }` |
@@ -233,15 +233,15 @@ WAREHOUSE_COPY_TEMPLATE="收件人：{recipientName}\n电话：{phone}\n地址�
 
 | Capability | Method | Path | Controller | Service | DTO | Admin Guard | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Create shipment | POST | `/admin/customer-shipments` | `customer-shipments.controller.ts` | `create()` | inline DTO | ✅ | ✅ Updated | Auto GJS{date}{seq} shipmentNo; accepts billing fields on create |
-| List shipments | GET | `/admin/customer-shipments` | `customer-shipments.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, status, paymentStatus, customerId, masterShipmentId, **unbatched=true**; q also searches wechatId |
+| Create shipment | POST | `/admin/customer-shipments` | `customer-shipments.controller.ts` | `create()` | inline DTO | ✅ | ✅ Updated | Auto GJS{date}{seq} shipmentNo; accepts quantity and billing fields on create |
+| List shipments | GET | `/admin/customer-shipments` | `customer-shipments.controller.ts` | `findAll()` | query params | ✅ | ✅ Updated | q, status, paymentStatus, customerId, masterShipmentId, **unbatched=true**; returns quantity and statusText |
 | Get shipment detail | GET | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `findOne()` | — | ✅ | ✅ Implemented | Includes customer, items, masterShipment, transactions |
-| General update | PATCH | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `update()` | inline DTO | ✅ | ✅ Updated | notes, trackingNo, publicTracking, status, paymentStatus, actualWeightKg, volumeFormula, billingRateCnyPerKg, billingWeightKg |
-| Cancel shipment | PATCH | `/admin/customer-shipments/:id/cancel` | `customer-shipments.controller.ts` | `cancel()` | — | ✅ | ✅ **Added** | Blocked if SENT_TO_OVERSEAS+; restores packages to CLAIMED |
-| Update status | PATCH | `/admin/customer-shipments/:id/status` | `customer-shipments.controller.ts` | `updateStatus()` | inline DTO | ✅ | ✅ Implemented | Auto fills sentToOverseasAt etc.; no overwrite if set |
+| General update | PATCH | `/admin/customer-shipments/:id` | `customer-shipments.controller.ts` | `update()` | inline DTO | ✅ | ✅ Updated | notes, trackingNo, publicTracking, status, paymentStatus, quantity, actualWeightKg, volumeFormula, billingRateCnyPerKg, billingWeightKg |
+| Cancel shipment | PATCH | `/admin/customer-shipments/:id/cancel` | `customer-shipments.controller.ts` | `cancel()` | — | ✅ | ✅ Updated | Blocked if SHIPPED+; restores packages to ARRIVED |
+| Update status | PATCH | `/admin/customer-shipments/:id/status` | `customer-shipments.controller.ts` | `updateStatus()` | inline DTO | ✅ | ✅ Updated | Valid values: PACKED, SHIPPED, ARRIVED, READY_FOR_PICKUP, PICKED_UP, EXCEPTION |
 | Update payment status | PATCH | `/admin/customer-shipments/:id/payment-status` | `customer-shipments.controller.ts` | `updatePaymentStatus()` | inline DTO | ✅ | ✅ Implemented | Enum validation; no online payment |
 | Add item | POST | `/admin/customer-shipments/:id/items` | `customer-shipments.controller.ts` | `addItem()` | inline DTO | ✅ | ✅ Implemented | Customer match check; 409 if in another shipment |
-| Remove item | DELETE | `/admin/customer-shipments/:id/items/:itemId` | `customer-shipments.controller.ts` | `removeItem()` | — | ✅ | ✅ Implemented | 409 if SENT_TO_OVERSEAS+; restores package to CLAIMED |
+| Remove item | DELETE | `/admin/customer-shipments/:id/items/:itemId` | `customer-shipments.controller.ts` | `removeItem()` | — | ✅ | ✅ Updated | 409 if SHIPPED+; restores package to ARRIVED |
 | List images | GET | `/admin/customer-shipments/:id/images` | `customer-shipments.controller.ts` | `getImages()` | — | ✅ | ✅ **New** | Returns `{ items: string[] }` |
 | Upload image | POST | `/admin/customer-shipments/:id/images` | `customer-shipments.controller.ts` | `uploadImage()` | multipart/form-data `file` | ✅ | ✅ **New** | Uploads to Supabase Storage; appends URL to imageUrls; returns `{ url, imageUrls }` |
 | Delete image | DELETE | `/admin/customer-shipments/:id/images` | `customer-shipments.controller.ts` | `deleteImage()` | `?imageUrl=<encoded>&confirm=DELETE_HARD` | ✅ | ✅ **Updated** | Query params only; removes from storage and imageUrls; returns `{ deleted, url, imageUrls }` |

@@ -8,6 +8,20 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
+const CUSTOMER_LIST_SELECT = {
+  id: true,
+  customerCode: true,
+  phoneCountryCode: true,
+  phoneNumber: true,
+  wechatId: true,
+  domesticReturnAddress: true,
+  notes: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+const VALID_CUSTOMER_STATUSES = ['ACTIVE', 'DISABLED'];
 const MAX_CODE_RETRIES = 50;
 
 @Injectable()
@@ -49,7 +63,14 @@ export class CustomersService {
     const skip = (page - 1) * take;
 
     const where: any = {};
-    if (query.status) where.status = query.status;
+    if (query.status) {
+      if (!VALID_CUSTOMER_STATUSES.includes(query.status)) {
+        throw new BadRequestException(
+          `Invalid status: ${query.status}. Must be one of: ${VALID_CUSTOMER_STATUSES.join(', ')}`,
+        );
+      }
+      where.status = query.status;
+    }
     if (query.q) {
       where.OR = [
         { customerCode: { contains: query.q, mode: 'insensitive' } },
@@ -58,37 +79,22 @@ export class CustomersService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.customer.findMany({
         where,
         skip,
         take,
-        select: {
-          id: true,
-          customerCode: true,
-          phoneCountryCode: true,
-          phoneNumber: true,
-          wechatId: true,
-          domesticReturnAddress: true,
-          status: true,
-          createdAt: true,
-          _count: {
-            select: { inboundPackages: true, customerShipments: true },
-          },
-        },
+        select: CUSTOMER_LIST_SELECT,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.customer.count({ where }),
     ]);
 
     return {
-      data: data.map((c) => ({
-        ...c,
-        inboundPackageCount: c._count.inboundPackages,
-        customerShipmentCount: c._count.customerShipments,
-        _count: undefined,
-      })),
-      pagination: { page, pageSize: take, total, totalPages: Math.ceil(total / take) },
+      items,
+      page,
+      pageSize: take,
+      total,
     };
   }
 

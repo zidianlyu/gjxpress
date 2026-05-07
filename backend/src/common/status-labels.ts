@@ -6,27 +6,17 @@ import {
 } from '@prisma/client';
 
 export const INBOUND_PACKAGE_STATUS_LABELS: Record<InboundPackageStatus, string> = {
-  UNCLAIMED: '待识别',
-  CLAIMED: '已归属客户',
-  PREALERTED_NOT_ARRIVED: '已预报，未入库',
-  ARRIVED_WAREHOUSE: '已入库',
-  PENDING_CONFIRMATION: '待确认',
-  CONFIRMED: '已确认',
-  ISSUE_REPORTED: '已反馈异常',
+  UNIDENTIFIED: '未识别',
+  ARRIVED: '已入库',
   CONSOLIDATED: '已合箱',
-  INBOUND_EXCEPTION: '入库异常',
 };
 
 export const CUSTOMER_SHIPMENT_STATUS_LABELS: Record<CustomerShipmentStatus, string> = {
-  DRAFT: '待打包',
   PACKED: '已打包',
-  SENT_TO_OVERSEAS: '已发往海外仓',
-  ARRIVED_OVERSEAS: '已到达海外仓',
+  SHIPPED: '已发货',
+  ARRIVED: '已到达',
   READY_FOR_PICKUP: '待自提',
-  LOCAL_DELIVERY_REQUESTED: '已申请本地递送',
-  LOCAL_DELIVERY_IN_PROGRESS: '本地递送中',
-  PICKED_UP: '收件人已取货',
-  COMPLETED: '已完成',
+  PICKED_UP: '已取货',
   EXCEPTION: '异常',
 };
 
@@ -51,14 +41,8 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 
 export function getInboundPackageStage(status: InboundPackageStatus): string {
   switch (status) {
-    case 'UNCLAIMED':
-    case 'CLAIMED':
-    case 'PREALERTED_NOT_ARRIVED':
-    case 'ARRIVED_WAREHOUSE':
-    case 'PENDING_CONFIRMATION':
-    case 'CONFIRMED':
-    case 'ISSUE_REPORTED':
-    case 'INBOUND_EXCEPTION':
+    case 'UNIDENTIFIED':
+    case 'ARRIVED':
       return '国内仓';
     case 'CONSOLIDATED':
       return '待发运';
@@ -69,19 +53,14 @@ export function getInboundPackageStage(status: InboundPackageStatus): string {
 
 export function getCustomerShipmentStage(status: CustomerShipmentStatus): string {
   switch (status) {
-    case 'DRAFT':
     case 'PACKED':
       return '国内仓';
-    case 'SENT_TO_OVERSEAS':
+    case 'SHIPPED':
       return '国际运输';
-    case 'ARRIVED_OVERSEAS':
+    case 'ARRIVED':
     case 'READY_FOR_PICKUP':
       return '海外仓';
-    case 'LOCAL_DELIVERY_REQUESTED':
-    case 'LOCAL_DELIVERY_IN_PROGRESS':
-      return '本地递送';
     case 'PICKED_UP':
-    case 'COMPLETED':
       return '已完成';
     case 'EXCEPTION':
       return '异常';

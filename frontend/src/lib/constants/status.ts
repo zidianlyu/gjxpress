@@ -1,28 +1,32 @@
 // Status label mappings for Web Logistics Phase 1
 
 export const INBOUND_PACKAGE_STATUS_LABELS: Record<string, string> = {
-  UNCLAIMED: '待识别',
-  CLAIMED: '已归属客户',
-  PREALERTED_NOT_ARRIVED: '已预报，未入库',
-  ARRIVED_WAREHOUSE: '已入库',
-  PENDING_CONFIRMATION: '待确认',
-  CONFIRMED: '已确认',
-  ISSUE_REPORTED: '已反馈异常',
+  UNIDENTIFIED: '未识别',
+  ARRIVED: '已入库',
   CONSOLIDATED: '已合箱',
-  INBOUND_EXCEPTION: '入库异常',
+  UNCLAIMED: '未识别',
+  PREALERTED_NOT_ARRIVED: '未识别',
+  CLAIMED: '已入库',
+  ARRIVED_WAREHOUSE: '已入库',
+  PENDING_CONFIRMATION: '已入库',
+  CONFIRMED: '已入库',
+  ISSUE_REPORTED: '已入库',
+  INBOUND_EXCEPTION: '已入库',
 };
 
 export const CUSTOMER_SHIPMENT_STATUS_LABELS: Record<string, string> = {
-  DRAFT: '待打包',
   PACKED: '已打包',
-  SENT_TO_OVERSEAS: '已发往海外仓',
-  ARRIVED_OVERSEAS: '已到达海外仓',
+  SHIPPED: '已发货',
+  ARRIVED: '已到达',
   READY_FOR_PICKUP: '待自提',
-  LOCAL_DELIVERY_REQUESTED: '已申请本地递送',
-  LOCAL_DELIVERY_IN_PROGRESS: '本地递送中',
-  PICKED_UP: '收件人已取货',
-  COMPLETED: '已完成',
+  PICKED_UP: '已取货',
   EXCEPTION: '异常',
+  DRAFT: '已打包',
+  SENT_TO_OVERSEAS: '已发货',
+  ARRIVED_OVERSEAS: '已到达',
+  LOCAL_DELIVERY_REQUESTED: '待自提',
+  LOCAL_DELIVERY_IN_PROGRESS: '待自提',
+  COMPLETED: '已取货',
 };
 
 export const MASTER_SHIPMENT_STATUS_LABELS: Record<string, string> = {
@@ -50,28 +54,32 @@ export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
 
 // Status colors for badges
 export const INBOUND_PACKAGE_STATUS_COLORS: Record<string, string> = {
+  UNIDENTIFIED: 'bg-yellow-100 text-yellow-700',
+  ARRIVED: 'bg-green-100 text-green-700',
+  CONSOLIDATED: 'bg-blue-100 text-blue-700',
   UNCLAIMED: 'bg-yellow-100 text-yellow-700',
-  CLAIMED: 'bg-blue-100 text-blue-700',
-  PREALERTED_NOT_ARRIVED: 'bg-gray-100 text-gray-700',
+  PREALERTED_NOT_ARRIVED: 'bg-yellow-100 text-yellow-700',
+  CLAIMED: 'bg-green-100 text-green-700',
   ARRIVED_WAREHOUSE: 'bg-green-100 text-green-700',
-  PENDING_CONFIRMATION: 'bg-orange-100 text-orange-700',
-  CONFIRMED: 'bg-emerald-100 text-emerald-700',
-  ISSUE_REPORTED: 'bg-rose-100 text-rose-700',
-  CONSOLIDATED: 'bg-purple-100 text-purple-700',
-  INBOUND_EXCEPTION: 'bg-red-100 text-red-700',
+  PENDING_CONFIRMATION: 'bg-green-100 text-green-700',
+  CONFIRMED: 'bg-green-100 text-green-700',
+  ISSUE_REPORTED: 'bg-green-100 text-green-700',
+  INBOUND_EXCEPTION: 'bg-green-100 text-green-700',
 };
 
 export const CUSTOMER_SHIPMENT_STATUS_COLORS: Record<string, string> = {
-  DRAFT: 'bg-gray-100 text-gray-700',
   PACKED: 'bg-blue-100 text-blue-700',
+  SHIPPED: 'bg-cyan-100 text-cyan-700',
+  ARRIVED: 'bg-teal-100 text-teal-700',
+  READY_FOR_PICKUP: 'bg-green-100 text-green-700',
+  PICKED_UP: 'bg-emerald-100 text-emerald-700',
+  EXCEPTION: 'bg-rose-100 text-rose-700',
+  DRAFT: 'bg-blue-100 text-blue-700',
   SENT_TO_OVERSEAS: 'bg-cyan-100 text-cyan-700',
   ARRIVED_OVERSEAS: 'bg-teal-100 text-teal-700',
-  READY_FOR_PICKUP: 'bg-green-100 text-green-700',
-  LOCAL_DELIVERY_REQUESTED: 'bg-indigo-100 text-indigo-700',
-  LOCAL_DELIVERY_IN_PROGRESS: 'bg-violet-100 text-violet-700',
-  PICKED_UP: 'bg-emerald-100 text-emerald-700',
+  LOCAL_DELIVERY_REQUESTED: 'bg-green-100 text-green-700',
+  LOCAL_DELIVERY_IN_PROGRESS: 'bg-green-100 text-green-700',
   COMPLETED: 'bg-emerald-100 text-emerald-700',
-  EXCEPTION: 'bg-rose-100 text-rose-700',
 };
 
 export const MASTER_SHIPMENT_STATUS_COLORS: Record<string, string> = {
@@ -107,4 +115,34 @@ export const CUSTOMER_REGISTRATION_STATUS_COLORS: Record<string, string> = {
 // Generic status label getter with fallback
 export function getStatusLabel(status: string, labelMap: Record<string, string>): string {
   return labelMap[status] || status;
+}
+
+export const INBOUND_PACKAGE_STATUS_OPTIONS = [
+  { value: 'UNIDENTIFIED', label: '未识别' },
+  { value: 'ARRIVED', label: '已入库' },
+  { value: 'CONSOLIDATED', label: '已合箱' },
+] as const;
+
+export const CUSTOMER_SHIPMENT_STATUS_OPTIONS = [
+  { value: 'PACKED', label: '已打包' },
+  { value: 'SHIPPED', label: '已发货' },
+  { value: 'ARRIVED', label: '已到达' },
+  { value: 'READY_FOR_PICKUP', label: '待自提' },
+  { value: 'PICKED_UP', label: '已取货' },
+  { value: 'EXCEPTION', label: '异常' },
+] as const;
+
+export function normalizeInboundPackageStatus(status: string): 'UNIDENTIFIED' | 'ARRIVED' | 'CONSOLIDATED' {
+  if (status === 'CONSOLIDATED') return 'CONSOLIDATED';
+  if (status === 'UNCLAIMED' || status === 'PREALERTED_NOT_ARRIVED' || status === 'UNIDENTIFIED') return 'UNIDENTIFIED';
+  return 'ARRIVED';
+}
+
+export function normalizeCustomerShipmentStatus(status: string): 'PACKED' | 'SHIPPED' | 'ARRIVED' | 'READY_FOR_PICKUP' | 'PICKED_UP' | 'EXCEPTION' {
+  if (status === 'SENT_TO_OVERSEAS' || status === 'SHIPPED') return 'SHIPPED';
+  if (status === 'ARRIVED_OVERSEAS' || status === 'ARRIVED') return 'ARRIVED';
+  if (status === 'READY_FOR_PICKUP' || status === 'LOCAL_DELIVERY_REQUESTED' || status === 'LOCAL_DELIVERY_IN_PROGRESS') return 'READY_FOR_PICKUP';
+  if (status === 'PICKED_UP' || status === 'COMPLETED') return 'PICKED_UP';
+  if (status === 'EXCEPTION') return 'EXCEPTION';
+  return 'PACKED';
 }

@@ -23,7 +23,7 @@ import {
   ApiGenericCreated,
   ApiGenericOk,
   ApiIdParam,
-  ApiPaginatedOk,
+  ApiItemsPaginatedOk,
   ApiPaginationQueries,
   ApiStandardResponses,
   deletedSchema,
@@ -50,7 +50,7 @@ export class CustomerRegistrationsController {
   @ApiQuery({ name: 'q', required: false, type: String, description: 'Search phone, wechat id, address, notes, or generated code.' })
   @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'], description: 'Registration review status.' })
   @ApiPaginationQueries()
-  @ApiPaginatedOk('Customer registrations with pagination.')
+  @ApiItemsPaginatedOk('Customer registrations with pagination.')
   findAll(
     @Query('q') q?: string,
     @Query('status') status?: string,

@@ -30,9 +30,9 @@ export default function CustomersPage() {
     setError('');
     setErrorRequestId('');
     try {
-      const data = await adminApi.getCustomers({ q: search || undefined, status: statusFilter || undefined, page, pageSize: 20 });
+      const data = await adminApi.listCustomers({ q: search.trim() || undefined, status: statusFilter || undefined, page, pageSize: 20 });
       setCustomers(data?.items || []);
-      setTotalPages(data?.pagination?.totalPages || 1);
+      setTotalPages(data?.totalPages || 1);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -120,8 +120,8 @@ export default function CustomersPage() {
             className="px-3 py-2 rounded-md border bg-background text-sm"
           >
             <option value="">全部状态</option>
-            <option value="ACTIVE">活跃</option>
-            <option value="DISABLED">禁用</option>
+            <option value="ACTIVE">正常</option>
+            <option value="DISABLED">停用</option>
           </select>
           <button type="submit" className="px-4 py-2 rounded-md border bg-background text-sm hover:bg-muted">
             搜索
@@ -178,7 +178,7 @@ export default function CustomersPage() {
                       <td className="px-4 py-3 max-w-[160px] truncate text-xs text-muted-foreground" title={c.domesticReturnAddress || ''}>{c.domesticReturnAddress || '-'}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {c.status === 'ACTIVE' ? '活跃' : '禁用'}
+                          {c.status === 'ACTIVE' ? '正常' : '停用'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
@@ -202,7 +202,7 @@ export default function CustomersPage() {
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono text-sm font-medium">{c.customerCode}</span>
                     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {c.status === 'ACTIVE' ? '活跃' : '禁用'}
+                      {c.status === 'ACTIVE' ? '正常' : '停用'}
                     </span>
                   </div>
                   <div className="text-sm text-muted-foreground space-y-0.5">

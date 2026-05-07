@@ -1578,7 +1578,8 @@ Create a new customer. `customerCode` is auto-generated (format: `GJ####`, e.g. 
 {
   "phoneCountryCode": "+86",
   "phoneNumber": "13800000000",
-  "displayName": "张三",
+  "wechatId": "wx_zhangsan",
+  "domesticReturnAddress": "广东省广州市天河区...",
   "notes": "内部备注"
 }
 ```
@@ -1590,7 +1591,8 @@ Create a new customer. `customerCode` is auto-generated (format: `GJ####`, e.g. 
   "customerCode": "GJ0427",
   "phoneCountryCode": "+86",
   "phoneNumber": "13800000000",
-  "displayName": "张三",
+  "wechatId": "wx_zhangsan",
+  "domesticReturnAddress": "广东省广州市天河区...",
   "notes": "内部备注",
   "status": "ACTIVE",
   "createdAt": "...",
@@ -1608,13 +1610,28 @@ List customers with search and pagination.
 
 **Query params:** `q`, `status` (`ACTIVE`|`DISABLED`), `page`, `pageSize`
 
-`q` searches: `customerCode`, `phoneNumber`, `displayName`
+`q` searches: `customerCode`, `phoneNumber`, `wechatId`. If `status` is omitted, all customer statuses are returned. Default `page=1`, `pageSize=20`, max `pageSize=100`. Ordered by `createdAt desc`.
 
 **Response 200:**
 ```json
 {
-  "data": [...],
-  "pagination": { "page": 1, "pageSize": 20, "total": 42, "totalPages": 3 }
+  "items": [
+    {
+      "id": "uuid",
+      "customerCode": "GJ3178",
+      "phoneCountryCode": "+86",
+      "phoneNumber": "13800000000",
+      "wechatId": "wx_zhangsan",
+      "domesticReturnAddress": "广东省广州市天河区...",
+      "notes": "内部备注",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-05T10:00:00.000Z",
+      "updatedAt": "2026-05-05T10:00:00.000Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "total": 1
 }
 ```
 
@@ -1639,13 +1656,16 @@ Update customer fields. Cannot change `customerCode`.
 {
   "phoneCountryCode": "+1",
   "phoneNumber": "4155550000",
-  "displayName": "李四",
+  "wechatId": "wx_lisi",
+  "domesticReturnAddress": "广东省广州市越秀区...",
   "notes": "更新备注",
   "status": "ACTIVE"
 }
 ```
 
-**Errors:** 404 if not found. 409 if new phone conflicts.
+`status` accepts only `ACTIVE` or `DISABLED`. `customerCode` is immutable through this endpoint.
+
+**Errors:** 400 if status is invalid. 401 if bearer token is missing/invalid. 403 if the token is not admin. 404 if not found. 409 if new phone conflicts.
 
 ---
 
@@ -1676,22 +1696,19 @@ Create an inbound package record.
   "domesticTrackingNo": "YT123456789",
   "customerCode": "GJ0427",
   "warehouseReceivedAt": "2026-05-05T10:00:00.000Z",
-  "weightKg": "1.230",
-  "lengthCm": "20",
-  "widthCm": "15",
-  "heightCm": "10",
-  "labelImageUrl": "https://...",
-  "packageImageUrls": ["https://..."],
   "adminNote": "内部备注"
 }
 ```
 
 **Rules:**
-- If `customerCode` provided and not found → **404** (not silent; do not create as UNCLAIMED silently).
-- If `customerCode` omitted → status defaults to `UNCLAIMED`.
-- `volumeCm3` auto-calculated from `lengthCm * widthCm * heightCm`.
+- `domesticTrackingNo` is optional. Empty string is normalized to `null`.
+- If `domesticTrackingNo` is provided, duplicate non-null values return **409**.
+- If `customerCode` provided and not found → **404** (not silent).
+- If `customerCode` omitted → status defaults to `UNIDENTIFIED` (`未识别`).
+- If `customerCode` is provided and resolved to a Customer → DB stores `customerId` UUID FK and status defaults to `ARRIVED` (`已入库`).
+- Admin API uses `customerCode` as the business identifier. The database continues to store `customer_id` as the UUID FK.
 
-**Response 201:** Package object including `customer` summary.
+**Response 201:** `{ "data": { ...package, "statusText": "已入库", "customer": { "id": "uuid", "customerCode": "GJ0427", "phoneNumber": "...", "wechatId": "..." } } }`
 
 **Errors:** 404 if customerCode not found. 409 if `domesticTrackingNo` duplicate.
 
@@ -1699,36 +1716,62 @@ Create an inbound package record.
 
 ### GET /api/admin/inbound-packages
 
-**Query params:** `q`, `status`, `customerId`, `page`, `pageSize`
+**Query params:** `q`, `status`, `customerId`, `customerCode`, `page`, `pageSize`
 
-`q` searches: `domesticTrackingNo`, `customerCode` (via relation)
+`q` searches: `domesticTrackingNo`, `customerCode`, `phoneNumber`, `wechatId` via relation. If `status` is omitted, all package statuses are returned. Ordered by `createdAt desc`.
+
+**Response 200:**
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "domesticTrackingNo": null,
+      "status": "ARRIVED",
+      "statusText": "已入库",
+      "customer": {
+        "id": "uuid",
+        "customerCode": "GJ3178",
+        "phoneCountryCode": "+86",
+        "phoneNumber": "13800000000",
+        "wechatId": "wx_zhangsan"
+      },
+      "customerId": "uuid",
+      "warehouseReceivedAt": "2026-05-05T10:00:00.000Z",
+      "adminNote": "内部备注",
+      "issueNote": null,
+      "imageUrls": [],
+      "inShipment": false,
+      "createdAt": "2026-05-05T10:00:00.000Z",
+      "updatedAt": "2026-05-05T10:00:00.000Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "total": 1
+}
+```
 
 ---
 
 ### GET /api/admin/inbound-packages/:id
 
-Returns package detail including `customer`, `shipmentItems` (with shipment info), measurements, and image URLs.
+Returns package detail including `customer`, `shipmentItems` (with shipment info), `statusText`, and `imageUrls`.
 
 ---
 
 ### PATCH /api/admin/inbound-packages/:id
 
-General update. All fields optional. If any dimension changes, `volumeCm3` is recalculated.
+General update. All fields optional.
 
 **Request (all optional):**
 ```json
 {
   "domesticTrackingNo": "...",
   "warehouseReceivedAt": "...",
-  "weightKg": "...",
-  "lengthCm": "...",
-  "widthCm": "...",
-  "heightCm": "...",
-  "labelImageUrl": "...",
-  "packageImageUrls": ["..."],
   "issueNote": "...",
   "adminNote": "...",
-  "status": "ARRIVED_WAREHOUSE"
+  "status": "ARRIVED"
 }
 ```
 
@@ -1745,7 +1788,7 @@ Bind an unclaimed package to a customer.
 { "customerCode": "GJ0427" }
 ```
 
-**Rules:** 409 if already assigned. 404 if customerCode not found. Status changes from `UNCLAIMED` → `CLAIMED` (unless `INBOUND_EXCEPTION`).
+**Rules:** 409 if already assigned. 404 if customerCode not found. Status changes from `UNIDENTIFIED` → `ARRIVED`.
 
 ---
 
@@ -1755,28 +1798,12 @@ Update status only.
 
 **Request:**
 ```json
-{ "status": "ARRIVED_WAREHOUSE" }
+{ "status": "ARRIVED" }
 ```
 
-Valid values: `UNCLAIMED`, `CLAIMED`, `PREALERTED_NOT_ARRIVED`, `ARRIVED_WAREHOUSE`, `PENDING_CONFIRMATION`, `CONFIRMED`, `ISSUE_REPORTED`, `CONSOLIDATED`, `INBOUND_EXCEPTION`
+Valid values: `UNIDENTIFIED`, `ARRIVED`, `CONSOLIDATED`.
 
 **Errors:** 400 for invalid status.
-
----
-
-### PATCH /api/admin/inbound-packages/:id/measurements
-
-Update weight/dimensions. Partial update supported. `volumeCm3` auto-recalculated.
-
-**Request (all optional):**
-```json
-{
-  "weightKg": "1.500",
-  "lengthCm": "25",
-  "widthCm": "20",
-  "heightCm": "15"
-}
-```
 
 ---
 
@@ -1791,6 +1818,11 @@ Create a customer shipment (集运单).
 {
   "customerId": "uuid",
   "inboundPackageIds": ["uuid1", "uuid2"],
+  "quantity": 3,
+  "actualWeightKg": "2",
+  "volumeFormula": "35*28*13/5000=2.548",
+  "billingRateCnyPerKg": "80",
+  "billingWeightKg": "3",
   "notes": "内部备注"
 }
 ```
@@ -1800,7 +1832,8 @@ Create a customer shipment (集运单).
 - Packages must belong to same customer.
 - Packages already in another shipment → 409.
 - Packages added → their status set to `CONSOLIDATED`.
-- Default `status=DRAFT`, `paymentStatus=UNPAID`.
+- `quantity` is optional, defaults to `1`, and must be an integer >= 1.
+- Default `status=PACKED`, `paymentStatus=UNPAID`.
 
 ---
 
@@ -1809,6 +1842,8 @@ Create a customer shipment (集运单).
 **Query params:** `q`, `status`, `paymentStatus`, `customerId`, `masterShipmentId`, `page`, `pageSize`
 
 `q` searches: `shipmentNo`, `customerCode`, `phoneNumber`
+
+List and detail responses include `quantity` and `statusText`.
 
 ---
 
@@ -1829,7 +1864,12 @@ General update.
   "internationalTrackingNo": "...",
   "publicTrackingEnabled": true,
   "status": "PACKED",
-  "paymentStatus": "PAID"
+  "paymentStatus": "PAID",
+  "quantity": 3,
+  "actualWeightKg": "2",
+  "volumeFormula": "35*28*13/5000=2.548",
+  "billingRateCnyPerKg": "80",
+  "billingWeightKg": "3"
 }
 ```
 
@@ -1839,9 +1879,9 @@ If `status` is set, timestamp fields are auto-populated (see status endpoint rul
 
 ### PATCH /api/admin/customer-shipments/:id/cancel
 
-Cancel a shipment (soft cancel). Sets status to `EXCEPTION`. Restores all package statuses to `CLAIMED`.
+Cancel a shipment (soft cancel). Sets status to `EXCEPTION`. Restores all package statuses to `ARRIVED`.
 
-**Rules:** Cannot cancel if status is `SENT_TO_OVERSEAS` or later.
+**Rules:** Cannot cancel if status is `SHIPPED`, `ARRIVED`, `READY_FOR_PICKUP`, or `PICKED_UP`.
 
 **Response 200:**
 ```json
@@ -1858,18 +1898,19 @@ Update status with automatic timestamp population.
 
 **Request:**
 ```json
-{ "status": "SENT_TO_OVERSEAS", "forcedAt": "2026-05-05T10:00:00.000Z" }
+{ "status": "SHIPPED", "forcedAt": "2026-05-05T10:00:00.000Z" }
 ```
 
 Auto-populated timestamps (only if not already set):
 
 | Status | Field set |
 |---|---|
-| `SENT_TO_OVERSEAS` | `sentToOverseasAt` |
-| `ARRIVED_OVERSEAS` | `arrivedOverseasAt` |
-| `LOCAL_DELIVERY_REQUESTED` | `localDeliveryRequestedAt` |
+| `SHIPPED` | `sentToOverseasAt` |
+| `ARRIVED` | `arrivedOverseasAt` |
+| `READY_FOR_PICKUP` | `localDeliveryRequestedAt` |
 | `PICKED_UP` | `pickedUpAt` |
-| `COMPLETED` | `completedAt` |
+
+Valid values: `PACKED`, `SHIPPED`, `ARRIVED`, `READY_FOR_PICKUP`, `PICKED_UP`, `EXCEPTION`.
 
 `forcedAt` (optional) overrides the timestamp value. **Errors:** 400 for invalid status.
 
@@ -1905,7 +1946,7 @@ Add an inbound package to the shipment.
 
 Remove a package from the shipment.
 
-**Rules:** Cannot remove if shipment status is `SENT_TO_OVERSEAS` or later → 409. Package status restored to `CLAIMED`.
+**Rules:** Cannot remove if shipment status is `SHIPPED`, `ARRIVED`, `READY_FOR_PICKUP`, or `PICKED_UP` → 409. Package status restored to `ARRIVED`.
 
 ---
 
@@ -1916,7 +1957,7 @@ Remove a package from the shipment.
 | Customer | ❌ Never | ✅ `PATCH /:id/disable` (status=DISABLED) | Has packages/shipments |
 | InboundPackage | ❌ Never | ❌ Not implemented (no `archivedAt` in schema) | Avoid business record loss |
 | CustomerShipment | ❌ Never | ✅ `PATCH /:id/cancel` (status=EXCEPTION) | Cannot delete in-transit |
-| CustomerShipmentItem | N/A | ✅ `DELETE /:id/items/:itemId` (blocked if in transit) | Restores package to CLAIMED |
+| CustomerShipmentItem | N/A | ✅ `DELETE /:id/items/:itemId` (blocked if in transit) | Restores package to ARRIVED |
 
 ---
 
@@ -1951,7 +1992,7 @@ BASE="http://localhost:3000/api"
 curl -s -X POST "$BASE/admin/customers" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"phoneNumber":"13800000001","displayName":"测试客户"}'
+  -d '{"phoneNumber":"13800000001","wechatId":"wx_test","domesticReturnAddress":"广东省广州市..."}'
 
 curl -s "$BASE/admin/customers?q=GJ&page=1&pageSize=10" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
@@ -1962,7 +2003,7 @@ curl -s "$BASE/admin/customers/<id>" \
 curl -s -X PATCH "$BASE/admin/customers/<id>" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"displayName":"新名字"}'
+  -d '{"status":"DISABLED"}'
 
 curl -s -X PATCH "$BASE/admin/customers/<id>/disable" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
@@ -1971,9 +2012,9 @@ curl -s -X PATCH "$BASE/admin/customers/<id>/disable" \
 curl -s -X POST "$BASE/admin/inbound-packages" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"domesticTrackingNo":"YT999","customerCode":"GJ0001","weightKg":"1.5","lengthCm":"20","widthCm":"15","heightCm":"10"}'
+  -d '{"customerCode":"GJ0001","warehouseReceivedAt":"2026-05-05T10:00:00.000Z","adminNote":"无国内单号也可创建"}'
 
-curl -s "$BASE/admin/inbound-packages?status=UNCLAIMED" \
+curl -s "$BASE/admin/inbound-packages?status=ARRIVED" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 
 curl -s -X PATCH "$BASE/admin/inbound-packages/<id>" \
@@ -1990,15 +2031,15 @@ curl -s -X PATCH "$BASE/admin/inbound-packages/<id>/assign-customer" \
 curl -s -X POST "$BASE/admin/customer-shipments" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"customerId":"<uuid>","inboundPackageIds":["<pkg-uuid>"]}'
+  -d '{"customerId":"<uuid>","inboundPackageIds":["<pkg-uuid>"],"quantity":3}'
 
-curl -s "$BASE/admin/customer-shipments?status=DRAFT" \
+curl -s "$BASE/admin/customer-shipments?status=PACKED" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 
 curl -s -X PATCH "$BASE/admin/customer-shipments/<id>/status" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"status":"PACKED"}'
+  -d '{"status":"SHIPPED"}'
 
 curl -s -X PATCH "$BASE/admin/customer-shipments/<id>/payment-status" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -2193,7 +2234,7 @@ Create a batch and atomically link customer shipments.
       {
         "id": "uuid1",
         "shipmentNo": "GJS20260515001",
-        "status": "DRAFT",
+        "status": "PACKED",
         "paymentStatus": "UNPAID",
         "customer": { "id": "...", "customerCode": "GJ0001", "wechatId": "wx123" }
       }
@@ -2392,8 +2433,18 @@ Admin creates a registration manually, enters PENDING queue.
     "approvedByAdminId": null,
     "rejectedAt": null,
     "rejectedByAdminId": null,
-    "createdCustomerId": null,
-    "createdCustomer": null,
+    "createdCustomerId": "uuid-or-null",
+    "createdCustomer": {
+      "id": "uuid",
+      "customerCode": "GJ0427",
+      "phoneCountryCode": "+86",
+      "phoneNumber": "13800000000",
+      "wechatId": "optional",
+      "domesticReturnAddress": "...",
+      "status": "ACTIVE",
+      "createdAt": "...",
+      "updatedAt": "..."
+    },
     "ipHash": "...",
     "userAgent": "...",
     "createdAt": "...",
@@ -2401,6 +2452,8 @@ Admin creates a registration manually, enters PENDING queue.
   }
 }
 ```
+
+For non-approved registrations or approved rows without `createdCustomerId`, `createdCustomer` is `null`. For APPROVED registrations with `createdCustomerId`, the nested formal Customer is included so admins can inspect and then update `Customer.status` through `PATCH /api/admin/customers/:id`.
 
 **Errors:** 404 if not found.
 

@@ -6,61 +6,117 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInboundPackageDto } from './dto/create-inbound-package.dto';
+import { INBOUND_PACKAGE_STATUS_LABELS } from '../common/status-labels';
+
+const VALID_INBOUND_PACKAGE_STATUSES = ['UNIDENTIFIED', 'ARRIVED', 'CONSOLIDATED'];
+
+function normalizeOptionalString(value?: string | null): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function assertInboundPackageStatus(status: string) {
+  if (!VALID_INBOUND_PACKAGE_STATUSES.includes(status)) {
+    throw new BadRequestException(
+      `Invalid status: ${status}. Must be one of: ${VALID_INBOUND_PACKAGE_STATUSES.join(', ')}`,
+    );
+  }
+}
+
+function formatInboundPackage(pkg: any) {
+  return {
+    id: pkg.id,
+    domesticTrackingNo: pkg.domesticTrackingNo,
+    status: pkg.status,
+    statusText: INBOUND_PACKAGE_STATUS_LABELS[pkg.status] ?? pkg.status,
+    customer: pkg.customer
+      ? {
+          id: pkg.customer.id,
+          customerCode: pkg.customer.customerCode,
+          phoneCountryCode: pkg.customer.phoneCountryCode,
+          phoneNumber: pkg.customer.phoneNumber,
+          wechatId: pkg.customer.wechatId,
+        }
+      : null,
+    customerId: pkg.customerId,
+    warehouseReceivedAt: pkg.warehouseReceivedAt,
+    adminNote: pkg.adminNote,
+    issueNote: pkg.issueNote,
+    imageUrls: pkg.imageUrls ?? [],
+    inShipment: pkg.inShipment ?? pkg._count?.shipmentItems > 0,
+    ...(pkg.shipmentItems !== undefined && { shipmentItems: pkg.shipmentItems }),
+    createdAt: pkg.createdAt,
+    updatedAt: pkg.updatedAt,
+  };
+}
 
 @Injectable()
 export class InboundPackagesService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateInboundPackageDto) {
-    if (dto.domesticTrackingNo) {
+    const domesticTrackingNo = normalizeOptionalString(dto.domesticTrackingNo);
+    const customerCode = normalizeOptionalString(dto.customerCode);
+
+    if (domesticTrackingNo) {
       const existing = await this.prisma.inboundPackage.findUnique({
-        where: { domesticTrackingNo: dto.domesticTrackingNo },
+        where: { domesticTrackingNo },
       });
       if (existing) {
         throw new ConflictException(
-          `InboundPackage with domesticTrackingNo ${dto.domesticTrackingNo} already exists`,
+          `InboundPackage with domesticTrackingNo ${domesticTrackingNo} already exists`,
         );
       }
     }
 
     let customerId: string | null = null;
-    let status: any = 'UNCLAIMED';
+    let status: any = 'UNIDENTIFIED';
 
-    if (dto.customerCode) {
+    if (customerCode) {
       const customer = await this.prisma.customer.findUnique({
-        where: { customerCode: dto.customerCode },
+        where: { customerCode },
       });
       if (!customer) {
         throw new NotFoundException(
-          `Customer with code ${dto.customerCode} not found. Correct the customerCode or omit it to create as UNCLAIMED.`,
+          `Customer with code ${customerCode} not found. Correct the customerCode or omit it to create as UNIDENTIFIED.`,
         );
       }
       customerId = customer.id;
-      status = 'CLAIMED';
+      status = 'ARRIVED';
     }
 
-    return this.prisma.inboundPackage.create({
+    const created = await this.prisma.inboundPackage.create({
       data: {
-        domesticTrackingNo: dto.domesticTrackingNo,
+        domesticTrackingNo,
         customerId,
         status,
         warehouseReceivedAt: dto.warehouseReceivedAt
           ? new Date(dto.warehouseReceivedAt)
           : new Date(),
-        adminNote: dto.adminNote,
+        adminNote: normalizeOptionalString(dto.adminNote),
       },
       include: {
         customer: {
-          select: { id: true, customerCode: true, wechatId: true },
+          select: {
+            id: true,
+            customerCode: true,
+            phoneCountryCode: true,
+            phoneNumber: true,
+            wechatId: true,
+          },
         },
       },
     });
+    return { data: formatInboundPackage(created) };
   }
 
   async findAll(query: {
     q?: string;
     status?: string;
     customerId?: string;
+    customerCode?: string;
     page?: number;
     pageSize?: number;
   }) {
@@ -69,8 +125,17 @@ export class InboundPackagesService {
     const skip = (page - 1) * take;
 
     const where: any = {};
-    if (query.status) where.status = query.status;
+    if (query.status) {
+      assertInboundPackageStatus(query.status);
+      where.status = query.status;
+    }
     if (query.customerId) where.customerId = query.customerId;
+    if (query.customerCode) {
+      where.customer = {
+        ...(where.customer ?? {}),
+        customerCode: { equals: query.customerCode, mode: 'insensitive' },
+      };
+    }
     if (query.q) {
       where.OR = [
         { domesticTrackingNo: { contains: query.q, mode: 'insensitive' } },
@@ -79,17 +144,33 @@ export class InboundPackagesService {
             customerCode: { contains: query.q, mode: 'insensitive' },
           },
         },
+        {
+          customer: {
+            phoneNumber: { contains: query.q },
+          },
+        },
+        {
+          customer: {
+            wechatId: { contains: query.q, mode: 'insensitive' },
+          },
+        },
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [packages, total] = await Promise.all([
       this.prisma.inboundPackage.findMany({
         where,
         skip,
         take,
         include: {
           customer: {
-            select: { id: true, customerCode: true, wechatId: true },
+            select: {
+              id: true,
+              customerCode: true,
+              phoneCountryCode: true,
+              phoneNumber: true,
+              wechatId: true,
+            },
           },
           _count: { select: { shipmentItems: true } },
         },
@@ -99,12 +180,10 @@ export class InboundPackagesService {
     ]);
 
     return {
-      data: data.map((p) => ({
-        ...p,
-        inShipment: p._count.shipmentItems > 0,
-        _count: undefined,
-      })),
-      pagination: { page, pageSize: take, total, totalPages: Math.ceil(total / take) },
+      items: packages.map((p) => formatInboundPackage(p)),
+      page,
+      pageSize: take,
+      total,
     };
   }
 
@@ -131,7 +210,7 @@ export class InboundPackagesService {
       },
     });
     if (!pkg) throw new NotFoundException('InboundPackage not found');
-    return { data: pkg };
+    return { data: formatInboundPackage(pkg) };
   }
 
   async update(
@@ -147,41 +226,45 @@ export class InboundPackagesService {
     const pkg = await this.prisma.inboundPackage.findUnique({ where: { id } });
     if (!pkg) throw new NotFoundException('InboundPackage not found');
 
-    if (dto.domesticTrackingNo && dto.domesticTrackingNo !== pkg.domesticTrackingNo) {
+    const domesticTrackingNo = normalizeOptionalString(dto.domesticTrackingNo);
+
+    if (domesticTrackingNo && domesticTrackingNo !== pkg.domesticTrackingNo) {
       const conflict = await this.prisma.inboundPackage.findFirst({
-        where: { domesticTrackingNo: dto.domesticTrackingNo, NOT: { id } },
+        where: { domesticTrackingNo, NOT: { id } },
       });
       if (conflict) {
         throw new ConflictException(
-          `domesticTrackingNo ${dto.domesticTrackingNo} is already used by another package`,
+          `domesticTrackingNo ${domesticTrackingNo} is already used by another package`,
         );
       }
     }
 
     if (dto.status) {
-      const validStatuses = [
-        'UNCLAIMED', 'CLAIMED', 'PREALERTED_NOT_ARRIVED', 'ARRIVED_WAREHOUSE',
-        'PENDING_CONFIRMATION', 'CONFIRMED', 'ISSUE_REPORTED', 'CONSOLIDATED', 'INBOUND_EXCEPTION',
-      ];
-      if (!validStatuses.includes(dto.status)) {
-        throw new BadRequestException(`Invalid status: ${dto.status}`);
-      }
+      assertInboundPackageStatus(dto.status);
     }
 
     const updated = await this.prisma.inboundPackage.update({
       where: { id },
       data: {
-        ...(dto.domesticTrackingNo !== undefined && { domesticTrackingNo: dto.domesticTrackingNo }),
+        ...(dto.domesticTrackingNo !== undefined && { domesticTrackingNo }),
         ...(dto.warehouseReceivedAt !== undefined && { warehouseReceivedAt: new Date(dto.warehouseReceivedAt) }),
-        ...(dto.issueNote !== undefined && { issueNote: dto.issueNote }),
-        ...(dto.adminNote !== undefined && { adminNote: dto.adminNote }),
+        ...(dto.issueNote !== undefined && { issueNote: normalizeOptionalString(dto.issueNote) }),
+        ...(dto.adminNote !== undefined && { adminNote: normalizeOptionalString(dto.adminNote) }),
         ...(dto.status !== undefined && { status: dto.status as any }),
       },
       include: {
-        customer: { select: { id: true, customerCode: true, wechatId: true } },
+        customer: {
+          select: {
+            id: true,
+            customerCode: true,
+            phoneCountryCode: true,
+            phoneNumber: true,
+            wechatId: true,
+          },
+        },
       },
     });
-    return { data: updated };
+    return { data: formatInboundPackage(updated) };
   }
 
   async assignCustomer(id: string, customerCode: string) {
@@ -203,32 +286,41 @@ export class InboundPackagesService {
       where: { id },
       data: {
         customerId: customer.id,
-        status: pkg.status === 'INBOUND_EXCEPTION' ? 'INBOUND_EXCEPTION' : 'CLAIMED',
+        status: pkg.status === 'UNIDENTIFIED' ? 'ARRIVED' : pkg.status,
       },
       include: {
-        customer: { select: { id: true, customerCode: true, wechatId: true } },
+        customer: {
+          select: {
+            id: true,
+            customerCode: true,
+            phoneCountryCode: true,
+            phoneNumber: true,
+            wechatId: true,
+          },
+        },
       },
     });
-    return { data: updated };
+    return { data: formatInboundPackage(updated) };
   }
 
   async updateStatus(id: string, status: string) {
     const pkg = await this.prisma.inboundPackage.findUnique({ where: { id } });
     if (!pkg) throw new NotFoundException('InboundPackage not found');
 
-    const validStatuses = [
-      'UNCLAIMED', 'CLAIMED', 'PREALERTED_NOT_ARRIVED', 'ARRIVED_WAREHOUSE',
-      'PENDING_CONFIRMATION', 'CONFIRMED', 'ISSUE_REPORTED', 'CONSOLIDATED', 'INBOUND_EXCEPTION',
-    ];
-    if (!validStatuses.includes(status)) {
-      throw new BadRequestException(`Invalid status: ${status}`);
-    }
+    assertInboundPackageStatus(status);
 
     const updated = await this.prisma.inboundPackage.update({
       where: { id },
       data: { status: status as any },
     });
-    return { data: { id: updated.id, status: updated.status, updatedAt: updated.updatedAt } };
+    return {
+      data: {
+        id: updated.id,
+        status: updated.status,
+        statusText: INBOUND_PACKAGE_STATUS_LABELS[updated.status],
+        updatedAt: updated.updatedAt,
+      },
+    };
   }
 
   async getImages(id: string) {

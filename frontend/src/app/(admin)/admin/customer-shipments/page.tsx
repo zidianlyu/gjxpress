@@ -10,8 +10,9 @@ import type { CustomerShipment } from '@/types/admin';
 import { ImagePicker, LocalImageList } from '@/components/admin/ImageManager';
 import { Pagination } from '@/components/common/Pagination';
 import { CustomerShipmentStatusBadge, PaymentStatusBadge } from '@/components/common/StatusBadge';
+import { CUSTOMER_SHIPMENT_STATUS_OPTIONS } from '@/lib/constants/status';
 
-function generateDefaultNotes(customerId: string): string {
+function generateDefaultNotes(customerCode: string): string {
   const now = new Date();
   const cnTime = new Intl.DateTimeFormat('zh-CN', {
     timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -21,7 +22,7 @@ function generateDefaultNotes(customerId: string): string {
     timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(now).replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3/$1/$2');
-  return `${customerId || '???'}于中国时间：${cnTime}；美国西部时间：${usTime}出单。`;
+  return `${customerCode || '???'}于中国时间：${cnTime}；美国西部时间：${usTime}出单。`;
 }
 
 export default function CustomerShipmentsPage() {
@@ -38,7 +39,7 @@ export default function CustomerShipmentsPage() {
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
-    customerId: '', notes: '',
+    customerCode: '', quantity: '1', notes: '',
     actualWeightKg: '', volumeFormula: '', billingRateCnyPerKg: '', billingWeightKg: '',
   });
   const [localFiles, setLocalFiles] = useState<File[]>([]);
@@ -52,14 +53,14 @@ export default function CustomerShipmentsPage() {
     setError('');
     setErrorRequestId('');
     try {
-      const data = await adminApi.getCustomerShipments({
-        q: search || undefined,
+      const data = await adminApi.listCustomerShipments({
+        q: search.trim() || undefined,
         status: statusFilter || undefined,
         page,
         pageSize: 20,
       });
       setShipments(data?.items || []);
-      setTotalPages(data?.pagination?.totalPages || 1);
+      setTotalPages(data?.totalPages || 1);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -79,12 +80,13 @@ export default function CustomerShipmentsPage() {
     setPage(1);
   };
 
-  // Auto-generate default notes when customerId changes (unless manually edited)
-  const handleCustomerIdChange = (value: string) => {
+  // Auto-generate default notes when customerCode changes (unless manually edited)
+  const handleCustomerCodeChange = (value: string) => {
+    const normalized = value.toUpperCase();
     setCreateForm(f => {
-      const updated = { ...f, customerId: value };
+      const updated = { ...f, customerCode: normalized };
       if (!notesManuallyEdited) {
-        updated.notes = generateDefaultNotes(value.trim());
+        updated.notes = generateDefaultNotes(normalized.trim());
       }
       return updated;
     });
@@ -92,16 +94,28 @@ export default function CustomerShipmentsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createForm.customerId.trim()) {
-      setCreateError('客户ID不能为空');
+    const quantity = Number(createForm.quantity);
+    if (!createForm.customerCode.trim()) {
+      setCreateError('客户编号不能为空');
+      return;
+    }
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      setCreateError('件数必须是大于等于 1 的整数');
       return;
     }
     setCreating(true);
     setCreateError('');
     setCreateSuccess('');
     try {
+      const matchedCustomers = await adminApi.listCustomers({ q: createForm.customerCode.trim(), page: 1, pageSize: 10 });
+      const matchedCustomer = matchedCustomers.items.find(c => c.customerCode === createForm.customerCode.trim());
+      if (!matchedCustomer) {
+        setCreateError('客户编号不存在，请确认后重试。');
+        return;
+      }
       const shipment = await adminApi.createCustomerShipment({
-        customerId: createForm.customerId.trim(),
+        customerId: matchedCustomer.id,
+        quantity,
         notes: createForm.notes.trim() || undefined,
         actualWeightKg: createForm.actualWeightKg ? Number(createForm.actualWeightKg) : undefined,
         volumeFormula: createForm.volumeFormula.trim() || undefined,
@@ -122,7 +136,7 @@ export default function CustomerShipmentsPage() {
         if (failCount > 0) {
           setCreateSuccess(`集运单已创建，但 ${failCount} 张图片上传失败，请在详情页继续上传`);
           setLocalFiles([]);
-          setCreateForm({ customerId: '', notes: '', actualWeightKg: '', volumeFormula: '', billingRateCnyPerKg: '', billingWeightKg: '' });
+          setCreateForm({ customerCode: '', quantity: '1', notes: '', actualWeightKg: '', volumeFormula: '', billingRateCnyPerKg: '', billingWeightKg: '' });
           setNotesManuallyEdited(false);
           setTimeout(() => router.push(`/admin/customer-shipments/${shipment.id}`), 1500);
           return;
@@ -130,7 +144,7 @@ export default function CustomerShipmentsPage() {
       }
 
       setCreateSuccess(`集运单创建成功，单号：${shipment.shipmentNo}` + (localFiles.length > 0 ? `，已上传 ${localFiles.length} 张图片` : ''));
-      setCreateForm({ customerId: '', notes: '', actualWeightKg: '', volumeFormula: '', billingRateCnyPerKg: '', billingWeightKg: '' });
+      setCreateForm({ customerCode: '', quantity: '1', notes: '', actualWeightKg: '', volumeFormula: '', billingRateCnyPerKg: '', billingWeightKg: '' });
       setLocalFiles([]);
       setNotesManuallyEdited(false);
       fetchData();
@@ -179,13 +193,9 @@ export default function CustomerShipmentsPage() {
             className="px-3 py-2 rounded-md border bg-background text-sm"
           >
             <option value="">全部状态</option>
-            <option value="DRAFT">待打包</option>
-            <option value="PACKED">已打包</option>
-            <option value="SENT_TO_OVERSEAS">已发往海外仓</option>
-            <option value="ARRIVED_OVERSEAS">已到达海外仓</option>
-            <option value="READY_FOR_PICKUP">待自提</option>
-            <option value="COMPLETED">已完成</option>
-            <option value="EXCEPTION">异常</option>
+            {CUSTOMER_SHIPMENT_STATUS_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
           <button type="submit" className="px-4 py-2 rounded-md border bg-background text-sm hover:bg-muted">搜索</button>
         </form>
@@ -221,6 +231,7 @@ export default function CustomerShipmentsPage() {
                   <tr>
                     <th className="text-left px-4 py-3 font-medium">集运单号</th>
                     <th className="text-left px-4 py-3 font-medium">客户</th>
+                    <th className="text-left px-4 py-3 font-medium">件数</th>
                     <th className="text-left px-4 py-3 font-medium">运输状态</th>
                     <th className="text-left px-4 py-3 font-medium">费用状态</th>
                     <th className="text-left px-4 py-3 font-medium">创建时间</th>
@@ -232,6 +243,7 @@ export default function CustomerShipmentsPage() {
                     <tr key={s.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3 font-mono text-xs">{s.shipmentNo}</td>
                       <td className="px-4 py-3 text-xs">{s.customer?.customerCode || '-'}</td>
+                      <td className="px-4 py-3 text-xs">{s.quantity || 1}</td>
                       <td className="px-4 py-3"><CustomerShipmentStatusBadge status={s.status} /></td>
                       <td className="px-4 py-3"><PaymentStatusBadge status={s.paymentStatus} /></td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
@@ -255,7 +267,7 @@ export default function CustomerShipmentsPage() {
                     <CustomerShipmentStatusBadge status={s.status} />
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{s.customer?.customerCode || '-'}</span>
+                    <span className="text-muted-foreground">{s.customer?.customerCode || '-'} · {s.quantity || 1} 件</span>
                     <PaymentStatusBadge status={s.paymentStatus} />
                   </div>
                 </Link>
@@ -281,9 +293,12 @@ export default function CustomerShipmentsPage() {
 
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium mb-1">客户ID *</label>
-                <input type="text" value={createForm.customerId} onChange={(e) => handleCustomerIdChange(e.target.value)} placeholder="输入客户UUID" className="w-full px-3 py-2 rounded-md border bg-background text-sm" required />
-                <p className="text-xs text-muted-foreground mt-1">可在客户详情页获取客户ID</p>
+                <label className="block text-xs font-medium mb-1">客户编号 *</label>
+                <input type="text" value={createForm.customerCode} onChange={(e) => handleCustomerCodeChange(e.target.value)} placeholder="例如 GJ3178" className="w-full px-3 py-2 rounded-md border bg-background text-sm" required />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">件数 *</label>
+                <input type="number" min={1} step={1} value={createForm.quantity} onChange={(e) => setCreateForm(f => ({ ...f, quantity: e.target.value }))} placeholder="例如 3" className="w-full px-3 py-2 rounded-md border bg-background text-sm" required />
               </div>
 
               {/* Billing fields */}
@@ -326,7 +341,7 @@ export default function CustomerShipmentsPage() {
                   value={createForm.notes}
                   onChange={(e) => { setNotesManuallyEdited(true); setCreateForm(f => ({ ...f, notes: e.target.value })); }}
                   rows={3}
-                  placeholder="备注（填写客户ID后自动生成）"
+                  placeholder="备注（填写客户编号后自动生成）"
                   className="w-full px-3 py-2 rounded-md border bg-background text-sm"
                 />
               </div>

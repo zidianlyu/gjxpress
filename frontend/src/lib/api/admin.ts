@@ -24,6 +24,22 @@ import type {
   ApproveCustomerRegistrationResponse,
 } from '@/types/admin';
 
+type PaginationLike<T> =
+  | T[]
+  | {
+      items?: T[];
+      page?: number;
+      pageSize?: number;
+      total?: number;
+      totalPages?: number;
+      pagination?: {
+        page?: number;
+        pageSize?: number;
+        total?: number;
+        totalPages?: number;
+      };
+    };
+
 // File upload helper — uses FormData, skips JSON Content-Type
 async function adminApiUpload<T>(
   path: string,
@@ -111,12 +127,71 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
   return qs ? `?${qs}` : '';
 }
 
+function normalizePagination<T>(
+  value: PaginationLike<T>,
+  fallbackPage = 1,
+  fallbackPageSize = 20
+): PaginatedResponse<T> {
+  if (Array.isArray(value)) {
+    return {
+      items: value,
+      page: fallbackPage,
+      pageSize: fallbackPageSize,
+      total: value.length,
+      totalPages: Math.max(1, Math.ceil(value.length / fallbackPageSize)),
+      pagination: {
+        page: fallbackPage,
+        pageSize: fallbackPageSize,
+        total: value.length,
+        totalPages: Math.max(1, Math.ceil(value.length / fallbackPageSize)),
+      },
+    };
+  }
+
+  const nested = value.pagination;
+  const items = Array.isArray(value.items) ? value.items : [];
+  const page = Number(value.page ?? nested?.page ?? fallbackPage) || fallbackPage;
+  const pageSize = Number(value.pageSize ?? nested?.pageSize ?? fallbackPageSize) || fallbackPageSize;
+  const total = Number(value.total ?? nested?.total ?? items.length) || 0;
+  const totalPages = Math.max(
+    1,
+    Number(value.totalPages ?? nested?.totalPages ?? Math.ceil(total / pageSize)) || 1
+  );
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+    totalPages,
+    pagination: { page, pageSize, total, totalPages },
+  };
+}
+
+function cleanInboundPackagePayload(data: CreateInboundPackagePayload): CreateInboundPackagePayload {
+  const domesticTrackingNo = data.domesticTrackingNo?.trim();
+  const customerCode = data.customerCode?.trim();
+  return {
+    ...data,
+    domesticTrackingNo: domesticTrackingNo || null,
+    customerCode: customerCode || undefined,
+    adminNote: data.adminNote?.trim() || undefined,
+  };
+}
+
 export const adminApi = {
   // === Customers ===
-  getCustomers: (params?: { q?: string; status?: string; page?: number; pageSize?: number }) =>
-    adminApiFetch<PaginatedResponse<Customer>>(
+  listCustomers: async (params?: { q?: string; status?: string; page?: number; pageSize?: number }) => {
+    const page = params?.page || 1;
+    const pageSize = params?.pageSize || 20;
+    const data = await adminApiFetch<PaginationLike<Customer>>(
       `/admin/customers${buildQuery(params || {})}`
-    ),
+    );
+    return normalizePagination(data, page, pageSize);
+  },
+
+  getCustomers: (params?: { q?: string; status?: string; page?: number; pageSize?: number }) =>
+    adminApi.listCustomers(params),
 
   getCustomerById: (id: string) =>
     adminApiFetch<Customer>(`/admin/customers/${id}`),
@@ -131,19 +206,26 @@ export const adminApi = {
     adminApiFetch<Customer>(`/admin/customers/${id}/disable`, { method: 'PATCH' }),
 
   // === Inbound Packages ===
-  getInboundPackages: (params?: { q?: string; status?: string; customerId?: string; page?: number; pageSize?: number }) =>
-    adminApiFetch<PaginatedResponse<InboundPackage>>(
+  listInboundPackages: async (params?: { q?: string; status?: string; customerId?: string; customerCode?: string; page?: number; pageSize?: number }) => {
+    const page = params?.page || 1;
+    const pageSize = params?.pageSize || 20;
+    const data = await adminApiFetch<PaginationLike<InboundPackage>>(
       `/admin/inbound-packages${buildQuery(params || {})}`
-    ),
+    );
+    return normalizePagination(data, page, pageSize);
+  },
+
+  getInboundPackages: (params?: { q?: string; status?: string; customerId?: string; customerCode?: string; page?: number; pageSize?: number }) =>
+    adminApi.listInboundPackages(params),
 
   getInboundPackageById: (id: string) =>
     adminApiFetch<InboundPackage>(`/admin/inbound-packages/${id}`),
 
   createInboundPackage: (data: CreateInboundPackagePayload) =>
-    adminApiFetch<InboundPackage>('/admin/inbound-packages', { method: 'POST', body: data }),
+    adminApiFetch<InboundPackage>('/admin/inbound-packages', { method: 'POST', body: cleanInboundPackagePayload(data) }),
 
   updateInboundPackage: (id: string, data: Partial<{
-    domesticTrackingNo: string;
+    domesticTrackingNo: string | null;
     warehouseReceivedAt: string;
     adminNote: string;
     issueNote: string;
@@ -168,10 +250,17 @@ export const adminApi = {
     adminApiFetch<{ deleted: boolean }>(`/admin/inbound-packages/${id}/images?imageUrl=${encodeURIComponent(imageUrl)}&confirm=DELETE_HARD`, { method: 'DELETE' }),
 
   // === Customer Shipments ===
-  getCustomerShipments: (params?: { q?: string; status?: string; paymentStatus?: string; customerId?: string; masterShipmentId?: string; unbatched?: boolean; page?: number; pageSize?: number }) =>
-    adminApiFetch<PaginatedResponse<CustomerShipment>>(
+  listCustomerShipments: async (params?: { q?: string; status?: string; paymentStatus?: string; customerId?: string; masterShipmentId?: string; unbatched?: boolean; page?: number; pageSize?: number }) => {
+    const page = params?.page || 1;
+    const pageSize = params?.pageSize || 20;
+    const data = await adminApiFetch<PaginationLike<CustomerShipment>>(
       `/admin/customer-shipments${buildQuery(params || {})}`
-    ),
+    );
+    return normalizePagination(data, page, pageSize);
+  },
+
+  getCustomerShipments: (params?: { q?: string; status?: string; paymentStatus?: string; customerId?: string; masterShipmentId?: string; unbatched?: boolean; page?: number; pageSize?: number }) =>
+    adminApi.listCustomerShipments(params),
 
   getCustomerShipmentById: (id: string) =>
     adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}`),

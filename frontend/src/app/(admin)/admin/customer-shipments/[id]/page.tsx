@@ -8,14 +8,12 @@ import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { CustomerShipment, CustomerShipmentStatus, PaymentStatus } from '@/types/admin';
 import { CustomerShipmentStatusBadge, PaymentStatusBadge } from '@/components/common/StatusBadge';
-import { CUSTOMER_SHIPMENT_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants/status';
+import { CUSTOMER_SHIPMENT_STATUS_LABELS, CUSTOMER_SHIPMENT_STATUS_OPTIONS, PAYMENT_STATUS_LABELS, normalizeCustomerShipmentStatus } from '@/lib/constants/status';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
 import { ServerImageGrid } from '@/components/admin/ImageManager';
 
 const ALL_STATUSES: CustomerShipmentStatus[] = [
-  'DRAFT', 'PACKED', 'SENT_TO_OVERSEAS', 'ARRIVED_OVERSEAS',
-  'READY_FOR_PICKUP', 'LOCAL_DELIVERY_REQUESTED', 'LOCAL_DELIVERY_IN_PROGRESS',
-  'PICKED_UP', 'COMPLETED', 'EXCEPTION',
+  'PACKED', 'SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP', 'EXCEPTION',
 ];
 
 const ALL_PAYMENT_STATUSES: PaymentStatus[] = [
@@ -43,6 +41,7 @@ export default function CustomerShipmentDetailPage() {
 
   // Billing fields
   const [billingForm, setBillingForm] = useState({
+    quantity: '1',
     actualWeightKg: '',
     volumeFormula: '',
     billingRateCnyPerKg: '',
@@ -57,9 +56,10 @@ export default function CustomerShipmentDetailPage() {
     try {
       const data = await adminApi.getCustomerShipmentById(id);
       setShipment(data);
-      setNewStatus(data.status);
+      setNewStatus(normalizeCustomerShipmentStatus(data.status));
       setNewPaymentStatus(data.paymentStatus);
       setBillingForm({
+        quantity: String(data.quantity || 1),
         actualWeightKg: data.actualWeightKg?.toString() || '',
         volumeFormula: data.volumeFormula || '',
         billingRateCnyPerKg: data.billingRateCnyPerKg?.toString() || '',
@@ -80,7 +80,7 @@ export default function CustomerShipmentDetailPage() {
   useEffect(() => { fetchShipment(); }, [fetchShipment]);
 
   const handleStatusUpdate = async () => {
-    if (!newStatus || newStatus === shipment?.status) return;
+    if (!newStatus || newStatus === normalizeCustomerShipmentStatus(shipment?.status || '')) return;
     setSaving(true);
     setActionMsg('');
     setActionError('');
@@ -125,7 +125,14 @@ export default function CustomerShipmentDetailPage() {
     setActionMsg('');
     setActionError('');
     try {
+      const quantity = Number(billingForm.quantity);
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        setActionError('件数必须是大于等于 1 的整数');
+        setSaving(false);
+        return;
+      }
       const updated = await adminApi.updateCustomerShipment(id, {
+        quantity,
         actualWeightKg: billingForm.actualWeightKg ? Number(billingForm.actualWeightKg) : null,
         volumeFormula: billingForm.volumeFormula || null,
         billingRateCnyPerKg: billingForm.billingRateCnyPerKg ? Number(billingForm.billingRateCnyPerKg) : null,
@@ -274,6 +281,7 @@ export default function CustomerShipmentDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div><span className="text-muted-foreground">集运单号：</span><span className="font-mono">{shipment.shipmentNo}</span></div>
             <div><span className="text-muted-foreground">客户：</span>{shipment.customer?.customerCode || '-'} {shipment.customer?.wechatId ? `(${shipment.customer.wechatId})` : ''}</div>
+            <div><span className="text-muted-foreground">件数：</span>{shipment.quantity || 1}</div>
             <div className="flex items-center gap-2"><span className="text-muted-foreground">运输状态：</span><CustomerShipmentStatusBadge status={shipment.status} /></div>
             <div className="flex items-center gap-2"><span className="text-muted-foreground">费用状态：</span><PaymentStatusBadge status={shipment.paymentStatus} /></div>
             <div><span className="text-muted-foreground">国际运单号：</span>{shipment.internationalTrackingNo || '-'}</div>
@@ -290,6 +298,10 @@ export default function CustomerShipmentDetailPage() {
           <h2 className="font-semibold">计费信息</h2>
           <form onSubmit={handleBillingSave} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1">件数</label>
+                <input type="number" min={1} step={1} value={billingForm.quantity} onChange={(e) => setBillingForm(f => ({ ...f, quantity: e.target.value }))} className="w-full px-3 py-2 rounded-md border bg-background text-sm" placeholder="例如 3" />
+              </div>
               <div>
                 <label className="block text-xs font-medium mb-1">实际重量 (kg)</label>
                 <input type="number" step="0.01" value={billingForm.actualWeightKg} onChange={(e) => setBillingForm(f => ({ ...f, actualWeightKg: e.target.value }))} className="w-full px-3 py-2 rounded-md border bg-background text-sm" placeholder="如 2.5" />
@@ -338,12 +350,12 @@ export default function CustomerShipmentDetailPage() {
               className="flex-1 px-3 py-2 rounded-md border bg-background text-sm"
             >
               {ALL_STATUSES.map(s => (
-                <option key={s} value={s}>{CUSTOMER_SHIPMENT_STATUS_LABELS[s] || s}</option>
+                <option key={s} value={s}>{CUSTOMER_SHIPMENT_STATUS_OPTIONS.find(option => option.value === s)?.label || CUSTOMER_SHIPMENT_STATUS_LABELS[s] || s}</option>
               ))}
             </select>
             <button
               onClick={handleStatusUpdate}
-              disabled={saving || newStatus === shipment.status}
+              disabled={saving || newStatus === normalizeCustomerShipmentStatus(shipment.status)}
               className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
             >
               更新
@@ -377,7 +389,7 @@ export default function CustomerShipmentDetailPage() {
         {/* Cancel & Delete */}
         <div className="rounded-lg border border-red-100 p-4 space-y-3">
           <h2 className="font-semibold text-red-700">危险操作</h2>
-          <p className="text-xs text-muted-foreground">取消集运单会将包含的入库包裹恢复为&ldquo;已归属客户&rdquo;状态。已发往海外的集运单无法取消。</p>
+          <p className="text-xs text-muted-foreground">取消集运单会将包含的入库包裹恢复为&ldquo;已入库&rdquo;状态。已发货后的集运单无法取消。</p>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleCancel}

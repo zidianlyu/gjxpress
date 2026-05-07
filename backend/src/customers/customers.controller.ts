@@ -21,7 +21,7 @@ import {
   ApiGenericCreated,
   ApiGenericOk,
   ApiIdParam,
-  ApiPaginatedOk,
+  ApiItemsPaginatedOk,
   ApiPaginationQueries,
   ApiStandardResponses,
   deletedSchema,
@@ -47,7 +47,7 @@ export class CustomersController {
   @ApiQuery({ name: 'q', required: false, type: String, description: 'Search customer code, phone, wechat id, address, or notes.' })
   @ApiQuery({ name: 'status', required: false, type: String, description: 'Customer status filter.' })
   @ApiPaginationQueries()
-  @ApiPaginatedOk('Customers with inboundPackageCount and customerShipmentCount plus pagination.')
+  @ApiItemsPaginatedOk('Customers with inboundPackageCount and customerShipmentCount plus pagination.')
   findAll(
     @Query('q') q?: string,
     @Query('status') status?: string,

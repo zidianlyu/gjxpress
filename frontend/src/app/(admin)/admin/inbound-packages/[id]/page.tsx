@@ -8,13 +8,12 @@ import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { InboundPackage, InboundPackageStatus } from '@/types/admin';
 import { InboundPackageStatusBadge } from '@/components/common/StatusBadge';
-import { INBOUND_PACKAGE_STATUS_LABELS } from '@/lib/constants/status';
+import { INBOUND_PACKAGE_STATUS_LABELS, INBOUND_PACKAGE_STATUS_OPTIONS, normalizeInboundPackageStatus } from '@/lib/constants/status';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
 import { ServerImageGrid } from '@/components/admin/ImageManager';
 
 const ALL_STATUSES: InboundPackageStatus[] = [
-  'UNCLAIMED', 'CLAIMED', 'PREALERTED_NOT_ARRIVED', 'ARRIVED_WAREHOUSE',
-  'PENDING_CONFIRMATION', 'CONFIRMED', 'ISSUE_REPORTED', 'CONSOLIDATED', 'INBOUND_EXCEPTION',
+  'UNIDENTIFIED', 'ARRIVED', 'CONSOLIDATED',
 ];
 
 export default function InboundPackageDetailPage() {
@@ -45,7 +44,7 @@ export default function InboundPackageDetailPage() {
     try {
       const data = await adminApi.getInboundPackageById(id);
       setPkg(data);
-      setNewStatus(data.status);
+      setNewStatus(normalizeInboundPackageStatus(data.status));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -72,7 +71,8 @@ export default function InboundPackageDetailPage() {
       setActionMsg('客户绑定成功');
     } catch (err) {
       if (err instanceof ApiError) {
-        setActionError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
+        const notFoundMsg = err.status === 404 ? '客户编号不存在，请确认后重试。' : err.message;
+        setActionError(`${notFoundMsg}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
       } else {
         setActionError('操作失败');
       }
@@ -82,7 +82,7 @@ export default function InboundPackageDetailPage() {
   };
 
   const handleStatusUpdate = async () => {
-    if (!newStatus || newStatus === pkg?.status) return;
+    if (!newStatus || newStatus === normalizeInboundPackageStatus(pkg?.status || '')) return;
     setSaving(true);
     setActionMsg('');
     setActionError('');
@@ -190,7 +190,7 @@ export default function InboundPackageDetailPage() {
           </Link>
           <div>
             <h1 className="text-xl md:text-2xl font-bold">入库包裹详情</h1>
-            <p className="text-sm text-muted-foreground font-mono">{pkg.domesticTrackingNo || '无快递单号'}</p>
+            <p className="text-sm text-muted-foreground font-mono">{pkg.domesticTrackingNo || '未填写国内快递单号'}</p>
           </div>
         </div>
       </header>
@@ -203,9 +203,9 @@ export default function InboundPackageDetailPage() {
         <div className="rounded-lg border p-4 space-y-3">
           <h2 className="font-semibold">基础信息</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div><span className="text-muted-foreground">快递单号：</span>{pkg.domesticTrackingNo || '-'}</div>
+            <div><span className="text-muted-foreground">国内快递单号：</span>{pkg.domesticTrackingNo || '未填写'}</div>
             <div><span className="text-muted-foreground">状态：</span><InboundPackageStatusBadge status={pkg.status} /></div>
-            <div><span className="text-muted-foreground">客户：</span>{pkg.customer ? `${pkg.customer.customerCode} (${pkg.customer.wechatId || pkg.customer.phoneNumber || ''})` : '未归属'}</div>
+            <div><span className="text-muted-foreground">客户编号：</span>{pkg.customer ? `${pkg.customer.customerCode} (${pkg.customer.wechatId || pkg.customer.phoneNumber || ''})` : '未识别'}</div>
             <div><span className="text-muted-foreground">入库时间：</span>{pkg.warehouseReceivedAt ? new Date(pkg.warehouseReceivedAt).toLocaleString('zh-CN') : '-'}</div>
           </div>
           {pkg.adminNote && <div className="text-sm"><span className="text-muted-foreground">管理员备注：</span>{pkg.adminNote}</div>}
@@ -229,7 +229,7 @@ export default function InboundPackageDetailPage() {
               type="text"
               value={assignCode}
               onChange={(e) => setAssignCode(e.target.value)}
-              placeholder="输入客户编号，如 GJ0001"
+              placeholder="输入客户编号，如 GJ3178"
               className="flex-1 px-3 py-2 rounded-md border bg-background text-sm"
             />
             <button
@@ -252,12 +252,12 @@ export default function InboundPackageDetailPage() {
               className="flex-1 px-3 py-2 rounded-md border bg-background text-sm"
             >
               {ALL_STATUSES.map(s => (
-                <option key={s} value={s}>{INBOUND_PACKAGE_STATUS_LABELS[s] || s}</option>
+                <option key={s} value={s}>{INBOUND_PACKAGE_STATUS_OPTIONS.find(option => option.value === s)?.label || INBOUND_PACKAGE_STATUS_LABELS[s] || s}</option>
               ))}
             </select>
             <button
               onClick={handleStatusUpdate}
-              disabled={saving || newStatus === pkg.status}
+              disabled={saving || newStatus === normalizeInboundPackageStatus(pkg.status)}
               className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
             >
               更新
@@ -287,7 +287,7 @@ export default function InboundPackageDetailPage() {
         title="永久删除入库包裹"
         description="删除后此入库包裹数据将不可恢复。"
         confirmText="DELETE"
-        entityLabel={pkg.domesticTrackingNo || pkg.id.slice(0, 8)}
+        entityLabel={pkg.domesticTrackingNo || '未填写单号包裹'}
         error={deleteError}
       />
     </div>

@@ -10,7 +10,7 @@
  * - Never duplicates /api if already present
  */
 export function getApiBaseUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gjxpress.net';
+  const raw = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
   // Remove trailing slash(es)
   let base = raw.replace(/\/+$/, '');
   // Ensure it ends with /api

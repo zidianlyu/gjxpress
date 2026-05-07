@@ -195,13 +195,13 @@ export default function CustomerDetailPage() {
                   onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
                   className="w-full px-3 py-2 rounded-md border bg-background text-sm"
                 >
-                  <option value="ACTIVE">活跃</option>
-                  <option value="DISABLED">禁用</option>
+                  <option value="ACTIVE">正常</option>
+                  <option value="DISABLED">停用</option>
                 </select>
               ) : (
                 <div className="px-3 py-2">
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${customer.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                    {customer.status === 'ACTIVE' ? '活跃' : '禁用'}
+                    {customer.status === 'ACTIVE' ? '正常' : '停用'}
                   </span>
                 </div>
               )}
@@ -308,7 +308,7 @@ export default function CustomerDetailPage() {
                 </button>
                 {customer.status === 'ACTIVE' && (
                   <button type="button" onClick={handleDisable} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
-                    禁用客户
+                    停用客户
                   </button>
                 )}
               </>

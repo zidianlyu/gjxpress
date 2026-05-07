@@ -34,6 +34,10 @@ export default function CustomerRegistrationDetailPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [customerStatus, setCustomerStatus] = useState<'ACTIVE' | 'DISABLED'>('ACTIVE');
+  const [savingCustomerStatus, setSavingCustomerStatus] = useState(false);
+  const [customerStatusError, setCustomerStatusError] = useState('');
+  const [customerStatusSuccess, setCustomerStatusSuccess] = useState('');
 
   // Approve / Reject
   const [approveNote, setApproveNote] = useState('');
@@ -62,6 +66,7 @@ export default function CustomerRegistrationDetailPage() {
         notes: data.notes || '',
         reviewNote: data.reviewNote || '',
       });
+      setCustomerStatus(data.createdCustomer?.status || 'ACTIVE');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -121,6 +126,7 @@ export default function CustomerRegistrationDetailPage() {
       });
       setReg(result.registration);
       setCreatedCustomerId(result.customer.id);
+      setCustomerStatus(result.customer.status || result.registration.createdCustomer?.status || 'ACTIVE');
       setActionSuccess(`已创建正式客户：${result.customer.customerCode}`);
       setApproveNote('');
     } catch (err) {
@@ -153,6 +159,36 @@ export default function CustomerRegistrationDetailPage() {
       }
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleCustomerStatusSave = async () => {
+    if (!reg?.createdCustomer) return;
+    setSavingCustomerStatus(true);
+    setCustomerStatusError('');
+    setCustomerStatusSuccess('');
+    try {
+      const updated = await adminApi.updateCustomer(reg.createdCustomer.id, {
+        status: customerStatus,
+      });
+      setReg(prev => prev ? {
+        ...prev,
+        createdCustomer: prev.createdCustomer ? {
+          ...prev.createdCustomer,
+          status: updated.status,
+          updatedAt: updated.updatedAt,
+        } : prev.createdCustomer,
+      } : prev);
+      setCustomerStatus(updated.status);
+      setCustomerStatusSuccess('客户状态已更新');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setCustomerStatusError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
+      } else {
+        setCustomerStatusError('客户状态更新失败');
+      }
+    } finally {
+      setSavingCustomerStatus(false);
     }
   };
 
@@ -230,6 +266,8 @@ export default function CustomerRegistrationDetailPage() {
           </div>
         )}
         {actionError && <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm break-all">{actionError}</div>}
+        {customerStatusSuccess && <div className="p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">{customerStatusSuccess}</div>}
+        {customerStatusError && <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm break-all">{customerStatusError}</div>}
 
         {/* Info / Edit Form */}
         <form onSubmit={handleSave} className="space-y-4">
@@ -372,6 +410,48 @@ export default function CustomerRegistrationDetailPage() {
             )}
           </div>
         </form>
+
+        {reg.createdCustomer && (
+          <div className="rounded-lg border p-4 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold">正式客户信息</h2>
+                <p className="text-xs text-muted-foreground mt-1">客户状态独立于注册审核状态。</p>
+              </div>
+              <Link href={`/admin/customers/${reg.createdCustomer.id}`} className="text-sm text-primary hover:underline">
+                查看客户详情
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div><span className="text-muted-foreground">客户编号：</span><span className="font-mono">{reg.createdCustomer.customerCode}</span></div>
+              <div><span className="text-muted-foreground">手机号：</span>{reg.createdCustomer.phoneCountryCode || ''} {reg.createdCustomer.phoneNumber || '-'}</div>
+              <div><span className="text-muted-foreground">微信号：</span>{reg.createdCustomer.wechatId || '-'}</div>
+              <div><span className="text-muted-foreground">当前客户状态：</span>{(reg.createdCustomer.status || customerStatus) === 'ACTIVE' ? '正常' : '停用'}</div>
+              <div className="sm:col-span-2"><span className="text-muted-foreground">国内退货地址：</span>{reg.createdCustomer.domesticReturnAddress || '-'}</div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+              <div className="flex-1">
+                <label className="block text-xs font-medium mb-1">客户状态</label>
+                <select
+                  value={customerStatus}
+                  onChange={(e) => setCustomerStatus(e.target.value as 'ACTIVE' | 'DISABLED')}
+                  className="w-full px-3 py-2 rounded-md border bg-background text-sm"
+                >
+                  <option value="ACTIVE">正常</option>
+                  <option value="DISABLED">停用</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={handleCustomerStatusSave}
+                disabled={savingCustomerStatus || customerStatus === reg.createdCustomer.status}
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+              >
+                {savingCustomerStatus ? '保存中...' : '保存客户状态'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Approve / Reject Section */}
         {reg.status === 'PENDING' && (

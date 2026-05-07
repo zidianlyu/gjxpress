@@ -165,6 +165,18 @@ app/layout.tsx (Root Layout)
         └── Admin pages with noindex
 ```
 
+### 4.3 Admin API Data Rules
+
+Admin API wrappers live in `src/lib/api/admin.ts` and use `adminApiFetch`, which attaches the stored Bearer token, clears it on 401, and redirects to `/admin/login`. Debug logs retain request metadata and never print token, password, or Authorization header values.
+
+List wrappers normalize backend pagination shape before data reaches pages. The normalized shape is `{ items, page, pageSize, total, totalPages }`.
+
+Supported backend shapes include top-level `{ items, page, pageSize, total }`, legacy nested `{ items, pagination }`, and plain arrays.
+
+Status labels are centralized in `src/lib/constants/status.ts`. Inbound package and customer shipment UI submit only canonical simplified statuses while retaining display compatibility for old enum values during migration.
+
+Admin-facing customer identity uses `customerCode` such as `GJ3178`. Internal `customerId` UUID values are backend foreign keys and should not be presented as customer numbers. If a backend endpoint explicitly requires `customerId`, the frontend should resolve from `customerCode` before submit.
+
 ---
 
 ## 5. FAQ System

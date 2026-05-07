@@ -71,13 +71,13 @@ src/app/
 
 - Configured via `NEXT_PUBLIC_API_BASE_URL`
 - Normalized in `lib/env.ts` to always end with `/api`
-- Example: `https://api.gjxpress.net` → `https://api.gjxpress.net/api`
+- Example: `<backend-origin>` → `<backend-origin>/api`
 
 ## Forbidden Content
 
 The following terms/features are NOT present:
 - 代购, 清关, 包税 (only in negation/disclaimer context)
-- 微信支付, 支付宝, 立即支付
+- Online payment entry points or payment call-to-action copy
 - No payment processing or user registration
 - No direct Supabase calls
 - No hardcoded backend URLs

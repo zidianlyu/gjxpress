@@ -1164,6 +1164,85 @@ Operations:
 - `CREATE TABLE "customer_registrations"` with all columns and indexes
 - `ADD CONSTRAINT` FK to customers
 
+---
+
+## 17. Admin Contract Cleanup — Customers, Inbound Packages, Customer Shipments
+
+Migration file: `prisma/migrations/20260506121000_simplify_admin_statuses_and_fix_lists/migration.sql`
+
+Mode: create-only / review-only. It has not been applied automatically to the Supabase database.
+
+### 17.1 customerId vs customerCode
+
+- `customers.id` is the internal UUID primary key.
+- `customers.customer_code` is the business-facing code, e.g. `GJ3178`.
+- `inbound_packages.customer_id` remains a nullable UUID foreign key to `customers.id`.
+- Admin APIs accept `customerCode` for package attribution, resolve it to `Customer.id` in service code, and persist only the UUID FK.
+- API responses include nested `customer.customerCode` so frontend never needs to display a UUID as the customer number.
+
+### 17.2 InboundPackage
+
+Table: `inbound_packages`
+
+| Column | Type | Notes |
+|---|---|---|
+| `domestic_tracking_no` | `VARCHAR(64) NULL UNIQUE` | Optional; Postgres allows multiple NULLs, duplicate non-null values return 409 in API |
+| `customer_id` | `UUID NULL FK -> customers(id)` | Internal FK resolved from Admin `customerCode` input |
+| `status` | `InboundPackageStatus` | Simplified business enum |
+| `image_urls` | `TEXT[] DEFAULT []` | Public image URLs stored after admin upload |
+
+`InboundPackageStatus` values:
+
+| Value | Label | Notes |
+|---|---|---|
+| `UNIDENTIFIED` | 未识别 | No customerCode/customerId yet |
+| `ARRIVED` | 已入库 | Customer is known or package is in warehouse flow |
+| `CONSOLIDATED` | 已合箱 | Package has been added to a customer shipment |
+
+Migration status mapping:
+
+| Old value | New value |
+|---|---|
+| `UNCLAIMED`, `PREALERTED_NOT_ARRIVED` | `UNIDENTIFIED` |
+| `CLAIMED`, `ARRIVED_WAREHOUSE`, `PENDING_CONFIRMATION`, `CONFIRMED`, `ISSUE_REPORTED`, `INBOUND_EXCEPTION` | `ARRIVED` |
+| `CONSOLIDATED` | `CONSOLIDATED` |
+
+### 17.3 CustomerShipment
+
+Table: `customer_shipments`
+
+| Column | Type | Notes |
+|---|---|---|
+| `quantity` | `INTEGER NOT NULL DEFAULT 1` | Piece count entered by admin |
+| `status` | `CustomerShipmentStatus` | Simplified business enum |
+| `actual_weight_kg` | `DECIMAL(10,3) NULL` | Billing input |
+| `volume_formula` | `VARCHAR(128) NULL` | Human-readable formula |
+| `billing_rate_cny_per_kg` | `DECIMAL(10,2) NULL` | Billing input |
+| `billing_weight_kg` | `DECIMAL(10,3) NULL` | Billing input |
+| `image_urls` | `TEXT[] DEFAULT []` | Admin-uploaded images |
+
+`CustomerShipmentStatus` values:
+
+| Value | Label | Timestamp field currently reused |
+|---|---|---|
+| `PACKED` | 已打包 | none |
+| `SHIPPED` | 已发货 | `sent_to_overseas_at` |
+| `ARRIVED` | 已到达 | `arrived_overseas_at` |
+| `READY_FOR_PICKUP` | 待自提 | `local_delivery_requested_at` |
+| `PICKED_UP` | 已取货 | `picked_up_at` |
+| `EXCEPTION` | 异常 | none |
+
+Migration status mapping:
+
+| Old value | New value |
+|---|---|
+| `DRAFT`, `PACKED` | `PACKED` |
+| `SENT_TO_OVERSEAS` | `SHIPPED` |
+| `ARRIVED_OVERSEAS` | `ARRIVED` |
+| `READY_FOR_PICKUP`, `LOCAL_DELIVERY_REQUESTED`, `LOCAL_DELIVERY_IN_PROGRESS` | `READY_FOR_PICKUP` |
+| `PICKED_UP`, `COMPLETED` | `PICKED_UP` |
+| `EXCEPTION` | `EXCEPTION` |
+
 **Status: create-only (not yet applied)**. Apply with:
 ```bash
 npx prisma migrate deploy

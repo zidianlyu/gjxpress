@@ -57,6 +57,17 @@ export const paginatedSchema = (item: Record<string, unknown> = { type: 'object'
   required: ['data', 'pagination'],
 });
 
+export const itemsPaginatedSchema = (item: Record<string, unknown> = { type: 'object', additionalProperties: true }) => ({
+  type: 'object',
+  properties: {
+    items: { type: 'array', items: item },
+    page: { type: 'integer', example: 1 },
+    pageSize: { type: 'integer', example: 20 },
+    total: { type: 'integer', example: 42 },
+  },
+  required: ['items', 'page', 'pageSize', 'total'],
+});
+
 export const deletedSchema = {
   type: 'object',
   properties: {
@@ -125,6 +136,10 @@ export function ApiGenericCreated(description = 'Created successfully') {
 
 export function ApiPaginatedOk(description = 'Paginated response') {
   return ApiOkResponse({ description, schema: paginatedSchema() });
+}
+
+export function ApiItemsPaginatedOk(description = 'Paginated response') {
+  return ApiOkResponse({ description, schema: itemsPaginatedSchema() });
 }
 
 export function ApiMultipartFile(fieldName = 'file') {

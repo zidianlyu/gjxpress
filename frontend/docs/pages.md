@@ -688,7 +688,10 @@ File: `src/app/(admin)/admin/inbound-packages/page.tsx`
 Features:
 
 - List with search, status filter, pagination
-- Create modal with: domesticTrackingNo, customerCode, adminNote, images
+- Create modal with: optional domesticTrackingNo, customerCode, adminNote, images
+- Empty domesticTrackingNo displays as `未填写`
+- Missing customer displays as `未识别`
+- Status filter only shows: 未识别 / 已入库 / 已合箱
 - **国内快递单号支持扫码填入**：相机按钮打开扫码 overlay，识别条码后确认填入
 - 扫码组件：`src/components/admin/TrackingBarcodeScanner.tsx`
 - 候选过滤：`src/lib/tracking-number.ts`
@@ -963,6 +966,8 @@ Features:
 - Hard delete with confirmation dialog
 - Link to created customer after approval
 - Status badges (PENDING/APPROVED/REJECTED)
+- If `createdCustomer` exists, show formal Customer card and allow Customer status update through `PATCH /admin/customers/:id`
+- Registration status and formal Customer status are separate concepts
 
 APIs:
 
@@ -970,6 +975,7 @@ APIs:
 - `PATCH /admin/customer-registrations/:id`
 - `POST /admin/customer-registrations/:id/approve`
 - `POST /admin/customer-registrations/:id/reject`
+- `PATCH /admin/customers/:id`
 - `DELETE /admin/customer-registrations/:id?confirm=DELETE_HARD`
 
 ### 13.4 Updated Customer Pages
@@ -977,10 +983,35 @@ APIs:
 - `/admin/customers` and `/admin/customers/[id]` now include `domesticReturnAddress` field
 - Create customer modal includes domesticReturnAddress
 - Detail page edit form includes domesticReturnAddress
+- `/admin/customers` reads normalized `response.items`
+- The table displays customerCode, phone, wechatId, domestic return address summary, status, createdAt, and actions
+- Customer list/detail do not depend on `displayName`
+
+### 13.5 Admin Customer Shipments
+
+Route: `/admin/customer-shipments`
+File: `src/app/(admin)/admin/customer-shipments/page.tsx`
+
+Features:
+
+- List with search, status filter, pagination
+- Status filter only shows: 已打包 / 已发货 / 已到达 / 待自提 / 已取货 / 异常
+- Create modal accepts admin-facing customerCode and resolves backend-required customerId
+- Create modal includes `件数` number input, default 1, min 1
+- List and mobile cards display quantity
+
+Route: `/admin/customer-shipments/[id]`
+File: `src/app/(admin)/admin/customer-shipments/[id]/page.tsx`
+
+Features:
+
+- Detail displays quantity
+- Edit form allows quantity update
+- Status updates submit only canonical simplified statuses
 
 ---
 
-## 13.5 Privacy Policy Page
+## 13.6 Privacy Policy Page
 
 Route: `/privacy`
 File: `src/app/(public)/privacy/page.tsx`
@@ -1143,4 +1174,4 @@ Before deploying to Vercel:
 - [ ] `robots.txt` works
 - [ ] `/admin` not indexed
 - [ ] No backend secret in frontend code
-- [ ] API base URL points to `https://api.gjxpress.net`
+- [ ] API base URL is provided by `NEXT_PUBLIC_API_BASE_URL`

@@ -27,7 +27,7 @@ import {
   ApiGenericOk,
   ApiIdParam,
   ApiMultipartFile,
-  ApiPaginatedOk,
+  ApiItemsPaginatedOk,
   ApiPaginationQueries,
   ApiStandardResponses,
   deletedSchema,
@@ -80,18 +80,20 @@ export class InboundPackagesController {
   @Get()
   @ApiOperation({ summary: '[Admin] List inbound packages' })
   @ApiQuery({ name: 'q', required: false, type: String, description: 'Search domestic tracking number, customer code, or notes.' })
-  @ApiQuery({ name: 'status', required: false, type: String, description: 'Inbound package status filter.' })
+  @ApiQuery({ name: 'status', required: false, enum: ['UNIDENTIFIED', 'ARRIVED', 'CONSOLIDATED'], description: 'Inbound package status filter.' })
   @ApiQuery({ name: 'customerId', required: false, type: String, description: 'Customer id filter.' })
+  @ApiQuery({ name: 'customerCode', required: false, type: String, description: 'Customer business code filter, e.g. GJ3178.' })
   @ApiPaginationQueries()
-  @ApiPaginatedOk('Inbound packages with inShipment flag plus pagination.')
+  @ApiItemsPaginatedOk('Inbound packages with inShipment flag plus pagination.')
   findAll(
     @Query('q') q?: string,
     @Query('status') status?: string,
     @Query('customerId') customerId?: string,
+    @Query('customerCode') customerCode?: string,
     @Query('page') page?: number,
     @Query('pageSize') pageSize?: number,
   ) {
-    return this.service.findAll({ q, status, customerId, page, pageSize });
+    return this.service.findAll({ q, status, customerId, customerCode, page, pageSize });
   }
 
   @Get(':id')

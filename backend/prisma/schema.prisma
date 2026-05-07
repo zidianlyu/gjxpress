@@ -71,27 +71,17 @@ enum CustomerStatus {
 }
 
 enum InboundPackageStatus {
-  UNCLAIMED
-  CLAIMED
-  PREALERTED_NOT_ARRIVED
-  ARRIVED_WAREHOUSE
-  PENDING_CONFIRMATION
-  CONFIRMED
-  ISSUE_REPORTED
+  UNIDENTIFIED
+  ARRIVED
   CONSOLIDATED
-  INBOUND_EXCEPTION
 }
 
 enum CustomerShipmentStatus {
-  DRAFT
   PACKED
-  SENT_TO_OVERSEAS
-  ARRIVED_OVERSEAS
+  SHIPPED
+  ARRIVED
   READY_FOR_PICKUP
-  LOCAL_DELIVERY_REQUESTED
-  LOCAL_DELIVERY_IN_PROGRESS
   PICKED_UP
-  COMPLETED
   EXCEPTION
 }
 
@@ -729,7 +719,7 @@ model InboundPackage {
   domesticTrackingNo String?              @unique @map("domestic_tracking_no") @db.VarChar(64)
   customerId         String?              @map("customer_id") @db.Uuid
   customer           Customer?            @relation(fields: [customerId], references: [id])
-  status             InboundPackageStatus @default(UNCLAIMED)
+  status             InboundPackageStatus @default(UNIDENTIFIED)
 
   warehouseReceivedAt DateTime? @map("warehouse_received_at")
   imageUrls           String[]  @default([]) @map("image_urls")
@@ -757,8 +747,9 @@ model CustomerShipment {
   masterShipmentId String?         @map("master_shipment_id") @db.Uuid
   masterShipment   MasterShipment? @relation(fields: [masterShipmentId], references: [id])
 
-  status        CustomerShipmentStatus @default(DRAFT)
+  status        CustomerShipmentStatus @default(PACKED)
   paymentStatus PaymentStatus          @default(UNPAID) @map("payment_status")
+  quantity      Int                    @default(1) @map("quantity")
 
   internationalTrackingNo String? @map("international_tracking_no") @db.VarChar(128)
   publicTrackingEnabled   Boolean @default(true) @map("public_tracking_enabled")

@@ -27,14 +27,14 @@ The frontend must not contain backend business logic, must not access Supabase d
 - Public website: `https://gjxpress.net`
 - Public website alternative: `https://www.gjxpress.net`
 - Admin portal: `https://admin.gjxpress.net` or `https://gjxpress.net/admin`
-- Backend API: `https://api.gjxpress.net`
+- Backend API: configured by `NEXT_PUBLIC_API_BASE_URL`
 
 Recommended initial implementation:
 
 ```text
 frontend deployed to Vercel
 backend deployed to AWS EC2
-frontend calls backend through NEXT_PUBLIC_API_BASE_URL=https://api.gjxpress.net
+frontend calls backend through `NEXT_PUBLIC_API_BASE_URL`
 ```
 
 ---
@@ -233,7 +233,7 @@ frontend/
 All backend requests should go through:
 
 ```text
-NEXT_PUBLIC_API_BASE_URL=https://api.gjxpress.net
+NEXT_PUBLIC_API_BASE_URL=<backend-origin>
 ```
 
 Frontend should implement a shared API wrapper:
@@ -252,7 +252,7 @@ Required variables:
 
 ```env
 NEXT_PUBLIC_SITE_URL=https://gjxpress.net
-NEXT_PUBLIC_API_BASE_URL=https://api.gjxpress.net
+NEXT_PUBLIC_API_BASE_URL=<backend-origin>
 NEXT_PUBLIC_BRAND_NAME=广骏供应链服务
 NEXT_PUBLIC_BRAND_DISPLAY_NAME=广骏国际快运
 ```

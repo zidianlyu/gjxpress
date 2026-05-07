@@ -33,7 +33,7 @@ Full admin CRUD for **all 6 entities** (Customers, Customer Registrations, Inbou
 ### Environment Variables
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=https://api.gjxpress.net
+NEXT_PUBLIC_API_BASE_URL=<backend-origin>
 NEXT_PUBLIC_API_DEBUG=true  # optional, defaults based on NODE_ENV
 ```
 

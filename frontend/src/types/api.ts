@@ -13,7 +13,11 @@ export interface ApiResponse<T> {
 
 export interface PaginatedResponse<T> {
   items: T[];
-  pagination: {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  pagination?: {
     page: number;
     pageSize: number;
     total: number;

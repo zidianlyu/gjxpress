@@ -31,9 +31,12 @@ Web-facing customers with auto-generated `customerCode` (`GJ` + 4 digits).
 | customerCode | VARCHAR(16) | unique, format GJ1234 |
 | phoneCountryCode | VARCHAR(8) | default `+86` |
 | phoneNumber | VARCHAR(32) | unique with countryCode |
-| displayName | VARCHAR(64) | optional |
+| wechatId | VARCHAR(64) | optional |
+| domesticReturnAddress | TEXT | optional |
 | notes | TEXT | internal notes |
 | status | CustomerStatus | ACTIVE/DISABLED |
+
+`customerCode` is the business identifier shown to admins and customers. Database relations still use UUID primary keys such as `customers.id` and `inbound_packages.customer_id`; Admin package APIs resolve `customerCode` to the UUID FK in backend service code.
 
 ### 1.3 InboundPackage
 Packages received at the China warehouse.
@@ -42,14 +45,10 @@ Packages received at the China warehouse.
 |-------|------|-------|
 | id | UUID | PK |
 | domesticTrackingNo | VARCHAR(64) | unique, optional |
-| customerId | UUID? | FK to Customer, nullable if unclaimed |
+| customerId | UUID? | FK to Customer, nullable if unidentified |
 | status | InboundPackageStatus | see enum |
 | warehouseReceivedAt | TIMESTAMP | |
-| weightKg | DECIMAL(10,3) | |
-| lengthCm/widthCm/heightCm | DECIMAL(10,2) | |
-| volumeCm3 | DECIMAL(12,2) | auto-calculated |
-| labelImageUrl | TEXT | |
-| packageImageUrls | JSONB | array of URLs |
+| imageUrls | TEXT[] | array of URLs |
 | issueNote/adminNote | TEXT | |
 
 ### 1.4 CustomerShipment
@@ -63,6 +62,7 @@ One shipment per customer (multiple inbound packages consolidated).
 | masterShipmentId | UUID? | FK to MasterShipment |
 | status | CustomerShipmentStatus | see enum |
 | paymentStatus | PaymentStatus | |
+| quantity | INT | piece count, default 1 |
 | internationalTrackingNo | VARCHAR(128) | |
 | publicTrackingEnabled | BOOLEAN | default true |
 | sentToOverseasAt / arrivedOverseasAt / ... | TIMESTAMP | lifecycle timestamps |
@@ -106,8 +106,8 @@ Financial records for customers.
 | AdminRole | OWNER, ADMIN, WAREHOUSE_STAFF, US_STAFF, VIEWER |
 | AdminStatus | ACTIVE, DISABLED |
 | CustomerStatus | ACTIVE, DISABLED |
-| InboundPackageStatus | UNCLAIMED, CLAIMED, PREALERTED_NOT_ARRIVED, ARRIVED_WAREHOUSE, PENDING_CONFIRMATION, CONFIRMED, ISSUE_REPORTED, CONSOLIDATED, INBOUND_EXCEPTION |
-| CustomerShipmentStatus | DRAFT, PACKED, SENT_TO_OVERSEAS, ARRIVED_OVERSEAS, READY_FOR_PICKUP, LOCAL_DELIVERY_REQUESTED, LOCAL_DELIVERY_IN_PROGRESS, PICKED_UP, COMPLETED, EXCEPTION |
+| InboundPackageStatus | UNIDENTIFIED, ARRIVED, CONSOLIDATED |
+| CustomerShipmentStatus | PACKED, SHIPPED, ARRIVED, READY_FOR_PICKUP, PICKED_UP, EXCEPTION |
 | MasterShipmentStatus | CREATED, HANDED_TO_VENDOR, IN_TRANSIT, TRANSFER_OR_CUSTOMS_PROCESSING, ARRIVED_OVERSEAS, CLOSED, EXCEPTION |
 | TransactionType | SERVICE_FEE, SHIPPING_FEE, LOCAL_DELIVERY_FEE, ADJUSTMENT, REFUND, OTHER |
 
@@ -188,11 +188,10 @@ All require `Authorization: Bearer <token>` where token is from `POST /api/auth/
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | /api/admin/inbound-packages | Create (auto-binds by customerCode if provided) |
-| GET | /api/admin/inbound-packages | List with search (q, status, customerId) |
+| GET | /api/admin/inbound-packages | List with search (q, status, customerId, customerCode) |
 | GET | /api/admin/inbound-packages/:id | Detail with customer + shipment info |
 | PATCH | /api/admin/inbound-packages/:id/assign-customer | Assign customer by customerCode |
 | PATCH | /api/admin/inbound-packages/:id/status | Update status |
-| PATCH | /api/admin/inbound-packages/:id/measurements | Update weight/dimensions (auto-calculates volumeCm3) |
 
 ### 5.3 CustomerShipments `/api/admin/customer-shipments`
 | Method | Path | Description |
@@ -235,7 +234,7 @@ All require `Authorization: Bearer <token>` where token is from `POST /api/auth/
 - Returns: status, Chinese status label, stage label, timeline timestamps, batch info (if publicVisible)
 
 **Privacy guarantees:**
-- `customerId`, `customer.phoneNumber`, `customer.displayName` are never included
+- `customerId`, `customer.phoneNumber`, `customer.wechatId` are never included
 - `internationalTrackingNo` is not included in public response
 - Only returns data if `publicTrackingEnabled = true`
 
@@ -252,15 +251,15 @@ Source: `src/common/status-labels.ts`
 
 | Status | Chinese Label |
 |--------|--------------|
-| UNCLAIMED | 待识别 |
-| ARRIVED_WAREHOUSE | 已入库 |
+| UNIDENTIFIED | 未识别 |
+| ARRIVED | 已入库 |
 | CONSOLIDATED | 已合箱 |
-| SENT_TO_OVERSEAS | 已发往海外仓 |
-| ARRIVED_OVERSEAS | 已到达海外仓 |
+| PACKED | 已打包 |
+| SHIPPED | 已发货 |
+| ARRIVED | 已到达 |
 | READY_FOR_PICKUP | 待自提 |
-| LOCAL_DELIVERY_IN_PROGRESS | 本地递送中 |
-| PICKED_UP | 收件人已取货 |
-| COMPLETED | 已完成 |
+| PICKED_UP | 已取货 |
+| EXCEPTION | 异常 |
 | HANDED_TO_VENDOR | 已交供应商 |
 | IN_TRANSIT | 运输中 |
 
@@ -341,8 +340,8 @@ Phase 1 Admin API now fully covers 5 resources:
 | Resource | Description |
 |---|---|
 | Customer | 客户档案 — CRUD + soft disable + hard delete |
-| InboundPackage | 入库包裹 — CRUD + assign customer + status + measurements + hard delete |
-| CustomerShipment | 客户集运单 — CRUD + status + payment + items + cancel + hard delete |
+| InboundPackage | 入库包裹 — CRUD + assign customer by customerCode + simplified status + images + hard delete |
+| CustomerShipment | 客户集运单 — CRUD + quantity + simplified status + payment + items + cancel + hard delete |
 | MasterShipment | 国际批次 — CRUD + status + publication + customer shipment links + hard delete |
 | TransactionRecord | 交易记录 — CRUD + hard delete (blocked if PAID) |
 
@@ -392,7 +391,7 @@ Note on REFUND: `amountCents` is always a positive integer. The meaning (credit/
 |---|---|---|---|
 | Customer | `?confirm=DELETE_HARD` | inboundPackages > 0 OR customerShipments > 0 OR transactions > 0 | `{ deleted: true, id }` |
 | InboundPackage | `?confirm=DELETE_HARD` | shipmentItems > 0 | `{ deleted: true, id }` |
-| CustomerShipment | `?confirm=DELETE_HARD` | status is SENT_TO_OVERSEAS+ OR masterShipmentId set OR transactions > 0 | Deletes items, restores packages to CLAIMED, then deletes shipment |
+| CustomerShipment | `?confirm=DELETE_HARD` | status is SHIPPED/ARRIVED/READY_FOR_PICKUP/PICKED_UP OR masterShipmentId set OR transactions > 0 | Deletes items, restores packages to ARRIVED, then deletes shipment |
 | MasterShipment | `?confirm=DELETE_HARD` | status is not CREATED OR customerShipments > 0 | `{ deleted: true, id }` |
 | TransactionRecord | `?confirm=DELETE_HARD` | paymentStatus = PAID | `{ deleted: true, id }` |
 
@@ -411,9 +410,9 @@ Fields **never** returned by Public API:
 - `vendorTrackingNo` — internal carrier tracking
 - `adminNote` — internal notes
 - `customerShipments` — would leak customer info
-- `customerCode`, `phoneNumber`, `displayName` — PII
+- `customerCode`, `phoneNumber`, `wechatId` — PII
 - `amountCents`, `paymentStatus` — financial data
-- `packageImageUrls`, `labelImageUrl` — package images
+- `imageUrls` — package images
 
 `GET /api/public/tracking/:shipmentNo` only returns if `publicTrackingEnabled=true` on the shipment. Response excludes all PII, payment info, and admin notes.
 
@@ -430,6 +429,6 @@ Schema already contained all needed models and fields:
 | Question | Current Behavior |
 |---|---|
 | Hard delete restricted to OWNER role only? | Current: any valid admin token. RBAC not implemented yet. |
-| Already-shipped shipments: permanently non-deletable? | Yes — `SENT_TO_OVERSEAS` and later statuses are blocked. |
+| Already-shipped shipments: permanently non-deletable? | Yes — `SHIPPED` and later active statuses are blocked. |
 | PAID transactions: non-deletable? | Yes — `paymentStatus=PAID` blocks hard delete. |
 | MasterShipment post-handover: permanently non-deletable? | Yes — only `CREATED` status allows hard delete. |

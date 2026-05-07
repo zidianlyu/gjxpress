@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CUSTOMER_SHIPMENT_STATUS_LABELS } from '../common/status-labels';
 
 function generateShipmentNo(): string {
   const date = new Date();
@@ -16,12 +17,36 @@ function generateShipmentNo(): string {
 }
 
 const VALID_STATUSES = [
-  'DRAFT', 'PACKED', 'SENT_TO_OVERSEAS', 'ARRIVED_OVERSEAS',
-  'READY_FOR_PICKUP', 'LOCAL_DELIVERY_REQUESTED', 'LOCAL_DELIVERY_IN_PROGRESS',
-  'PICKED_UP', 'COMPLETED', 'EXCEPTION',
+  'PACKED', 'SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP', 'EXCEPTION',
 ];
 
 const VALID_PAYMENT_STATUSES = ['UNPAID', 'PROCESSING', 'PENDING', 'PAID', 'WAIVED', 'REFUNDED'];
+const BLOCKED_ITEM_MUTATION_STATUSES = ['SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP'];
+
+function assertCustomerShipmentStatus(status: string) {
+  if (!VALID_STATUSES.includes(status)) {
+    throw new BadRequestException(
+      `Invalid status: ${status}. Must be one of: ${VALID_STATUSES.join(', ')}`,
+    );
+  }
+}
+
+function normalizeQuantity(quantity?: number): number {
+  const value = quantity === undefined ? 1 : Number(quantity);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new BadRequestException('quantity must be an integer greater than or equal to 1');
+  }
+  return value;
+}
+
+function formatCustomerShipment(shipment: any) {
+  return {
+    ...shipment,
+    statusText: CUSTOMER_SHIPMENT_STATUS_LABELS[shipment.status] ?? shipment.status,
+    itemCount: shipment.itemCount ?? shipment._count?.items,
+    _count: undefined,
+  };
+}
 
 @Injectable()
 export class CustomerShipmentsService {
@@ -30,6 +55,7 @@ export class CustomerShipmentsService {
   async create(dto: {
     customerId: string;
     inboundPackageIds?: string[];
+    quantity?: number;
     notes?: string;
     actualWeightKg?: string;
     volumeFormula?: string;
@@ -48,6 +74,7 @@ export class CustomerShipmentsService {
     }
 
     const packageIds = dto.inboundPackageIds ?? [];
+    const quantity = normalizeQuantity(dto.quantity);
     if (packageIds.length > 0) {
       const pkgs = await this.prisma.inboundPackage.findMany({
         where: { id: { in: packageIds } },
@@ -80,6 +107,7 @@ export class CustomerShipmentsService {
         data: {
           shipmentNo: shipmentNo!,
           customerId: dto.customerId,
+          quantity,
           notes: dto.notes,
           ...(dto.actualWeightKg !== undefined && { actualWeightKg: dto.actualWeightKg }),
           ...(dto.volumeFormula !== undefined && { volumeFormula: dto.volumeFormula }),
@@ -104,7 +132,7 @@ export class CustomerShipmentsService {
         });
       }
 
-      return { data: shipment };
+      return { data: formatCustomerShipment(shipment) };
     });
   }
 
@@ -123,7 +151,10 @@ export class CustomerShipmentsService {
     const skip = (page - 1) * take;
 
     const where: any = {};
-    if (query.status) where.status = query.status;
+    if (query.status) {
+      assertCustomerShipmentStatus(query.status);
+      where.status = query.status;
+    }
     if (query.paymentStatus) where.paymentStatus = query.paymentStatus;
     if (query.customerId) where.customerId = query.customerId;
     if (query.masterShipmentId) where.masterShipmentId = query.masterShipmentId;
@@ -153,8 +184,10 @@ export class CustomerShipmentsService {
     ]);
 
     return {
-      data: data.map((s) => ({ ...s, itemCount: s._count.items, _count: undefined })),
-      pagination: { page, pageSize: take, total, totalPages: Math.ceil(total / take) },
+      items: data.map((s) => formatCustomerShipment(s)),
+      page,
+      pageSize: take,
+      total,
     };
   }
 
@@ -177,7 +210,7 @@ export class CustomerShipmentsService {
       },
     });
     if (!shipment) throw new NotFoundException('CustomerShipment not found');
-    return { data: shipment };
+    return { data: formatCustomerShipment(shipment) };
   }
 
   async update(
@@ -188,6 +221,7 @@ export class CustomerShipmentsService {
       publicTrackingEnabled?: boolean;
       status?: string;
       paymentStatus?: string;
+      quantity?: number;
       actualWeightKg?: string;
       volumeFormula?: string;
       billingRateCnyPerKg?: string;
@@ -197,9 +231,7 @@ export class CustomerShipmentsService {
     const shipment = await this.prisma.customerShipment.findUnique({ where: { id } });
     if (!shipment) throw new NotFoundException('CustomerShipment not found');
 
-    if (dto.status && !VALID_STATUSES.includes(dto.status)) {
-      throw new BadRequestException(`Invalid status: ${dto.status}`);
-    }
+    if (dto.status) assertCustomerShipmentStatus(dto.status);
     if (dto.paymentStatus && !VALID_PAYMENT_STATUSES.includes(dto.paymentStatus)) {
       throw new BadRequestException(`Invalid paymentStatus: ${dto.paymentStatus}`);
     }
@@ -207,11 +239,10 @@ export class CustomerShipmentsService {
     const now = new Date();
     const timestamps: any = {};
     if (dto.status) {
-      if (dto.status === 'SENT_TO_OVERSEAS' && !shipment.sentToOverseasAt) timestamps.sentToOverseasAt = now;
-      if (dto.status === 'ARRIVED_OVERSEAS' && !shipment.arrivedOverseasAt) timestamps.arrivedOverseasAt = now;
-      if (dto.status === 'LOCAL_DELIVERY_REQUESTED' && !shipment.localDeliveryRequestedAt) timestamps.localDeliveryRequestedAt = now;
+      if (dto.status === 'SHIPPED' && !shipment.sentToOverseasAt) timestamps.sentToOverseasAt = now;
+      if (dto.status === 'ARRIVED' && !shipment.arrivedOverseasAt) timestamps.arrivedOverseasAt = now;
+      if (dto.status === 'READY_FOR_PICKUP' && !shipment.localDeliveryRequestedAt) timestamps.localDeliveryRequestedAt = now;
       if (dto.status === 'PICKED_UP' && !shipment.pickedUpAt) timestamps.pickedUpAt = now;
-      if (dto.status === 'COMPLETED' && !shipment.completedAt) timestamps.completedAt = now;
     }
 
     const updated = await this.prisma.customerShipment.update({
@@ -222,6 +253,7 @@ export class CustomerShipmentsService {
         ...(dto.publicTrackingEnabled !== undefined && { publicTrackingEnabled: dto.publicTrackingEnabled }),
         ...(dto.status !== undefined && { status: dto.status as any }),
         ...(dto.paymentStatus !== undefined && { paymentStatus: dto.paymentStatus as any }),
+        ...(dto.quantity !== undefined && { quantity: normalizeQuantity(dto.quantity) }),
         ...(dto.actualWeightKg !== undefined && { actualWeightKg: dto.actualWeightKg }),
         ...(dto.volumeFormula !== undefined && { volumeFormula: dto.volumeFormula }),
         ...(dto.billingRateCnyPerKg !== undefined && { billingRateCnyPerKg: dto.billingRateCnyPerKg }),
@@ -232,7 +264,7 @@ export class CustomerShipmentsService {
         customer: { select: { id: true, customerCode: true, wechatId: true } },
       },
     });
-    return { data: updated };
+    return { data: formatCustomerShipment(updated) };
   }
 
   async hardDelete(id: string, confirm: string) {
@@ -250,9 +282,7 @@ export class CustomerShipmentsService {
     });
     if (!shipment) throw new NotFoundException('CustomerShipment not found');
 
-    const blockedStatuses = ['SENT_TO_OVERSEAS', 'ARRIVED_OVERSEAS', 'READY_FOR_PICKUP',
-      'LOCAL_DELIVERY_REQUESTED', 'LOCAL_DELIVERY_IN_PROGRESS', 'PICKED_UP', 'COMPLETED'];
-    if (blockedStatuses.includes(shipment.status)) {
+    if (BLOCKED_ITEM_MUTATION_STATUSES.includes(shipment.status)) {
       throw new ConflictException(
         `Cannot hard delete shipment with status ${shipment.status}. Shipment is in transit or completed.`,
       );
@@ -279,7 +309,7 @@ export class CustomerShipmentsService {
         await tx.customerShipmentItem.deleteMany({ where: { customerShipmentId: id } });
         await tx.inboundPackage.updateMany({
           where: { id: { in: items.map((i) => i.inboundPackageId) } },
-          data: { status: 'CLAIMED' },
+          data: { status: 'ARRIVED' },
         });
       }
       await tx.customerShipment.delete({ where: { id } });
@@ -292,9 +322,7 @@ export class CustomerShipmentsService {
     const shipment = await this.prisma.customerShipment.findUnique({ where: { id } });
     if (!shipment) throw new NotFoundException('CustomerShipment not found');
 
-    const blockedStatuses = ['SENT_TO_OVERSEAS', 'ARRIVED_OVERSEAS', 'READY_FOR_PICKUP',
-      'LOCAL_DELIVERY_REQUESTED', 'LOCAL_DELIVERY_IN_PROGRESS', 'PICKED_UP', 'COMPLETED'];
-    if (blockedStatuses.includes(shipment.status)) {
+    if (BLOCKED_ITEM_MUTATION_STATUSES.includes(shipment.status)) {
       throw new ConflictException(
         `Cannot cancel shipment with status ${shipment.status}. Shipment is already in transit or completed.`,
       );
@@ -308,7 +336,7 @@ export class CustomerShipmentsService {
       if (items.length > 0) {
         await tx.inboundPackage.updateMany({
           where: { id: { in: items.map((i) => i.inboundPackageId) } },
-          data: { status: 'CLAIMED' },
+          data: { status: 'ARRIVED' },
         });
       }
       await tx.customerShipment.update({
@@ -321,26 +349,31 @@ export class CustomerShipmentsService {
   }
 
   async updateStatus(id: string, status: string, forcedAt?: string) {
-    if (!VALID_STATUSES.includes(status)) {
-      throw new BadRequestException(`Invalid status: ${status}`);
-    }
+    assertCustomerShipmentStatus(status);
 
     const shipment = await this.prisma.customerShipment.findUnique({ where: { id } });
     if (!shipment) throw new NotFoundException('CustomerShipment not found');
 
     const now = forcedAt ? new Date(forcedAt) : new Date();
     const timestamps: any = {};
-    if (status === 'SENT_TO_OVERSEAS' && !shipment.sentToOverseasAt) timestamps.sentToOverseasAt = now;
-    if (status === 'ARRIVED_OVERSEAS' && !shipment.arrivedOverseasAt) timestamps.arrivedOverseasAt = now;
-    if (status === 'LOCAL_DELIVERY_REQUESTED' && !shipment.localDeliveryRequestedAt) timestamps.localDeliveryRequestedAt = now;
+    if (status === 'SHIPPED' && !shipment.sentToOverseasAt) timestamps.sentToOverseasAt = now;
+    if (status === 'ARRIVED' && !shipment.arrivedOverseasAt) timestamps.arrivedOverseasAt = now;
+    if (status === 'READY_FOR_PICKUP' && !shipment.localDeliveryRequestedAt) timestamps.localDeliveryRequestedAt = now;
     if (status === 'PICKED_UP' && !shipment.pickedUpAt) timestamps.pickedUpAt = now;
-    if (status === 'COMPLETED' && !shipment.completedAt) timestamps.completedAt = now;
 
     const updated = await this.prisma.customerShipment.update({
       where: { id },
       data: { status: status as any, ...timestamps },
     });
-    return { data: { id: updated.id, status: updated.status, updatedAt: updated.updatedAt, ...timestamps } };
+    return {
+      data: {
+        id: updated.id,
+        status: updated.status,
+        statusText: CUSTOMER_SHIPMENT_STATUS_LABELS[updated.status],
+        updatedAt: updated.updatedAt,
+        ...timestamps,
+      },
+    };
   }
 
   async updatePaymentStatus(id: string, paymentStatus: string) {
@@ -394,9 +427,7 @@ export class CustomerShipmentsService {
     const shipment = await this.prisma.customerShipment.findUnique({ where: { id: shipmentId } });
     if (!shipment) throw new NotFoundException('CustomerShipment not found');
 
-    const blockedStatuses = ['SENT_TO_OVERSEAS', 'ARRIVED_OVERSEAS', 'READY_FOR_PICKUP',
-      'LOCAL_DELIVERY_REQUESTED', 'LOCAL_DELIVERY_IN_PROGRESS', 'PICKED_UP', 'COMPLETED'];
-    if (blockedStatuses.includes(shipment.status)) {
+    if (BLOCKED_ITEM_MUTATION_STATUSES.includes(shipment.status)) {
       throw new ConflictException(
         `Cannot remove item from shipment with status ${shipment.status}`,
       );
@@ -411,7 +442,7 @@ export class CustomerShipmentsService {
       await tx.customerShipmentItem.delete({ where: { id: itemId } });
       await tx.inboundPackage.update({
         where: { id: item.inboundPackageId },
-        data: { status: 'CLAIMED' },
+        data: { status: 'ARRIVED' },
       });
     });
 

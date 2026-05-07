@@ -31,7 +31,7 @@ export type Customer = {
   notes?: string | null;
   status: 'ACTIVE' | 'DISABLED';
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
 };
 
 export type CreateCustomerPayload = {
@@ -70,6 +70,13 @@ export type CustomerRegistration = {
   createdCustomer?: {
     id: string;
     customerCode: string;
+    phoneCountryCode?: string;
+    phoneNumber?: string;
+    wechatId?: string | null;
+    domesticReturnAddress?: string | null;
+    status?: 'ACTIVE' | 'DISABLED';
+    createdAt?: string;
+    updatedAt?: string;
   } | null;
   createdAt: string;
   updatedAt?: string;
@@ -97,11 +104,17 @@ export type ApproveCustomerRegistrationResponse = {
   customer: {
     id: string;
     customerCode: string;
+    status?: 'ACTIVE' | 'DISABLED';
   };
 };
 
 // Inbound Package
 export type InboundPackageStatus =
+  | 'UNIDENTIFIED'
+  | 'ARRIVED'
+  | 'CONSOLIDATED';
+
+export type LegacyInboundPackageStatus =
   | 'UNCLAIMED'
   | 'CLAIMED'
   | 'PREALERTED_NOT_ARRIVED'
@@ -109,13 +122,12 @@ export type InboundPackageStatus =
   | 'PENDING_CONFIRMATION'
   | 'CONFIRMED'
   | 'ISSUE_REPORTED'
-  | 'CONSOLIDATED'
   | 'INBOUND_EXCEPTION';
 
 export type InboundPackage = {
   id: string;
   domesticTrackingNo?: string | null;
-  status: string;
+  status: InboundPackageStatus | LegacyInboundPackageStatus;
   customer?: {
     id: string;
     customerCode: string;
@@ -131,7 +143,7 @@ export type InboundPackage = {
 };
 
 export type CreateInboundPackagePayload = {
-  domesticTrackingNo: string;
+  domesticTrackingNo?: string | null;
   customerCode?: string;
   warehouseReceivedAt?: string;
   adminNote?: string;
@@ -139,16 +151,20 @@ export type CreateInboundPackagePayload = {
 
 // Customer Shipment
 export type CustomerShipmentStatus =
-  | 'DRAFT'
   | 'PACKED'
+  | 'SHIPPED'
+  | 'ARRIVED'
+  | 'READY_FOR_PICKUP'
+  | 'PICKED_UP'
+  | 'EXCEPTION';
+
+export type LegacyCustomerShipmentStatus =
+  | 'DRAFT'
   | 'SENT_TO_OVERSEAS'
   | 'ARRIVED_OVERSEAS'
-  | 'READY_FOR_PICKUP'
   | 'LOCAL_DELIVERY_REQUESTED'
   | 'LOCAL_DELIVERY_IN_PROGRESS'
-  | 'PICKED_UP'
-  | 'COMPLETED'
-  | 'EXCEPTION';
+  | 'COMPLETED';
 
 export type PaymentStatus =
   | 'UNPAID'
@@ -161,8 +177,9 @@ export type CustomerShipment = {
   id: string;
   shipmentNo: string;
   customer?: Customer;
-  status: string;
+  status: CustomerShipmentStatus | LegacyCustomerShipmentStatus;
   paymentStatus: string;
+  quantity: number;
   masterShipmentId?: string | null;
   internationalTrackingNo?: string | null;
   publicTrackingEnabled?: boolean;
@@ -179,6 +196,7 @@ export type CustomerShipment = {
 export type CreateCustomerShipmentPayload = {
   customerId: string;
   inboundPackageIds?: string[];
+  quantity?: number;
   notes?: string;
   actualWeightKg?: number;
   volumeFormula?: string;
@@ -192,6 +210,7 @@ export type UpdateCustomerShipmentPayload = {
   publicTrackingEnabled?: boolean;
   status?: string;
   paymentStatus?: string;
+  quantity?: number;
   actualWeightKg?: number | null;
   volumeFormula?: string | null;
   billingRateCnyPerKg?: number | null;

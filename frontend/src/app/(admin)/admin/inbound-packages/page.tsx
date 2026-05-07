@@ -11,6 +11,7 @@ import { ImagePicker, LocalImageList } from '@/components/admin/ImageManager';
 import { Pagination } from '@/components/common/Pagination';
 import { InboundPackageStatusBadge } from '@/components/common/StatusBadge';
 import { TrackingBarcodeScanner } from '@/components/admin/TrackingBarcodeScanner';
+import { INBOUND_PACKAGE_STATUS_OPTIONS } from '@/lib/constants/status';
 
 export default function InboundPackagesPage() {
   const router = useRouter();
@@ -38,14 +39,14 @@ export default function InboundPackagesPage() {
     setError('');
     setErrorRequestId('');
     try {
-      const data = await adminApi.getInboundPackages({
-        q: search || undefined,
+      const data = await adminApi.listInboundPackages({
+        q: search.trim() || undefined,
         status: statusFilter || undefined,
         page,
         pageSize: 20,
       });
       setPackages(data?.items || []);
-      setTotalPages(data?.pagination?.totalPages || 1);
+      setTotalPages(data?.totalPages || 1);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -72,7 +73,7 @@ export default function InboundPackagesPage() {
     setCreateSuccess('');
     try {
       const pkg = await adminApi.createInboundPackage({
-        domesticTrackingNo: createForm.domesticTrackingNo.trim(),
+        domesticTrackingNo: createForm.domesticTrackingNo.trim() || null,
         customerCode: createForm.customerCode.trim() || undefined,
         adminNote: createForm.adminNote.trim() || undefined,
       });
@@ -96,14 +97,17 @@ export default function InboundPackagesPage() {
         }
       }
 
-      const statusMsg = pkg.status === 'UNCLAIMED' ? '已创建为未识别包裹' : '入库包裹创建成功';
+      const statusMsg = pkg.status === 'UNIDENTIFIED' || pkg.status === 'UNCLAIMED' ? '已创建为未识别包裹' : '入库包裹创建成功';
       setCreateSuccess(statusMsg + (localFiles.length > 0 ? `，已上传 ${localFiles.length} 张图片` : ''));
       setCreateForm({ domesticTrackingNo: '', customerCode: '', adminNote: '' });
       setLocalFiles([]);
       fetchData();
     } catch (err) {
       if (err instanceof ApiError) {
-        setCreateError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
+        const notFoundMsg = err.status === 404 && createForm.customerCode.trim()
+          ? '客户编号不存在，请确认后重试。'
+          : err.message;
+        setCreateError(`${notFoundMsg}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
       } else {
         setCreateError('创建失败');
       }
@@ -147,13 +151,9 @@ export default function InboundPackagesPage() {
             className="px-3 py-2 rounded-md border bg-background text-sm"
           >
             <option value="">全部状态</option>
-            <option value="UNCLAIMED">待识别</option>
-            <option value="CLAIMED">已归属客户</option>
-            <option value="ARRIVED_WAREHOUSE">已入库</option>
-            <option value="PENDING_CONFIRMATION">待确认</option>
-            <option value="CONFIRMED">已确认</option>
-            <option value="CONSOLIDATED">已合箱</option>
-            <option value="INBOUND_EXCEPTION">入库异常</option>
+            {INBOUND_PACKAGE_STATUS_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
           <button type="submit" className="px-4 py-2 rounded-md border bg-background text-sm hover:bg-muted">搜索</button>
         </form>
@@ -190,23 +190,28 @@ export default function InboundPackagesPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium">快递单号</th>
-                    <th className="text-left px-4 py-3 font-medium">客户</th>
+                    <th className="text-left px-4 py-3 font-medium">国内快递单号</th>
+                    <th className="text-left px-4 py-3 font-medium">客户编号</th>
                     <th className="text-left px-4 py-3 font-medium">状态</th>
                     <th className="text-left px-4 py-3 font-medium">图片</th>
                     <th className="text-left px-4 py-3 font-medium">入库时间</th>
+                    <th className="text-left px-4 py-3 font-medium">创建/更新</th>
                     <th className="text-left px-4 py-3 font-medium">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {packages.map((pkg) => (
                     <tr key={pkg.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-mono text-xs">{pkg.domesticTrackingNo || '-'}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{pkg.domesticTrackingNo || '未填写'}</td>
                       <td className="px-4 py-3 text-xs">{pkg.customer?.customerCode || <span className="text-yellow-600">未识别</span>}</td>
                       <td className="px-4 py-3"><InboundPackageStatusBadge status={pkg.status} /></td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{pkg.imageUrls?.length || 0} 张</td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
                         {pkg.warehouseReceivedAt ? new Date(pkg.warehouseReceivedAt).toLocaleDateString('zh-CN') : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        <p>{new Date(pkg.createdAt).toLocaleDateString('zh-CN')}</p>
+                        {pkg.updatedAt && <p>更 {new Date(pkg.updatedAt).toLocaleDateString('zh-CN')}</p>}
                       </td>
                       <td className="px-4 py-3">
                         <Link href={`/admin/inbound-packages/${pkg.id}`} className="text-primary text-xs hover:underline">查看/编辑</Link>
@@ -222,12 +227,13 @@ export default function InboundPackagesPage() {
               {packages.map((pkg) => (
                 <Link key={pkg.id} href={`/admin/inbound-packages/${pkg.id}`} className="block p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-sm">{pkg.domesticTrackingNo || '无单号'}</span>
+                    <span className="font-mono text-sm">{pkg.domesticTrackingNo || '未填写'}</span>
                     <InboundPackageStatusBadge status={pkg.status} />
                   </div>
                   <div className="text-sm text-muted-foreground space-y-0.5">
                     <p>客户：{pkg.customer?.customerCode || '未识别'}</p>
                     {pkg.imageUrls?.length > 0 && <p>图片：{pkg.imageUrls.length} 张</p>}
+                    <p>创建：{new Date(pkg.createdAt).toLocaleDateString('zh-CN')}</p>
                   </div>
                 </Link>
               ))}
@@ -252,15 +258,15 @@ export default function InboundPackagesPage() {
 
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium mb-1">国内快递单号 *</label>
+                <label className="block text-xs font-medium mb-1">国内快递单号</label>
                 <div className="relative">
-                  <input type="text" value={createForm.domesticTrackingNo} onChange={(e) => setCreateForm(f => ({ ...f, domesticTrackingNo: e.target.value }))} placeholder="必填" className="w-full px-3 py-2 pr-10 rounded-md border bg-background text-sm" required />
+                  <input type="text" value={createForm.domesticTrackingNo} onChange={(e) => setCreateForm(f => ({ ...f, domesticTrackingNo: e.target.value }))} placeholder="可选，支持后续补录" className="w-full px-3 py-2 pr-10 rounded-md border bg-background text-sm" />
                   <TrackingBarcodeScanner onConfirm={(value) => setCreateForm(f => ({ ...f, domesticTrackingNo: value }))} />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1">客户编号</label>
-                <input type="text" value={createForm.customerCode} onChange={(e) => setCreateForm(f => ({ ...f, customerCode: e.target.value }))} placeholder="可选，如 GJ0001。留空则为未识别包裹" className="w-full px-3 py-2 rounded-md border bg-background text-sm" />
+                <input type="text" value={createForm.customerCode} onChange={(e) => setCreateForm(f => ({ ...f, customerCode: e.target.value.toUpperCase() }))} placeholder="可选，如 GJ3178；留空则为未识别包裹" className="w-full px-3 py-2 rounded-md border bg-background text-sm" />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1">管理员备注</label>

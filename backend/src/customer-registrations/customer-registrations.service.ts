@@ -160,7 +160,17 @@ export class CustomerRegistrationsService {
       where: { id },
       include: {
         createdCustomer: {
-          select: { id: true, customerCode: true, status: true },
+          select: {
+            id: true,
+            customerCode: true,
+            phoneCountryCode: true,
+            phoneNumber: true,
+            wechatId: true,
+            domesticReturnAddress: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         },
       },
     });
@@ -234,7 +244,19 @@ export class CustomerRegistrationsService {
           ...(reviewNote !== undefined && { reviewNote: reviewNote?.trim() || null }),
         },
         include: {
-          createdCustomer: { select: { id: true, customerCode: true, status: true } },
+          createdCustomer: {
+            select: {
+              id: true,
+              customerCode: true,
+              phoneCountryCode: true,
+              phoneNumber: true,
+              wechatId: true,
+              domesticReturnAddress: true,
+              status: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
       });
 
