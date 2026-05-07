@@ -29,9 +29,10 @@ export default function CompensationPage() {
     <>
       <JsonLd data={breadcrumbData} />
       <JsonLd data={faqJsonLdData} />
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
-      <div className="mx-auto max-w-3xl">
-        <div className="text-center mb-12">
+      <section className="py-12 md:py-20">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl">
+            <div className="text-center mb-12">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mx-auto mb-4">
             <ShieldAlert className="h-7 w-7 text-primary" />
           </div>
@@ -41,7 +42,7 @@ export default function CompensationPage() {
 
         <div className="space-y-6">
           {/* 1. Principle */}
-          <div className="p-6 rounded-lg border bg-card">
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
             <h2 className="text-lg font-semibold mb-3">处理原则</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               如包裹出现丢失、破损、少件、延误或承运商异常，工作人员会根据入库记录、出库照片、集运单记录、承运商状态和客户提供的信息协助核查。处理结果以实际记录和责任认定为准。
@@ -49,7 +50,7 @@ export default function CompensationPage() {
           </div>
 
           {/* 2. Feedback Timeline */}
-          <div className="p-6 rounded-lg border bg-card">
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-3">
               <Search className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">反馈时限</h2>
@@ -60,7 +61,7 @@ export default function CompensationPage() {
           </div>
 
           {/* 3. Warehouse Stage */}
-          <div className="p-6 rounded-lg border bg-card">
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-3">
               <Warehouse className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">仓库阶段异常</h2>
@@ -71,7 +72,7 @@ export default function CompensationPage() {
           </div>
 
           {/* 4. Transit Stage */}
-          <div className="p-6 rounded-lg border bg-card">
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-3">
               <Truck className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">出库后运输阶段异常</h2>
@@ -82,7 +83,7 @@ export default function CompensationPage() {
           </div>
 
           {/* 5. Partial Missing */}
-          <div className="p-6 rounded-lg border bg-card">
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-3">
               <PackageMinus className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">部分少件</h2>
@@ -93,7 +94,7 @@ export default function CompensationPage() {
           </div>
 
           {/* 6. Fragile & Special */}
-          <div className="p-6 rounded-lg border bg-card">
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-3">
               <GlassWater className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">易碎品和特殊品类</h2>
@@ -104,7 +105,7 @@ export default function CompensationPage() {
           </div>
 
           {/* 7. Signed but not received */}
-          <div className="p-6 rounded-lg border bg-card">
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-3">
               <PackageCheck className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">显示签收但未收到</h2>
@@ -115,7 +116,7 @@ export default function CompensationPage() {
           </div>
 
           {/* 8. Exclusions */}
-          <div className="p-6 rounded-lg border border-amber-200 bg-amber-50">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-3">
               <XCircle className="h-5 w-5 text-amber-600" />
               <h2 className="font-semibold text-amber-900">不适用或可能限制赔付的情形</h2>
@@ -132,7 +133,7 @@ export default function CompensationPage() {
           </div>
 
           {/* 9. CTA */}
-          <div className="p-6 rounded-lg border bg-muted/30 text-center">
+          <div className="rounded-2xl border bg-muted/30 p-5 text-center sm:p-6">
             <p className="text-sm text-muted-foreground mb-4">
               遇到包裹异常？请联系工作人员并准备好相关照片和信息。
             </p>
@@ -153,21 +154,27 @@ export default function CompensationPage() {
               </Link>
             </div>
           </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
 
         {/* FAQ Section */}
-        <div className="mt-16 pt-16 border-t">
-          <FaqSection
-            title="异常处理常见问题"
-            description="关于包裹异常和反馈要求的常见问题"
-            faqs={compensationFaqs}
-          />
+      <section className="border-t py-10 sm:py-12">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl">
+            <FaqSection
+              title="异常处理常见问题"
+              description="关于包裹异常和反馈要求的常见问题"
+              faqs={compensationFaqs}
+              className="[&_[data-faq-item]]:rounded-2xl"
+            />
+          </div>
         </div>
+      </section>
 
         {/* Related Links */}
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-12">
           <div className="mx-auto max-w-3xl">
             <RelatedLinks
               links={[

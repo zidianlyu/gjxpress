@@ -60,7 +60,7 @@ export class PublicController {
   }
 
   @Get('batch-updates/:batchNo')
-  @ApiOperation({ summary: 'Get a single public batch update by batchNo (public, no auth). Only publicVisible=true batches.' })
+  @ApiOperation({ summary: 'Get a single public batch update by batchNo (public, no auth). Only publicPublished=true batches.' })
   @ApiParam({ name: 'batchNo', required: true, type: String, description: 'Public batch/master shipment number.' })
   @ApiGenericOk('Public batch update detail.')
   getBatchUpdate(@Param('batchNo') batchNo: string) {
@@ -68,7 +68,7 @@ export class PublicController {
   }
 
   @Get('batch-updates')
-  @ApiOperation({ summary: 'List public batch (master shipment) updates (public, no auth). Only publicVisible=true batches.' })
+  @ApiOperation({ summary: 'List public batch (master shipment) updates (public, no auth). Only publicPublished=true batches.' })
   @ApiPaginationQueries()
   @ApiPaginatedOk('Public batch updates with pagination.')
   listBatchUpdates(
@@ -80,8 +80,8 @@ export class PublicController {
 
   @Post('customer-registrations')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Submit new customer registration application (public, no auth). Returns customerCode and PENDING status only.' })
-  @ApiGenericCreated('Customer registration submitted; response includes generated customerCode and PENDING status.')
+  @ApiOperation({ summary: 'Submit new customer registration application (public, no auth). Returns customerCode only.' })
+  @ApiGenericCreated('Customer registration submitted; response includes generated customerCode.')
   submitRegistration(
     @Body() dto: CreateCustomerRegistrationDto,
     @Req() req: Request,

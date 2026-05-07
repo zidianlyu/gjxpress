@@ -1,6 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEnum, MaxLength } from 'class-validator';
-import { CustomerStatus } from '@prisma/client';
+import { IsString, IsOptional, MaxLength } from 'class-validator';
 
 export class UpdateCustomerDto {
   @ApiPropertyOptional({ example: '+86' })
@@ -26,9 +25,4 @@ export class UpdateCustomerDto {
   @IsOptional()
   @MaxLength(2000)
   domesticReturnAddress?: string;
-
-  @ApiPropertyOptional({ enum: CustomerStatus })
-  @IsEnum(CustomerStatus)
-  @IsOptional()
-  status?: CustomerStatus;
 }

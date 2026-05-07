@@ -7,10 +7,11 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { TransactionRecord } from '@/types/admin';
-import { TRANSACTION_TYPE_LABELS } from '@/lib/constants/status';
-import { formatAmountCents, centsToYuan } from '@/lib/format';
-import { yuanStringToCents, type PaymentOrderType } from '@/lib/admin/payment-order';
+import { formatAmountCents, formatDateTime } from '@/lib/format';
+import { formatTransactionSubtitle } from '@/lib/admin/payment-order';
+import { formatShipmentType } from '@/lib/shipment-types';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
+import { AdminBlockingOverlay } from '@/components/admin/AdminBlockingOverlay';
 
 export default function TransactionDetailPage() {
   const params = useParams();
@@ -26,14 +27,12 @@ export default function TransactionDetailPage() {
   const [actionMsg, setActionMsg] = useState('');
   const [actionError, setActionError] = useState('');
 
-  // Edit fields
-  const [editType, setEditType] = useState<PaymentOrderType>('SHIPPING_FEE');
-  const [editAmountYuan, setEditAmountYuan] = useState('');
-  const [editAdminNote, setEditAdminNote] = useState('');
+  const [adminNoteDraft, setAdminNoteDraft] = useState('');
 
   // Delete
   const [showDelete, setShowDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchTxn = useCallback(async () => {
     setIsLoading(true);
@@ -42,9 +41,7 @@ export default function TransactionDetailPage() {
     try {
       const data = await adminApi.getTransactionById(id);
       setTxn(data);
-      setEditType(data.type === 'REFUND' ? 'REFUND' : 'SHIPPING_FEE');
-      setEditAmountYuan(centsToYuan(data.amountCents));
-      setEditAdminNote(data.adminNote || '');
+      setAdminNoteDraft(data.adminNote || '');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -60,16 +57,14 @@ export default function TransactionDetailPage() {
   useEffect(() => { fetchTxn(); }, [fetchTxn]);
 
   const handleSave = async () => {
-    const amountCents = yuanStringToCents(editAmountYuan);
-    if (amountCents == null) { setActionError('金额必须是大于 0 的人民币金额，最多两位小数，不能包含货币符号或逗号'); return; }
     setSaving(true); setActionMsg(''); setActionError('');
     try {
-      const updated = await adminApi.updateTransaction(id, {
-        type: editType,
-        amountCents,
-        adminNote: editAdminNote || undefined,
+      await adminApi.updateTransaction(id, {
+        adminNote: adminNoteDraft.trim() || null,
       });
-      setTxn(updated);
+      const refreshed = await adminApi.getTransactionById(id);
+      setTxn(refreshed);
+      setAdminNoteDraft(refreshed.adminNote || '');
       setActionMsg('保存成功');
     } catch (err) {
       setActionError(err instanceof ApiError ? `${err.message}${err.requestId ? ` (${err.requestId})` : ''}` : '保存失败');
@@ -78,8 +73,10 @@ export default function TransactionDetailPage() {
 
   const handleDelete = async () => {
     setDeleteError('');
+    setIsDeleting(true);
     try {
       await adminApi.hardDeleteTransaction(id);
+      setShowDelete(false);
       router.push('/admin/transactions');
     } catch (err) {
       if (err instanceof ApiError) {
@@ -87,6 +84,7 @@ export default function TransactionDetailPage() {
       } else {
         setDeleteError('删除失败');
       }
+      setIsDeleting(false);
       throw err;
     }
   };
@@ -111,9 +109,10 @@ export default function TransactionDetailPage() {
   }
 
   if (!txn) return null;
-  const occurredAtDate = txn.occurredAt ? new Date(txn.occurredAt) : null;
-  const occurredAtText = occurredAtDate && !Number.isNaN(occurredAtDate.getTime()) ? occurredAtDate.toLocaleString('zh-CN') : '-';
-  const customerCode = txn.customer?.customerCode || txn.customerShipment?.customer?.customerCode || txn.customerId?.slice(0, 8) || '-';
+  const customerCode = txn.customerShipment?.customer?.customerCode || txn.customer?.customerCode || '未知客户';
+  const shipmentNo = txn.customerShipment?.shipmentNo || '未生成';
+  const shipmentTypeText = formatShipmentType(txn.customerShipment?.shipmentType);
+  const updatedAtText = formatDateTime(txn.updatedAt || txn.createdAt);
 
   return (
     <div className="flex-1 overflow-auto">
@@ -124,7 +123,7 @@ export default function TransactionDetailPage() {
           </Link>
           <div>
             <h1 className="text-xl md:text-2xl font-bold">支付订单详情</h1>
-            <p className="text-sm text-muted-foreground font-mono">{txn.id.slice(0, 8)}...</p>
+            <p className="text-sm text-muted-foreground font-mono">{formatTransactionSubtitle(txn)}</p>
           </div>
         </div>
       </header>
@@ -137,12 +136,12 @@ export default function TransactionDetailPage() {
         <div className="rounded-lg border p-4 space-y-3">
           <h2 className="font-semibold">基础信息</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div><span className="text-muted-foreground">类型：</span>{TRANSACTION_TYPE_LABELS[txn.type] || txn.type}</div>
-            <div><span className="text-muted-foreground">金额：</span><span className="font-mono font-semibold">{formatAmountCents(txn.amountCents)}</span></div>
             <div><span className="text-muted-foreground">客户：</span><span className="font-mono text-xs">{customerCode}</span></div>
-            <div><span className="text-muted-foreground">集运单：</span><span className="font-mono text-xs">{txn.customerShipment?.shipmentNo || txn.customerShipmentId.slice(0, 8)}</span></div>
-            <div><span className="text-muted-foreground">发生时间：</span>{occurredAtText}</div>
-            <div><span className="text-muted-foreground">创建时间：</span>{new Date(txn.createdAt).toLocaleString('zh-CN')}</div>
+            <div><span className="text-muted-foreground">集运单：</span><span className="font-mono text-xs">{shipmentNo}</span></div>
+            <div><span className="text-muted-foreground">运输类型：</span>{shipmentTypeText}</div>
+            <div><span className="text-muted-foreground">金额：</span><span className="font-mono font-semibold">{formatAmountCents(txn.amountCents)}</span></div>
+            <div><span className="text-muted-foreground">创建时间：</span>{formatDateTime(txn.createdAt)}</div>
+            <div><span className="text-muted-foreground">更新时间：</span>{updatedAtText}</div>
           </div>
           {txn.adminNote && <p className="text-sm"><span className="text-muted-foreground">备注：</span>{txn.adminNote}</p>}
         </div>
@@ -151,21 +150,9 @@ export default function TransactionDetailPage() {
         <div className="rounded-lg border p-4 space-y-3">
           <h2 className="font-semibold">编辑</h2>
           <div className="grid grid-cols-1 gap-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium mb-1">类型</label>
-                <select value={editType} onChange={(e) => setEditType(e.target.value as PaymentOrderType)} className="w-full px-3 py-2 rounded-md border text-sm">
-                  {Object.entries(TRANSACTION_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">金额（元）</label>
-                <input type="text" value={editAmountYuan} onChange={(e) => setEditAmountYuan(e.target.value)} className="w-full px-3 py-2 rounded-md border text-sm" />
-              </div>
-            </div>
             <div>
-              <label className="block text-xs font-medium mb-1">管理员备注</label>
-              <textarea value={editAdminNote} onChange={(e) => setEditAdminNote(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-md border text-sm" />
+              <label className="block text-xs font-medium mb-1">备注</label>
+              <textarea value={adminNoteDraft} onChange={(e) => setAdminNoteDraft(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-md border text-sm" />
             </div>
           </div>
           <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 w-full sm:w-auto">
@@ -177,7 +164,7 @@ export default function TransactionDetailPage() {
         <div className="rounded-lg border border-red-200 p-4 space-y-3">
           <h2 className="font-semibold text-red-700">危险操作</h2>
           <p className="text-xs text-muted-foreground">永久删除此支付订单，此操作不可恢复。</p>
-          <button onClick={() => setShowDelete(true)} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
+          <button onClick={() => setShowDelete(true)} disabled={saving || isDeleting} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
             永久删除
           </button>
         </div>
@@ -185,14 +172,22 @@ export default function TransactionDetailPage() {
 
       <DeleteConfirmDialog
         open={showDelete}
-        onClose={() => { setShowDelete(false); setDeleteError(''); }}
+        onClose={() => {
+          if (isDeleting) return;
+          setShowDelete(false);
+          setDeleteError('');
+        }}
         onConfirm={handleDelete}
-        title="永久删除支付订单"
+        title="删除订单"
         description="删除后此支付订单数据将不可恢复。"
         confirmText="DELETE"
-        entityLabel={`${TRANSACTION_TYPE_LABELS[txn.type] || txn.type} ${formatAmountCents(txn.amountCents)}`}
+        confirmButtonText="删除"
+        cancelButtonText="取消"
+        requireTypedConfirmation={false}
+        entityLabel={`${shipmentTypeText} ${formatAmountCents(txn.amountCents)}`}
         error={deleteError}
       />
+      {isDeleting && <AdminBlockingOverlay title="正在删除，请稍候" description="正在删除订单..." />}
     </div>
   );
 }

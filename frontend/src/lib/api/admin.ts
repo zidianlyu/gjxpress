@@ -185,13 +185,13 @@ function cleanInboundPackagePayload(data: CreateInboundPackagePayload): CreateIn
     ...data,
     domesticTrackingNo: domesticTrackingNo || null,
     customerCode: customerCode || '',
-    adminNote: data.adminNote?.trim() || undefined,
+    note: data.note?.trim() || undefined,
   };
 }
 
 export const adminApi = {
   // === Customers ===
-  listCustomers: async (params?: { q?: string; status?: string; page?: number; pageSize?: number }) => {
+  listCustomers: async (params?: { q?: string; page?: number; pageSize?: number }) => {
     const page = params?.page || 1;
     const pageSize = params?.pageSize || 20;
     const data = await adminApiFetch<PaginationLike<Customer>>(
@@ -200,7 +200,7 @@ export const adminApi = {
     return normalizePagination(data, page, pageSize);
   },
 
-  getCustomers: (params?: { q?: string; status?: string; page?: number; pageSize?: number }) =>
+  getCustomers: (params?: { q?: string; page?: number; pageSize?: number }) =>
     adminApi.listCustomers(params),
 
   getCustomerById: async (id: string) =>
@@ -211,9 +211,6 @@ export const adminApi = {
 
   updateCustomer: async (id: string, data: UpdateCustomerPayload) =>
     unwrapApiItem(await adminApiFetch<ItemLike<Customer>>(`/admin/customers/${id}`, { method: 'PATCH', body: data })),
-
-  disableCustomer: (id: string) =>
-    adminApiFetch<Customer>(`/admin/customers/${id}/disable`, { method: 'PATCH' }),
 
   // === Inbound Packages ===
   listInboundPackages: async (params?: { q?: string; status?: string; customerId?: string; customerCode?: string; page?: number; pageSize?: number }) => {
@@ -238,8 +235,7 @@ export const adminApi = {
     domesticTrackingNo: string | null;
     customerCode: string | null;
     warehouseReceivedAt: string | null;
-    adminNote: string | null;
-    issueNote: string | null;
+    note: string | null;
     status: string;
   }>) => adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
@@ -260,7 +256,7 @@ export const adminApi = {
     adminApiFetch<{ deleted: boolean }>(`/admin/inbound-packages/${id}/images?imageUrl=${encodeURIComponent(imageUrl)}&confirm=DELETE_HARD`, { method: 'DELETE' }),
 
   // === Customer Shipments ===
-  listCustomerShipments: async (params?: { q?: string; status?: string; paymentStatus?: string; customerId?: string; masterShipmentId?: string; unbatched?: boolean; page?: number; pageSize?: number }) => {
+  listCustomerShipments: async (params?: { q?: string; status?: string; paymentStatus?: string; shipmentType?: string; customerId?: string; masterShipmentId?: string; unbatched?: boolean; page?: number; pageSize?: number }) => {
     const page = params?.page || 1;
     const pageSize = params?.pageSize || 20;
     const data = await adminApiFetch<PaginationLike<CustomerShipment>>(
@@ -269,7 +265,7 @@ export const adminApi = {
     return normalizePagination(data, page, pageSize);
   },
 
-  getCustomerShipments: (params?: { q?: string; status?: string; paymentStatus?: string; customerId?: string; masterShipmentId?: string; unbatched?: boolean; page?: number; pageSize?: number }) =>
+  getCustomerShipments: (params?: { q?: string; status?: string; paymentStatus?: string; shipmentType?: string; customerId?: string; masterShipmentId?: string; unbatched?: boolean; page?: number; pageSize?: number }) =>
     adminApi.listCustomerShipments(params),
 
   getCustomerShipmentById: (id: string) =>
@@ -304,7 +300,7 @@ export const adminApi = {
     adminApiFetch<{ deleted: boolean }>(`/admin/customer-shipments/${id}/images?imageUrl=${encodeURIComponent(imageUrl)}&confirm=DELETE_HARD`, { method: 'DELETE' }),
 
   // === Master Shipments ===
-  getMasterShipments: async (params?: { q?: string; status?: string; publicVisible?: boolean; page?: number; pageSize?: number }) => {
+  getMasterShipments: async (params?: { q?: string; status?: string; publicPublished?: boolean; publicVisible?: boolean; page?: number; pageSize?: number }) => {
     const page = params?.page || 1;
     const pageSize = params?.pageSize || 20;
     const data = await adminApiFetch<PaginationLike<MasterShipment>>(
@@ -328,11 +324,11 @@ export const adminApi = {
   removeCustomerShipmentFromMaster: (masterId: string, csId: string) =>
     adminApiFetch<unknown>(`/admin/master-shipments/${masterId}/customer-shipments/${csId}`, { method: 'DELETE' }),
 
-  updateMasterShipmentPublication: (id: string, data: { publicVisible: boolean; publicTitle?: string; publicSummary?: string; publicStatusText?: string }) =>
-    adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}/publication`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
+  updateMasterShipmentPublication: (id: string, data: { publicPublished: boolean }) =>
+    adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   // === Transactions ===
-  getTransactions: async (params?: { q?: string; customerId?: string; customerShipmentId?: string; type?: string; page?: number; pageSize?: number }) => {
+  getTransactions: async (params?: { q?: string; customerId?: string; customerShipmentId?: string; page?: number; pageSize?: number }) => {
     const page = params?.page || 1;
     const pageSize = params?.pageSize || 20;
     const data = await adminApiFetch<PaginationLike<TransactionRecord>>(
@@ -351,7 +347,7 @@ export const adminApi = {
     adminApiFetch<ItemLike<TransactionRecord>>(`/admin/transactions/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   // === Master Shipment extended ===
-  updateMasterShipment: (id: string, data: Partial<{ shipmentType: string; vendorName: string; vendorTrackingNo: string; adminNote: string }>) =>
+  updateMasterShipment: (id: string, data: { note: string | null }) =>
     adminApiFetch<ItemLike<MasterShipment>>(`/admin/master-shipments/${id}`, { method: 'PATCH', body: data }).then((res) => unwrapApiItem(res)),
 
   // === Hard Delete ===

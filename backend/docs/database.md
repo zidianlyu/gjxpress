@@ -1080,11 +1080,9 @@ Added optional `TEXT` column `domestic_return_address` to the `customers` table.
 - Settable on create (`POST /admin/customers`) and update (`PATCH /admin/customers/:id`).
 - Also copied from `CustomerRegistration` on approval.
 
-### 16.2 CustomerRegistrationStatus Enum
+### 16.2 CustomerRegistration Review State
 
-```sql
-CREATE TYPE "CustomerRegistrationStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
-```
+`CustomerRegistration` no longer has a `status` field. A row exists only while it is waiting for admin review; approving the row creates a formal `Customer` and hard deletes the registration.
 
 ### 16.3 CustomerRegistration Table
 
@@ -1098,7 +1096,6 @@ Table: `customer_registrations`
 | `phone_number` | VARCHAR(32) | required |
 | `wechat_id` | VARCHAR(64) nullable | |
 | `domestic_return_address` | TEXT nullable | |
-| `status` | CustomerRegistrationStatus | default PENDING |
 | `approved_at` | TIMESTAMP nullable | |
 | `approved_by_admin_id` | UUID nullable | admin who approved |
 | `rejected_at` | TIMESTAMP nullable | |
@@ -1125,10 +1122,10 @@ FK: `created_customer_id` → `customers.id` ON DELETE SET NULL (deleting regist
 
 `POST /admin/customer-registrations/:id/approve` uses a single `$transaction`:
 
-1. Check registration exists
+1. Check registration exists; no status check is performed
 2. Check customerCode not already in Customer table (409 — defensive)
 3. Check phone not already a formal Customer (409)
-4. `tx.customer.create(...)` — copies customerCode, phoneCountryCode, phoneNumber, wechatId, domesticReturnAddress; status=ACTIVE
+4. `tx.customer.create(...)` — copies customerCode, phoneCountryCode, phoneNumber, wechatId, domesticReturnAddress. Formal Customer no longer has `status`.
 5. `tx.customerRegistration.delete(...)` — hard deletes the reviewed registration row
 
 The API no longer stores APPROVED registration rows and no longer accepts review notes.
@@ -1137,10 +1134,8 @@ The API no longer stores APPROVED registration rows and no longer accepts review
 
 | Existing state | Re-submit result |
 |---|---|
-| PENDING same phone | 409 — 该手机号已有待审核申请 |
-| APPROVED same phone | 409 — 该手机号已关联正式客户 |
+| Existing registration same phone | 409 — 该手机号已有待审核申请 |
 | Already formal Customer | 409 — 该手机号已登记为正式客户 |
-| Legacy REJECTED same phone | Allowed — new submission creates new registration with new customerCode |
 
 ### 16.7 Hard Delete Behaviour
 
@@ -1150,7 +1145,7 @@ The API no longer stores APPROVED registration rows and no longer accepts review
 
 ### 16.8 Privacy
 
-- Public `POST /customer-registrations` response returns only: `id`, `customerCode`, `status`, `message`
+- Public `POST /customer-registrations` response returns only: `id`, `customerCode`, `message`
 - Never returns: ipHash, userAgent, reviewNote, approvedByAdminId, rejectedByAdminId, notes, other registrations' data
 - Backend request log does not include phoneNumber, wechatId, or domesticReturnAddress in log output
 - Rate limit and CAPTCHA not implemented yet. Recommended for production: add rate limit per IP on `POST /public/customer-registrations`
@@ -1160,12 +1155,12 @@ The API no longer stores APPROVED registration rows and no longer accepts review
 File: `prisma/migrations/20260506024953_customer_registration_review/migration.sql`
 
 Operations:
-- `CREATE TYPE "CustomerRegistrationStatus"`
 - `ALTER TABLE "customers" ADD COLUMN "domestic_return_address" TEXT`
 - `CREATE TABLE "customer_registrations"` with all columns and indexes
 - `ADD CONSTRAINT` FK to customers
 
 Current cleanup migration removes `customer_registrations.notes` and `customers.notes`.
+Migration `remove_customer_registration_status` drops `customer_registrations.status`; the legacy Postgres enum may remain until a later enum cleanup migration.
 
 ---
 
@@ -1193,6 +1188,7 @@ Table: `inbound_packages`
 | `customer_id` | `UUID NULL FK -> customers(id)` | Internal FK resolved from Admin `customerCode` input |
 | `status` | `InboundPackageStatus` | Simplified business enum |
 | `image_urls` | `TEXT[] DEFAULT []` | Public image URLs stored after admin upload |
+| `note` | `TEXT NULL` | Internal package note; replaces legacy `admin_note` and `issue_note` |
 
 `InboundPackageStatus` values:
 
@@ -1217,12 +1213,17 @@ Table: `customer_shipments`
 | Column | Type | Notes |
 |---|---|---|
 | `quantity` | `INTEGER NOT NULL DEFAULT 1` | Piece count entered by admin |
+| `shipment_type` | `TEXT NOT NULL DEFAULT 'AIR_GENERAL'` | Internal values: `AIR_GENERAL`（空运普货）, `AIR_SENSITIVE`（空运敏货）, `SEA`（海运） |
 | `status` | `CustomerShipmentStatus` | Simplified business enum |
 | `actual_weight_kg` | `DECIMAL(10,3) NULL` | Billing input |
 | `volume_formula` | `VARCHAR(128) NULL` | Human-readable formula |
 | `billing_rate_cny_per_kg` | `DECIMAL(10,2) NULL` | Billing input |
 | `billing_weight_kg` | `DECIMAL(10,3) NULL` | Billing input |
 | `image_urls` | `TEXT[] DEFAULT []` | Admin-uploaded images |
+
+`CustomerShipment.payment_status` is limited at the API and table level to `UNPAID`（未支付）, `PAID`（已支付）, and `REFUNDED`（已退款）. Migration `normalize_customer_shipment_payment_status` normalizes legacy values to those three values and adds a table CHECK constraint.
+
+`CustomerShipment.public_tracking_enabled` remains default `true`, so newly created shipments are searchable through public tracking by `shipmentNo` unless an admin later turns public tracking off.
 
 `CustomerShipmentStatus` values:
 
@@ -1253,14 +1254,32 @@ Table: `master_shipments`
 | Column | Type | Notes |
 |---|---|---|
 | `shipment_type` | `TEXT NOT NULL DEFAULT 'AIR_GENERAL'` | Internal values: `AIR_GENERAL`（空运普货）, `AIR_SENSITIVE`（空运敏货）, `SEA`（海运） |
+| `vendor_name` | `VARCHAR(64) NOT NULL` | API field remains `vendorName`; allowed values: `DHL`, `UPS`, `FEDEX`, `EMS`, `OTHER` |
+| `status` | `MasterShipmentStatus` | `IN_TRANSIT`, `SIGNED`, `READY_FOR_PICKUP`, `EXCEPTION`; default `IN_TRANSIT` |
+| `public_visible` | `BOOLEAN NOT NULL DEFAULT true` | API response field is `publicPublished`; public batch APIs only show true rows |
+| `admin_note` | `TEXT NULL` | API response field is `note` |
 
-Migration `add_master_shipment_type` adds `master_shipments.shipment_type` for existing and future batch records.
+Migration `add_customer_shipment_type` adds `customer_shipments.shipment_type`; `add_master_shipment_type` adds `master_shipments.shipment_type`. Both use the same values: `AIR_GENERAL`, `AIR_SENSITIVE`, `SEA`. Creating a MasterShipment only allows CustomerShipments that are unbatched, `PAID`, and have the same `shipmentType`; creation sets those CustomerShipments to `SHIPPED` in the same transaction. Migration `restrict_master_shipment_vendor_name` normalizes historical vendor names and adds a table CHECK constraint.
+
+Migration `update_master_shipment_public_and_status` removes public text columns (`public_title`, `public_summary`, `public_status_text`), changes `public_visible` default to true and exposes it as `publicPublished`, maps legacy batch statuses into `IN_TRANSIT` / `SIGNED` / `READY_FOR_PICKUP` / `EXCEPTION`, and changes the default batch status to `IN_TRANSIT`. Legacy enum values may remain in Postgres until a future enum cleanup migration.
+
+Public batch updates use `GET /api/tracking/batch-updates` and read recent `MasterShipment` rows by `created_at desc`, returning only low-sensitive fields: vendorName, vendorTrackingNo, shipmentType, status, customerShipmentCount, createdAt, and updatedAt. Public tracking responses do not return customer privacy fields, images, transactions, admin notes, or internal UUIDs.
 
 ### 17.5 TransactionRecord
 
 Table: `transaction_records`
 
-Admin transaction records are internal bookkeeping only. Frontend submits `customer_shipment_id` via API as `customerShipmentId`; backend derives internal UUID `customer_id` from `CustomerShipment.customerId`. Creating `SHIPPING_FEE` creates the TransactionRecord and marks the related `CustomerShipment.payment_status=PAID` in one Prisma transaction. Listing transactions defaults to all types, including `SHIPPING_FEE`.
+Admin transaction records are internal bookkeeping only and no longer have a `type` field. Frontend submits only `customerShipmentId`, `amountCents`, and optional `adminNote`; backend derives internal UUID `customer_id` from `CustomerShipment.customerId`. Creating a TransactionRecord marks the related `CustomerShipment.payment_status=PAID` in the same Prisma transaction. Hard deleting a TransactionRecord resets the related `CustomerShipment.payment_status=UNPAID`. Order display of transport type comes from `customerShipment.shipmentType`.
+
+Migrations:
+- `replace_inbound_package_notes_with_note`: adds `inbound_packages.note`, merges legacy `admin_note` / `issue_note`, then drops the legacy columns.
+- `update_transaction_order_types`: adds `AIR_GENERAL`, `AIR_SENSITIVE`, and `SEA` to the Postgres `TransactionType` enum; legacy `SHIPPING_FEE` is retained.
+- `normalize_customer_shipment_payment_status`: normalizes CustomerShipment payment statuses and adds `customer_shipments_payment_status_allowed`.
+- `restrict_master_shipment_vendor_name`: normalizes MasterShipment vendor names and adds `master_shipments_vendor_name_allowed`.
+- `remove_customer_registration_status`: drops `customer_registrations.status`.
+- `add_customer_shipment_type`: adds `customer_shipments.shipment_type`.
+- `remove_transaction_type`: backfills shipment payment/type information from legacy transaction type where possible, then drops `transaction_records.type`. The legacy Postgres `TransactionType` enum may remain until a later enum cleanup migration.
+- `update_master_shipment_public_and_status`: removes public text fields, reuses `public_visible` as `publicPublished`, and normalizes MasterShipment status values.
 
 **Status: create-only (not yet applied)**. Apply with:
 ```bash

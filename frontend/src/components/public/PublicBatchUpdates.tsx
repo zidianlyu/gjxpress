@@ -3,9 +3,13 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Truck } from 'lucide-react';
 import { publicApi } from '@/lib/api/public';
-import { ApiError } from '@/lib/api/client';
-import { MASTER_SHIPMENT_STATUS_LABELS } from '@/lib/constants/status';
 import type { PublicBatchUpdate } from '@/types/public';
+import {
+  formatMasterShipmentStatus,
+  formatMasterShipmentType,
+  formatMasterShipmentVendor,
+  formatPublicDateTime,
+} from '@/lib/public-tracking';
 
 export function PublicBatchUpdates() {
   const [updates, setUpdates] = useState<PublicBatchUpdate[]>([]);
@@ -15,14 +19,10 @@ export function PublicBatchUpdates() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await publicApi.getBatchUpdates({ page: 1, pageSize: 20 });
-        setUpdates(response.data?.items || []);
-      } catch (err) {
-        if (err instanceof ApiError) {
-          setError(err.message);
-        } else {
-          setError('加载失败，请稍后重试');
-        }
+        const data = await publicApi.getBatchUpdates({ limit: 10 });
+        setUpdates(data);
+      } catch {
+        setError('批次更新暂时无法加载，请稍后重试。');
       } finally {
         setIsLoading(false);
       }
@@ -60,32 +60,40 @@ export function PublicBatchUpdates() {
       {!isLoading && !error && updates.length === 0 && (
         <div className="rounded-lg border border-dashed p-8 text-center">
           <Truck className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">暂无公开批次更新</p>
+          <p className="text-sm text-muted-foreground">暂时还没有公开批次更新，请稍后查看或联系工作人员确认。</p>
         </div>
       )}
 
       {!isLoading && updates.length > 0 && (
         <div className="space-y-4">
-          {updates.map((update) => (
-            <article key={update.batchNo} className="rounded-lg border bg-background p-4">
+          {updates.map((update, index) => (
+            <article key={`${update.vendorTrackingNo || update.batchNo || 'batch'}-${index}`} className="rounded-lg border bg-background p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <span className="break-all font-mono text-sm font-medium">{update.batchNo}</span>
+                <span className="text-sm font-medium">{formatMasterShipmentType(update.shipmentType)}</span>
                 <span className="w-fit rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
-                  {MASTER_SHIPMENT_STATUS_LABELS[update.status] || update.statusText || update.status}
+                  {update.status ? formatMasterShipmentStatus(update.status) : update.statusText || '-'}
                 </span>
               </div>
-              {update.publicTitle && <p className="mt-3 font-medium">{update.publicTitle}</p>}
-              {update.publicSummary && (
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{update.publicSummary}</p>
-              )}
-              {update.publicStatusText && (
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{update.publicStatusText}</p>
-              )}
-              {update.publishedAt && (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  发布于 {new Date(update.publishedAt).toLocaleDateString('zh-CN')}
-                </p>
-              )}
+              <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-muted-foreground">供应商</dt>
+                  <dd className="font-medium">{formatMasterShipmentVendor(update.vendorName)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">供应商单号</dt>
+                  <dd className="break-all font-mono text-xs">{update.vendorTrackingNo || update.batchNo || '-'}</dd>
+                </div>
+                {typeof update.customerShipmentCount === 'number' && (
+                  <div>
+                    <dt className="text-xs text-muted-foreground">集运单数量</dt>
+                    <dd className="font-medium">{update.customerShipmentCount}</dd>
+                  </div>
+                )}
+                <div>
+                  <dt className="text-xs text-muted-foreground">更新时间</dt>
+                  <dd className="font-medium">{formatPublicDateTime(update.updatedAt || update.createdAt || update.publishedAt)}</dd>
+                </div>
+              </dl>
             </article>
           ))}
         </div>

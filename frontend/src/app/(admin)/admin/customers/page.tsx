@@ -14,7 +14,6 @@ export default function CustomersPage() {
   const [error, setError] = useState('');
   const [errorRequestId, setErrorRequestId] = useState('');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -30,7 +29,7 @@ export default function CustomersPage() {
     setError('');
     setErrorRequestId('');
     try {
-      const data = await adminApi.listCustomers({ q: search.trim() || undefined, status: statusFilter || undefined, page, pageSize: 20 });
+      const data = await adminApi.listCustomers({ q: search.trim() || undefined, page, pageSize: 20 });
       setCustomers(data?.items || []);
       setTotalPages(data?.totalPages || 1);
     } catch (err) {
@@ -43,7 +42,7 @@ export default function CustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, statusFilter, page]);
+  }, [search, page]);
 
   useEffect(() => {
     fetchCustomers();
@@ -121,15 +120,6 @@ export default function CustomersPage() {
               className="w-full pl-9 pr-3 py-2 rounded-md border bg-background text-sm"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 rounded-md border bg-background text-sm"
-          >
-            <option value="">全部状态</option>
-            <option value="ACTIVE">正常</option>
-            <option value="DISABLED">停用</option>
-          </select>
           <button type="submit" className="px-4 py-2 rounded-md border bg-background text-sm hover:bg-muted">
             搜索
           </button>
@@ -171,7 +161,6 @@ export default function CustomersPage() {
                     <th className="text-left px-4 py-3 font-medium">手机号</th>
                     <th className="text-left px-4 py-3 font-medium">微信号</th>
                     <th className="text-left px-4 py-3 font-medium">国内退货地址</th>
-                    <th className="text-left px-4 py-3 font-medium">状态</th>
                     <th className="text-left px-4 py-3 font-medium">创建时间</th>
                     <th className="text-left px-4 py-3 font-medium">操作</th>
                   </tr>
@@ -183,11 +172,6 @@ export default function CustomersPage() {
                       <td className="px-4 py-3">{c.phoneCountryCode} {c.phoneNumber}</td>
                       <td className="px-4 py-3">{c.wechatId || '-'}</td>
                       <td className="px-4 py-3 max-w-[160px] truncate text-xs text-muted-foreground" title={c.domesticReturnAddress || ''}>{c.domesticReturnAddress || '-'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {c.status === 'ACTIVE' ? '正常' : '停用'}
-                        </span>
-                      </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
                         {new Date(c.createdAt).toLocaleDateString('zh-CN')}
                       </td>
@@ -206,11 +190,8 @@ export default function CustomersPage() {
             <div className="md:hidden space-y-3">
               {customers.map((c) => (
                 <Link key={c.id} href={`/admin/customers/${c.id}`} className="block p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="mb-1">
                     <span className="font-mono text-sm font-medium">{c.customerCode}</span>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {c.status === 'ACTIVE' ? '正常' : '停用'}
-                    </span>
                   </div>
                   <div className="text-sm text-muted-foreground space-y-0.5">
                     <p>{c.phoneCountryCode} {c.phoneNumber}</p>

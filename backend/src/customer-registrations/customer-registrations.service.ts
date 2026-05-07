@@ -16,7 +16,6 @@ const REGISTRATION_RESPONSE_SELECT = {
   phoneNumber: true,
   wechatId: true,
   domesticReturnAddress: true,
-  status: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -28,7 +27,6 @@ const CUSTOMER_RESPONSE_SELECT = {
   phoneNumber: true,
   wechatId: true,
   domesticReturnAddress: true,
-  status: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -47,13 +45,10 @@ export class CustomerRegistrationsService {
     const countryCode = (dto.phoneCountryCode || '+86').trim();
     const phoneNumber = dto.phoneNumber.trim();
 
-    const pendingOrApproved = await this.prisma.customerRegistration.findFirst({
-      where: { phoneCountryCode: countryCode, phoneNumber, status: { in: ['PENDING', 'APPROVED'] } },
+    const existingRegistration = await this.prisma.customerRegistration.findFirst({
+      where: { phoneCountryCode: countryCode, phoneNumber },
     });
-    if (pendingOrApproved) {
-      if (pendingOrApproved.status === 'APPROVED') {
-        throw new ConflictException('该手机号已关联正式客户，请联系工作人员。');
-      }
+    if (existingRegistration) {
       throw new ConflictException('该手机号已有待审核申请，请等待工作人员处理。');
     }
 
@@ -81,7 +76,6 @@ export class CustomerRegistrationsService {
     return {
       id: registration.id,
       customerCode: registration.customerCode,
-      status: registration.status,
       message: '注册信息已提交，请等待工作人员审核。',
     };
   }
@@ -90,14 +84,11 @@ export class CustomerRegistrationsService {
     const countryCode = (dto.phoneCountryCode || '+86').trim();
     const phoneNumber = dto.phoneNumber.trim();
 
-    const pendingOrApproved = await this.prisma.customerRegistration.findFirst({
-      where: { phoneCountryCode: countryCode, phoneNumber, status: { in: ['PENDING', 'APPROVED'] } },
+    const existingRegistration = await this.prisma.customerRegistration.findFirst({
+      where: { phoneCountryCode: countryCode, phoneNumber },
     });
-    if (pendingOrApproved) {
-      if (pendingOrApproved.status === 'APPROVED') {
-        throw new ConflictException('该手机号已关联正式客户。');
-      }
-      throw new ConflictException('该手机号已有 PENDING 申请。');
+    if (existingRegistration) {
+      throw new ConflictException('该手机号已有待审核申请。');
     }
 
     const existingCustomer = await this.prisma.customer.findFirst({
@@ -125,7 +116,6 @@ export class CustomerRegistrationsService {
 
   async findAll(query: {
     q?: string;
-    status?: string;
     page?: number;
     pageSize?: number;
   }) {
@@ -133,10 +123,7 @@ export class CustomerRegistrationsService {
     const take = Math.min(Number(query.pageSize) || 20, 100);
     const skip = (page - 1) * take;
 
-    if (query.status && query.status !== 'PENDING') {
-      throw new BadRequestException('Registration list only supports status=PENDING');
-    }
-    const where: any = { status: query.status || 'PENDING' };
+    const where: any = {};
     if (query.q) {
       where.OR = [
         { customerCode: { contains: query.q, mode: 'insensitive' } },
@@ -222,7 +209,6 @@ export class CustomerRegistrationsService {
           phoneNumber: reg.phoneNumber,
           wechatId: reg.wechatId,
           domesticReturnAddress: reg.domesticReturnAddress,
-          status: 'ACTIVE',
         },
         select: CUSTOMER_RESPONSE_SELECT,
       });

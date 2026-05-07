@@ -7,8 +7,6 @@ import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { CustomerRegistration } from '@/types/admin';
 import { Pagination } from '@/components/common/Pagination';
-import { CUSTOMER_REGISTRATION_STATUS_LABELS, CUSTOMER_REGISTRATION_STATUS_COLORS } from '@/lib/constants/status';
-import { cn } from '@/lib/utils';
 
 export default function CustomerRegistrationsPage() {
   const [items, setItems] = useState<CustomerRegistration[]>([]);
@@ -16,7 +14,6 @@ export default function CustomerRegistrationsPage() {
   const [error, setError] = useState('');
   const [errorRequestId, setErrorRequestId] = useState('');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -40,7 +37,7 @@ export default function CustomerRegistrationsPage() {
     setError('');
     setErrorRequestId('');
     try {
-      const data = await adminApi.getCustomerRegistrations({ q: search || undefined, status: statusFilter || undefined, page, pageSize: 20 });
+      const data = await adminApi.getCustomerRegistrations({ q: search || undefined, page, pageSize: 20 });
       setItems(data?.items || []);
       setTotalPages(data?.pagination?.totalPages || 1);
     } catch (err) {
@@ -53,7 +50,7 @@ export default function CustomerRegistrationsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, statusFilter, page]);
+  }, [search, page]);
 
   useEffect(() => {
     fetchData();
@@ -129,14 +126,6 @@ export default function CustomerRegistrationsPage() {
               className="w-full pl-9 pr-3 py-2 rounded-md border bg-background text-sm"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 rounded-md border bg-background text-sm"
-          >
-            <option value="">全部状态</option>
-            <option value="PENDING">待审核</option>
-          </select>
           <button type="submit" className="px-4 py-2 rounded-md border bg-background text-sm hover:bg-muted">
             搜索
           </button>
@@ -178,7 +167,6 @@ export default function CustomerRegistrationsPage() {
                     <th className="text-left px-4 py-3 font-medium">手机号</th>
                     <th className="text-left px-4 py-3 font-medium">微信号</th>
                     <th className="text-left px-4 py-3 font-medium">国内退货地址</th>
-                    <th className="text-left px-4 py-3 font-medium">状态</th>
                     <th className="text-left px-4 py-3 font-medium">提交时间</th>
                     <th className="text-left px-4 py-3 font-medium">操作</th>
                   </tr>
@@ -190,11 +178,6 @@ export default function CustomerRegistrationsPage() {
                       <td className="px-4 py-3">{r.phoneCountryCode} {r.phoneNumber}</td>
                       <td className="px-4 py-3">{r.wechatId || '-'}</td>
                       <td className="px-4 py-3 max-w-[140px] truncate text-xs text-muted-foreground" title={r.domesticReturnAddress || ''}>{r.domesticReturnAddress || '-'}</td>
-                      <td className="px-4 py-3">
-                        <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[r.status || ''] || 'bg-gray-100 text-gray-700')}>
-                          {CUSTOMER_REGISTRATION_STATUS_LABELS[r.status || ''] || r.status || '-'}
-                        </span>
-                      </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
                         {new Date(r.createdAt).toLocaleDateString('zh-CN')}
                       </td>
@@ -215,9 +198,6 @@ export default function CustomerRegistrationsPage() {
                 <Link key={r.id} href={`/admin/customer-registrations/${r.id}`} className="block p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono text-sm font-medium">{r.customerCode}</span>
-                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[r.status || ''] || 'bg-gray-100 text-gray-700')}>
-                      {CUSTOMER_REGISTRATION_STATUS_LABELS[r.status || ''] || r.status || '-'}
-                    </span>
                   </div>
                   <div className="text-sm text-muted-foreground space-y-0.5">
                     <p>{r.phoneCountryCode} {r.phoneNumber}</p>

@@ -8,6 +8,7 @@ import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { Customer } from '@/types/admin';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
+import { AdminBlockingOverlay } from '@/components/admin/AdminBlockingOverlay';
 import { formatDateTime } from '@/lib/format';
 
 function buildForm(customer: Customer) {
@@ -16,7 +17,6 @@ function buildForm(customer: Customer) {
     phoneNumber: customer.phoneNumber || '',
     wechatId: customer.wechatId || '',
     domesticReturnAddress: customer.domesticReturnAddress || '',
-    status: customer.status || 'ACTIVE',
   };
 }
 
@@ -32,7 +32,7 @@ export default function CustomerDetailPage() {
 
   // Edit state
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ phoneCountryCode: '', phoneNumber: '', wechatId: '', domesticReturnAddress: '', status: '' });
+  const [form, setForm] = useState({ phoneCountryCode: '', phoneNumber: '', wechatId: '', domesticReturnAddress: '' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
@@ -88,7 +88,6 @@ export default function CustomerDetailPage() {
         phoneNumber: form.phoneNumber.trim(),
         wechatId: form.wechatId.trim() || null,
         domesticReturnAddress: form.domesticReturnAddress.trim() || null,
-        status: form.status as 'ACTIVE' | 'DISABLED',
       });
       setCustomer(updated);
       setForm(buildForm(updated));
@@ -105,34 +104,16 @@ export default function CustomerDetailPage() {
     }
   };
 
-  const handleDisable = async () => {
-    if (!confirm('确定禁用该客户？')) return;
-    setSaving(true);
-    setSaveError('');
-    try {
-      const updated = await adminApi.disableCustomer(id);
-      setCustomer(updated);
-      setForm(f => ({ ...f, status: 'DISABLED' }));
-      setSaveSuccess('客户已禁用');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setSaveError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
-      } else {
-        setSaveError('操作失败');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
   // Delete state
   const [showDelete, setShowDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlockers, setDeleteBlockers] = useState<Record<string, number> | undefined>(undefined);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
     setDeleteError('');
     setDeleteBlockers(undefined);
+    setIsDeleting(true);
     try {
       await adminApi.hardDeleteCustomer(id);
       router.push('/admin/customers');
@@ -146,6 +127,7 @@ export default function CustomerDetailPage() {
       } else {
         setDeleteError('删除失败');
       }
+      setIsDeleting(false);
       throw err;
     }
   };
@@ -202,25 +184,6 @@ export default function CustomerDetailPage() {
             <div>
               <label className="block text-xs font-medium mb-1">客户编号</label>
               <input type="text" value={customer.customerCode} disabled className="w-full px-3 py-2 rounded-md border bg-muted text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">状态</label>
-              {editing ? (
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-md border bg-background text-sm"
-                >
-                  <option value="ACTIVE">正常</option>
-                  <option value="DISABLED">停用</option>
-                </select>
-              ) : (
-                <div className="px-3 py-2">
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${customer.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                    {customer.status === 'ACTIVE' ? '正常' : '停用'}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -307,11 +270,6 @@ export default function CustomerDetailPage() {
                 <button type="button" onClick={() => { setEditing(true); setSaveSuccess(''); setSaveError(''); }} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90">
                   编辑
                 </button>
-                {customer.status === 'ACTIVE' && (
-                  <button type="button" onClick={handleDisable} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
-                    停用客户
-                  </button>
-                )}
               </>
             )}
           </div>
@@ -321,7 +279,7 @@ export default function CustomerDetailPage() {
         <div className="mt-6 rounded-lg border border-red-200 p-4 space-y-3">
           <h2 className="font-semibold text-red-700">危险操作</h2>
             <p className="text-xs text-muted-foreground">永久删除此客户。如存在关联入库包裹、集运单或支付订单，系统将阻止删除。</p>
-          <button onClick={() => setShowDelete(true)} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
+          <button onClick={() => setShowDelete(true)} disabled={saving || isDeleting} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
             永久删除客户
           </button>
         </div>
@@ -329,7 +287,12 @@ export default function CustomerDetailPage() {
 
       <DeleteConfirmDialog
         open={showDelete}
-        onClose={() => { setShowDelete(false); setDeleteError(''); setDeleteBlockers(undefined); }}
+        onClose={() => {
+          if (isDeleting) return;
+          setShowDelete(false);
+          setDeleteError('');
+          setDeleteBlockers(undefined);
+        }}
         onConfirm={handleDelete}
         title="永久删除客户"
         description="删除后此客户数据将不可恢复。如果存在关联数据，系统会阻止删除。"
@@ -338,6 +301,7 @@ export default function CustomerDetailPage() {
         blockers={deleteBlockers}
         error={deleteError}
       />
+      {isDeleting && <AdminBlockingOverlay title="正在删除，请稍候" description="正在删除客户..." />}
     </div>
   );
 }

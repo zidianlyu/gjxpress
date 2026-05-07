@@ -45,16 +45,14 @@ export class CustomersController {
   @Get()
   @ApiOperation({ summary: '[Admin] List customers with search and pagination' })
   @ApiQuery({ name: 'q', required: false, type: String, description: 'Search customer code, phone, wechat id, or address.' })
-  @ApiQuery({ name: 'status', required: false, type: String, description: 'Customer status filter.' })
   @ApiPaginationQueries()
   @ApiItemsPaginatedOk('Customers with inboundPackageCount and customerShipmentCount plus pagination.')
   findAll(
     @Query('q') q?: string,
-    @Query('status') status?: string,
     @Query('page') page?: number,
     @Query('pageSize') pageSize?: number,
   ) {
-    return this.customersService.findAll({ q, status, page, pageSize });
+    return this.customersService.findAll({ q, page, pageSize });
   }
 
   @Get(':id')
@@ -66,20 +64,11 @@ export class CustomersController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '[Admin] Update customer info (phone, wechatId, domesticReturnAddress, status)' })
+  @ApiOperation({ summary: '[Admin] Update customer info (phone, wechatId, domesticReturnAddress)' })
   @ApiIdParam('id', 'Customer id')
   @ApiGenericOk('Customer updated.')
   update(@Param('id') id: string, @Body() dto: UpdateCustomerDto) {
     return this.customersService.update(id, dto);
-  }
-
-  @Patch(':id/disable')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '[Admin] Soft-disable customer (sets status=DISABLED).' })
-  @ApiIdParam('id', 'Customer id')
-  @ApiGenericOk('Customer disabled.')
-  disable(@Param('id') id: string) {
-    return this.customersService.disable(id);
   }
 
   @Delete(':id')

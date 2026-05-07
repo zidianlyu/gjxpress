@@ -19,8 +19,8 @@ export class CreateInboundPackageDto {
   @IsOptional()
   warehouseReceivedAt?: string;
 
-  @ApiPropertyOptional({ example: '内部备注' })
+  @ApiPropertyOptional({ example: '客户要求合箱前确认外箱状态' })
   @IsString()
   @IsOptional()
-  adminNote?: string;
+  note?: string;
 }

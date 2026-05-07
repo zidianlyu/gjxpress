@@ -22,14 +22,14 @@ export const siteConfig = {
   publicContacts: {
     domestic: {
       label: '国内联系人',
-      name: '阿骏',
+      name: '冯老板',
       phone: '+86 139-2903-5086',
       phoneHref: 'tel:+8613929035086',
       wechat: 'FENG13929035086',
     },
     us: {
       label: '美国联系人',
-      name: '吕哥',
+      name: '小吕',
       phone: '+1 951-660-1736',
       phoneHref: 'tel:+19516601736',
       wechat: 'zidianlyu',

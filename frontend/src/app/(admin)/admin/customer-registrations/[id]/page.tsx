@@ -8,8 +8,7 @@ import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { CustomerRegistration } from '@/types/admin';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
-import { CUSTOMER_REGISTRATION_STATUS_COLORS, CUSTOMER_REGISTRATION_STATUS_LABELS } from '@/lib/constants/status';
-import { cn } from '@/lib/utils';
+import { AdminBlockingOverlay } from '@/components/admin/AdminBlockingOverlay';
 
 function buildForm(reg: CustomerRegistration) {
   return {
@@ -43,6 +42,7 @@ export default function CustomerRegistrationDetailPage() {
   const [approveError, setApproveError] = useState('');
   const [showDelete, setShowDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchReg = useCallback(async () => {
     setIsLoading(true);
@@ -105,13 +105,9 @@ export default function CustomerRegistrationDetailPage() {
     setApproveError('');
     setSaveSuccess('');
     try {
-      const result = await adminApi.approveCustomerRegistration(id);
+      await adminApi.approveCustomerRegistration(id);
       window.sessionStorage.setItem('gjx_admin_notice', '已通过审核并创建客户。');
-      if (result.customer?.id) {
-        router.push(`/admin/customers/${result.customer.id}`);
-      } else {
-        router.push('/admin/customer-registrations');
-      }
+      router.push('/admin/customers');
     } catch (err) {
       if (err instanceof ApiError) {
         setApproveError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
@@ -125,6 +121,7 @@ export default function CustomerRegistrationDetailPage() {
 
   const handleDelete = async () => {
     setDeleteError('');
+    setIsDeleting(true);
     try {
       await adminApi.hardDeleteCustomerRegistration(id);
       setShowDelete(false);
@@ -136,6 +133,7 @@ export default function CustomerRegistrationDetailPage() {
       } else {
         setDeleteError('删除失败');
       }
+      setIsDeleting(false);
       throw err;
     }
   };
@@ -164,7 +162,6 @@ export default function CustomerRegistrationDetailPage() {
   }
 
   if (!reg) return null;
-  const status = reg.status || 'PENDING';
 
   return (
     <div className="flex-1 overflow-auto">
@@ -175,12 +172,7 @@ export default function CustomerRegistrationDetailPage() {
           </Link>
           <div>
             <h1 className="text-xl md:text-2xl font-bold">注册审核详情</h1>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-sm text-muted-foreground font-mono">{reg.customerCode}</span>
-              <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[status] || 'bg-gray-100 text-gray-700')}>
-                {CUSTOMER_REGISTRATION_STATUS_LABELS[status] || status}
-              </span>
-            </div>
+            <p className="text-sm text-muted-foreground font-mono mt-0.5">{reg.customerCode}</p>
           </div>
         </div>
       </header>
@@ -207,18 +199,10 @@ export default function CustomerRegistrationDetailPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-xs font-medium mb-1">客户编号</label>
               <input type="text" value={reg.customerCode} disabled className="w-full px-3 py-2 rounded-md border bg-muted text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">状态</label>
-              <div className="px-3 py-2">
-                <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CUSTOMER_REGISTRATION_STATUS_COLORS[status] || 'bg-gray-100 text-gray-700')}>
-                  {CUSTOMER_REGISTRATION_STATUS_LABELS[status] || status}
-                </span>
-              </div>
             </div>
           </div>
 
@@ -249,7 +233,7 @@ export default function CustomerRegistrationDetailPage() {
                   required
                 />
               ) : (
-                <input type="text" value={reg.phoneNumber} disabled className="w-full px-3 py-2 rounded-md border bg-muted text-sm" />
+                <input type="text" value={reg.phoneNumber || '-'} disabled className="w-full px-3 py-2 rounded-md border bg-muted text-sm" />
               )}
             </div>
           </div>
@@ -332,7 +316,7 @@ export default function CustomerRegistrationDetailPage() {
           <button
             type="button"
             onClick={() => setShowDelete(true)}
-            disabled={saving || approving}
+            disabled={saving || approving || isDeleting}
             className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50"
           >
             删除申请
@@ -342,7 +326,11 @@ export default function CustomerRegistrationDetailPage() {
 
       <DeleteConfirmDialog
         open={showDelete}
-        onClose={() => { setShowDelete(false); setDeleteError(''); }}
+        onClose={() => {
+          if (isDeleting) return;
+          setShowDelete(false);
+          setDeleteError('');
+        }}
         onConfirm={handleDelete}
         title="删除申请"
         description="此操作会永久删除该注册申请，无法恢复。"
@@ -352,6 +340,7 @@ export default function CustomerRegistrationDetailPage() {
         entityLabel={reg.customerCode}
         error={deleteError}
       />
+      {isDeleting && <AdminBlockingOverlay title="正在删除，请稍候" description="正在删除注册申请..." />}
     </div>
   );
 }

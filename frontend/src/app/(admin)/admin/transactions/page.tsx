@@ -8,8 +8,8 @@ import { ApiError } from '@/lib/api/client';
 import type { TransactionRecord } from '@/types/admin';
 import { Pagination } from '@/components/common/Pagination';
 import { EmptyState } from '@/components/common/EmptyState';
-import { TRANSACTION_TYPE_LABELS } from '@/lib/constants/status';
-import { centsToYuanText, formatTransactionType } from '@/lib/admin/payment-order';
+import { centsToYuanText } from '@/lib/admin/payment-order';
+import { formatShipmentType } from '@/lib/shipment-types';
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
@@ -17,7 +17,6 @@ export default function TransactionsPage() {
   const [error, setError] = useState('');
   const [errorRequestId, setErrorRequestId] = useState('');
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -34,7 +33,6 @@ export default function TransactionsPage() {
     try {
       const data = await adminApi.getTransactions({
         q: search || undefined,
-        type: typeFilter || undefined,
         page,
         pageSize: 20,
       });
@@ -50,7 +48,7 @@ export default function TransactionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, typeFilter, page]);
+  }, [search, page]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -80,14 +78,6 @@ export default function TransactionsPage() {
               className="w-full pl-9 pr-3 py-2 rounded-md border bg-background text-sm"
             />
           </div>
-          <select
-            value={typeFilter}
-            onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 rounded-md border bg-background text-sm"
-          >
-            <option value="">全部类型</option>
-            {Object.entries(TRANSACTION_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
           <button type="submit" className="px-4 py-2 rounded-md border bg-background text-sm hover:bg-muted">搜索</button>
         </form>
 
@@ -106,7 +96,7 @@ export default function TransactionsPage() {
         )}
 
         {!isLoading && !error && transactions.length === 0 && (
-          <EmptyState title="暂无支付订单" description="未支付集运单可从客户集运单列表发起入账" />
+          <EmptyState title="暂无支付订单" description="未支付集运单可从客户集运单列表发起订单" />
         )}
 
         {!isLoading && !error && transactions.length > 0 && (
@@ -119,7 +109,7 @@ export default function TransactionsPage() {
                     <th className="text-left px-4 py-3 font-medium">创建时间</th>
                     <th className="text-left px-4 py-3 font-medium">集运单号</th>
                     <th className="text-left px-4 py-3 font-medium">客户编号</th>
-                    <th className="text-left px-4 py-3 font-medium">类型</th>
+                    <th className="text-left px-4 py-3 font-medium">运输类型</th>
                     <th className="text-left px-4 py-3 font-medium">金额</th>
                     <th className="text-left px-4 py-3 font-medium">备注</th>
                     <th className="text-left px-4 py-3 font-medium">操作</th>
@@ -131,7 +121,7 @@ export default function TransactionsPage() {
                       <td className="px-4 py-3 text-muted-foreground text-xs">{formatTransactionDate(t.createdAt)}</td>
                       <td className="px-4 py-3 font-mono text-xs">{t.customerShipment?.shipmentNo || '未生成'}</td>
                       <td className="px-4 py-3 font-mono text-xs">{t.customer?.customerCode || t.customerShipment?.customer?.customerCode || '-'}</td>
-                      <td className="px-4 py-3">{formatTransactionType(t.type)}</td>
+                      <td className="px-4 py-3">{formatShipmentType(t.customerShipment?.shipmentType)}</td>
                       <td className="px-4 py-3 font-mono">{centsToYuanText(t.amountCents)}</td>
                       <td className="px-4 py-3 text-muted-foreground truncate max-w-[150px]">{t.adminNote || '-'}</td>
                       <td className="px-4 py-3">
@@ -150,7 +140,7 @@ export default function TransactionsPage() {
               {transactions.map((t) => (
                 <Link key={t.id} href={`/admin/transactions/${t.id}`} className="block p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">{formatTransactionType(t.type)}</span>
+                    <span className="text-sm font-medium">{formatShipmentType(t.customerShipment?.shipmentType)}</span>
                     <span className="font-mono font-semibold text-sm">{centsToYuanText(t.amountCents)}</span>
                   </div>
                   <div className="text-sm space-y-1">

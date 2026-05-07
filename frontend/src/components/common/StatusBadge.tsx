@@ -12,6 +12,8 @@ import {
   CUSTOMER_REGISTRATION_STATUS_LABELS,
   CUSTOMER_REGISTRATION_STATUS_COLORS,
 } from '@/lib/constants';
+import { formatPaymentStatus, normalizePaymentStatus } from '@/lib/customer-shipment-status';
+import { formatMasterShipmentStatus, normalizeMasterShipmentStatus } from '@/lib/master-shipment-status';
 import { cn } from '@/lib/utils';
 
 type BadgeType = 'inboundPackage' | 'customerShipment' | 'masterShipment' | 'payment' | 'customerRegistration';
@@ -47,8 +49,9 @@ const typeConfig: Record<BadgeType, { labels: Record<string, string>; colors: Re
 
 export function StatusBadge({ status, type, className }: StatusBadgeProps) {
   const config = typeConfig[type];
-  const label = config.labels[status] || status;
-  const colorClass = config.colors[status] || 'bg-gray-100 text-gray-700';
+  const normalizedStatus = type === 'payment' ? normalizePaymentStatus(status) : type === 'masterShipment' ? normalizeMasterShipmentStatus(status) : status;
+  const label = type === 'payment' ? formatPaymentStatus(status) : type === 'masterShipment' ? formatMasterShipmentStatus(status) : config.labels[status] || status;
+  const colorClass = config.colors[normalizedStatus] || 'bg-gray-100 text-gray-700';
 
   return (
     <span

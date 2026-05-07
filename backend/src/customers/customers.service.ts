@@ -15,12 +15,10 @@ const CUSTOMER_LIST_SELECT = {
   phoneNumber: true,
   wechatId: true,
   domesticReturnAddress: true,
-  status: true,
   createdAt: true,
   updatedAt: true,
 } as const;
 
-const VALID_CUSTOMER_STATUSES = ['ACTIVE', 'DISABLED'];
 const MAX_CODE_RETRIES = 50;
 
 function trimRequiredString(value: string, fieldName: string): string {
@@ -68,7 +66,6 @@ export class CustomersService {
 
   async findAll(query: {
     q?: string;
-    status?: string;
     page?: number;
     pageSize?: number;
   }) {
@@ -77,14 +74,6 @@ export class CustomersService {
     const skip = (page - 1) * take;
 
     const where: any = {};
-    if (query.status) {
-      if (!VALID_CUSTOMER_STATUSES.includes(query.status)) {
-        throw new BadRequestException(
-          `Invalid status: ${query.status}. Must be one of: ${VALID_CUSTOMER_STATUSES.join(', ')}`,
-        );
-      }
-      where.status = query.status;
-    }
     if (query.q) {
       where.OR = [
         { customerCode: { contains: query.q, mode: 'insensitive' } },
@@ -189,23 +178,8 @@ export class CustomersService {
         ...(dto.phoneNumber !== undefined && { phoneNumber }),
         ...(dto.wechatId !== undefined && { wechatId }),
         ...(dto.domesticReturnAddress !== undefined && { domesticReturnAddress }),
-        ...(dto.status !== undefined && { status: dto.status }),
       },
       select: CUSTOMER_LIST_SELECT,
-    });
-    return { data: updated };
-  }
-
-  async disable(id: string) {
-    const customer = await this.prisma.customer.findUnique({ where: { id } });
-    if (!customer) throw new NotFoundException('Customer not found');
-    if (customer.status === 'DISABLED') {
-      return { data: { id, status: 'DISABLED', message: 'Customer is already disabled' } };
-    }
-    const updated = await this.prisma.customer.update({
-      where: { id },
-      data: { status: 'DISABLED' },
-      select: { id: true, customerCode: true, wechatId: true, status: true, updatedAt: true },
     });
     return { data: updated };
   }

@@ -6,22 +6,41 @@ export type PublicTrackingType =
   | 'UNKNOWN';
 
 export type PublicTrackingResult = {
-  query: string;
-  trackingType: PublicTrackingType;
-  status: string;
-  statusText: string;
-  stage: string;
-  lastUpdatedAt: string | null;
-  message: string;
+  type?: string;
+  query?: string | null;
+  trackingType?: PublicTrackingType | string;
+  shipmentNo?: string | null;
+  status?: string | null;
+  statusText?: string | null;
+  stage?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  lastUpdatedAt?: string | null;
+  message?: string | null;
+  masterShipment?: {
+    vendorName?: string | null;
+    vendorTrackingNo?: string | null;
+    shipmentType?: string | null;
+    status?: string | null;
+    updatedAt?: string | null;
+  } | null;
+  timeline?: Array<{
+    label: string;
+    status?: string | null;
+    time?: string | null;
+  }>;
 };
 
 export type PublicBatchUpdate = {
-  batchNo: string;
-  status: string;
+  batchNo?: string | null;
+  vendorName?: string | null;
+  vendorTrackingNo?: string | null;
+  shipmentType?: 'AIR_GENERAL' | 'AIR_SENSITIVE' | 'SEA' | string | null;
+  status?: string | null;
+  publicPublished?: boolean;
+  customerShipmentCount?: number | null;
   statusText?: string;
-  publicTitle?: string | null;
-  publicSummary?: string | null;
-  publicStatusText?: string | null;
+  createdAt?: string | null;
   publishedAt?: string | null;
   updatedAt?: string | null;
 };

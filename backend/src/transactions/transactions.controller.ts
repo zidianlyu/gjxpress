@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsString, IsOptional, IsInt, IsPositive, IsUUID, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsPositive, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TransactionsService } from './transactions.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -30,8 +30,6 @@ import {
 class CreateTransactionDto {
   @ApiProperty({ format: 'uuid', description: 'Customer shipment id.' })
   @IsUUID() customerShipmentId: string;
-  @ApiProperty({ enum: ['SHIPPING_FEE', 'REFUND'], description: 'Transaction type.' })
-  @IsIn(['SHIPPING_FEE', 'REFUND']) type: string;
   @ApiProperty({ type: Number, description: 'Amount in cents.' })
   @IsInt() @IsPositive() @Type(() => Number) amountCents: number;
   @ApiPropertyOptional({ description: 'Admin note.' })
@@ -39,14 +37,8 @@ class CreateTransactionDto {
 }
 
 class UpdateTransactionDto {
-  @ApiPropertyOptional({ enum: ['SHIPPING_FEE', 'REFUND'], description: 'Transaction type.' })
-  @IsIn(['SHIPPING_FEE', 'REFUND']) @IsOptional() type?: string;
-  @ApiPropertyOptional({ type: Number, description: 'Amount in cents.' })
-  @IsInt() @IsPositive() @IsOptional() @Type(() => Number) amountCents?: number;
   @ApiPropertyOptional({ description: 'Admin note.' })
   @IsString() @IsOptional() adminNote?: string;
-  @ApiPropertyOptional({ format: 'date-time', description: 'Transaction occurrence timestamp.' })
-  @IsString() @IsOptional() occurredAt?: string;
 }
 
 @ApiTags('Admin - Transactions')
@@ -68,19 +60,17 @@ export class TransactionsController {
   @ApiOperation({ summary: '[Admin] List transaction records' })
   @ApiQuery({ name: 'customerId', required: false, type: String, description: 'Customer id filter.' })
   @ApiQuery({ name: 'customerShipmentId', required: false, type: String, description: 'Customer shipment id filter.' })
-  @ApiQuery({ name: 'type', required: false, enum: ['SHIPPING_FEE', 'REFUND'], description: 'Transaction type filter.' })
   @ApiQuery({ name: 'q', required: false, type: String, description: 'Search customer code, shipment number, or note.' })
   @ApiPaginationQueries()
   @ApiPaginatedOk('Transaction records with pagination.')
   findAll(
     @Query('customerId') customerId?: string,
     @Query('customerShipmentId') customerShipmentId?: string,
-    @Query('type') type?: string,
     @Query('q') q?: string,
     @Query('page') page?: number,
     @Query('pageSize') pageSize?: number,
   ) {
-    return this.service.findAll({ customerId, customerShipmentId, type, q, page, pageSize });
+    return this.service.findAll({ customerId, customerShipmentId, q, page, pageSize });
   }
 
   @Get(':id')
@@ -92,7 +82,7 @@ export class TransactionsController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '[Admin] Update transaction record (type, amountCents, adminNote, occurredAt)' })
+  @ApiOperation({ summary: '[Admin] Update transaction adminNote only' })
   @ApiIdParam('id', 'Transaction record id')
   @ApiGenericOk('Transaction record updated.')
   update(@Param('id') id: string, @Body() dto: UpdateTransactionDto) {

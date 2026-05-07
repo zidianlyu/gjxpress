@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
-import { TRANSACTION_TYPE_LABELS } from '@/lib/constants/status';
-import { type PaymentOrderType, yuanStringToCents } from '@/lib/admin/payment-order';
+import { yuanStringToCents } from '@/lib/admin/payment-order';
+import { formatShipmentType } from '@/lib/shipment-types';
 
 export type PaymentOrderCreateDialogProps = {
   open: boolean;
@@ -13,9 +13,8 @@ export type PaymentOrderCreateDialogProps = {
   defaultCustomerShipmentId?: string;
   defaultShipmentNo?: string;
   defaultAmountYuan?: string;
-  defaultType?: PaymentOrderType;
+  defaultShipmentType?: string | null;
   lockCustomerShipment?: boolean;
-  amountHelperText?: string;
   onCreated?: () => void | Promise<void>;
 };
 
@@ -25,34 +24,32 @@ export function PaymentOrderCreateDialog({
   defaultCustomerShipmentId,
   defaultShipmentNo,
   defaultAmountYuan,
-  defaultType = 'SHIPPING_FEE',
+  defaultShipmentType,
   lockCustomerShipment = false,
-  amountHelperText,
   onCreated,
 }: PaymentOrderCreateDialogProps) {
   const [customerShipmentId, setCustomerShipmentId] = useState('');
   const [amountYuan, setAmountYuan] = useState('');
-  const [type, setType] = useState<PaymentOrderType>(defaultType);
   const [adminNote, setAdminNote] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const shipmentDisplay = defaultShipmentNo?.trim() || (lockCustomerShipment ? '未生成' : '');
+  const amountCents = yuanStringToCents(amountYuan);
+  const canCreate = amountCents != null;
 
   useEffect(() => {
     if (!open) return;
     setCustomerShipmentId(defaultCustomerShipmentId || '');
     setAmountYuan(defaultAmountYuan || '');
-    setType(defaultType);
     setAdminNote('');
     setError('');
-  }, [defaultAmountYuan, defaultCustomerShipmentId, defaultType, open]);
+  }, [defaultAmountYuan, defaultCustomerShipmentId, open]);
 
   if (!open) return null;
 
   const resetForm = () => {
     setCustomerShipmentId(defaultCustomerShipmentId || '');
     setAmountYuan(defaultAmountYuan || '');
-    setType(defaultType);
     setAdminNote('');
     setError('');
   };
@@ -61,12 +58,11 @@ export function PaymentOrderCreateDialog({
     e.preventDefault();
     const shipmentId = customerShipmentId.trim();
     if (!shipmentId) {
-      setError('集运单号对应的内部记录缺失，无法创建支付订单');
+      setError('集运单号对应的内部记录缺失，无法创建订单');
       return;
     }
-    const amountCents = yuanStringToCents(amountYuan);
     if (amountCents == null) {
-      setError('金额必须是大于 0 的人民币金额，最多两位小数，不能包含货币符号或逗号');
+      setError('金额无法自动计算，请先编辑集运单的计费重量和计费基础。');
       return;
     }
 
@@ -75,13 +71,12 @@ export function PaymentOrderCreateDialog({
     try {
       await adminApi.createTransaction({
         customerShipmentId: shipmentId,
-        type,
         amountCents,
         adminNote: adminNote.trim() || undefined,
       });
-      await onCreated?.();
       resetForm();
       onOpenChange(false);
+      await onCreated?.();
     } catch (err) {
       if (err instanceof ApiError) {
         setError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
@@ -97,7 +92,7 @@ export function PaymentOrderCreateDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold">新建支付订单</h2>
+          <h2 className="font-semibold">新建订单</h2>
           <button
             type="button"
             onClick={() => {
@@ -133,38 +128,32 @@ export function PaymentOrderCreateDialog({
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium mb-1">金额（元）*</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={amountYuan}
-              onChange={(e) => setAmountYuan(e.target.value)}
-              placeholder="如 160 或 160.00"
-              className="w-full px-3 py-2 rounded-md border text-sm"
-              required
-              disabled={creating}
-            />
-            <p className="text-xs text-muted-foreground mt-0.5">{amountHelperText || '输入人民币金额，系统自动转换为分'}</p>
+            <span className="block text-xs font-medium mb-1">运输类型</span>
+            <div className="w-full rounded-md border bg-muted px-3 py-2 text-sm text-muted-foreground">
+              {formatShipmentType(defaultShipmentType)}
+            </div>
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1">类型</label>
-            <select value={type} onChange={(e) => setType(e.target.value as PaymentOrderType)} className="w-full px-3 py-2 rounded-md border text-sm" disabled={creating}>
-              {(['SHIPPING_FEE', 'REFUND'] as PaymentOrderType[]).map((key) => (
-                <option key={key} value={key}>
-                  {TRANSACTION_TYPE_LABELS[key] || key}
-                </option>
-              ))}
-            </select>
+            <span className="block text-xs font-medium mb-1">金额</span>
+            {canCreate ? (
+              <div className="w-full rounded-md border bg-muted px-3 py-2 text-sm font-mono text-muted-foreground">
+                ¥{Number(amountYuan).toFixed(2)}
+              </div>
+            ) : (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                金额无法自动计算，请先编辑集运单的计费重量和计费基础。
+              </div>
+            )}
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1">管理员备注</label>
+            <label className="block text-xs font-medium mb-1">备注</label>
             <textarea value={adminNote} onChange={(e) => setAdminNote(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-md border text-sm" placeholder="可选" disabled={creating} />
           </div>
           <div className="flex gap-2 justify-end pt-2">
             <button type="button" onClick={() => onOpenChange(false)} disabled={creating} className="px-4 py-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50">
               取消
             </button>
-            <button type="submit" disabled={creating} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 inline-flex items-center gap-2">
+            <button type="submit" disabled={creating || !canCreate} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 inline-flex items-center gap-2">
               {creating && <Loader2 className="h-4 w-4 animate-spin" />}
               {creating ? '创建中...' : '创建'}
             </button>

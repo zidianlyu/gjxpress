@@ -47,7 +47,6 @@ function formatInboundPackage(pkg: any) {
       ? {
           id: pkg.customer.id,
           customerCode: pkg.customer.customerCode,
-          status: pkg.customer.status,
           phoneCountryCode: pkg.customer.phoneCountryCode,
           phoneNumber: pkg.customer.phoneNumber,
           wechatId: pkg.customer.wechatId,
@@ -55,8 +54,7 @@ function formatInboundPackage(pkg: any) {
       : null,
     customerId: pkg.customerId,
     warehouseReceivedAt: pkg.warehouseReceivedAt,
-    adminNote: pkg.adminNote,
-    issueNote: pkg.issueNote,
+    note: pkg.note,
     imageUrls: pkg.imageUrls ?? [],
     inShipment: pkg.inShipment ?? pkg._count?.shipmentItems > 0,
     ...(pkg.shipmentItems !== undefined && { shipmentItems: pkg.shipmentItems }),
@@ -111,14 +109,13 @@ export class InboundPackagesService {
         warehouseReceivedAt: dto.warehouseReceivedAt
           ? new Date(dto.warehouseReceivedAt)
           : new Date(),
-        adminNote: normalizeOptionalString(dto.adminNote),
+        note: normalizeOptionalString(dto.note),
       },
       include: {
         customer: {
           select: {
             id: true,
             customerCode: true,
-            status: true,
             phoneCountryCode: true,
             phoneNumber: true,
             wechatId: true,
@@ -156,6 +153,7 @@ export class InboundPackagesService {
     if (query.q) {
       where.OR = [
         { domesticTrackingNo: { contains: query.q, mode: 'insensitive' } },
+        { note: { contains: query.q, mode: 'insensitive' } },
         {
           customer: {
             customerCode: { contains: query.q, mode: 'insensitive' },
@@ -184,7 +182,6 @@ export class InboundPackagesService {
             select: {
               id: true,
               customerCode: true,
-              status: true,
               phoneCountryCode: true,
               phoneNumber: true,
               wechatId: true,
@@ -213,7 +210,6 @@ export class InboundPackagesService {
           select: {
             id: true,
             customerCode: true,
-            status: true,
             wechatId: true,
             phoneCountryCode: true,
             phoneNumber: true,
@@ -238,8 +234,7 @@ export class InboundPackagesService {
       domesticTrackingNo?: string;
       customerCode?: string | null;
       warehouseReceivedAt?: string;
-      issueNote?: string;
-      adminNote?: string;
+      note?: string;
       status?: string;
     },
   ) {
@@ -284,8 +279,7 @@ export class InboundPackagesService {
         ...(dto.domesticTrackingNo !== undefined && { domesticTrackingNo }),
         ...(customerIdUpdate !== undefined && { customerId: customerIdUpdate }),
         ...(dto.warehouseReceivedAt !== undefined && { warehouseReceivedAt: new Date(dto.warehouseReceivedAt) }),
-        ...(dto.issueNote !== undefined && { issueNote: normalizeOptionalString(dto.issueNote) }),
-        ...(dto.adminNote !== undefined && { adminNote: normalizeOptionalString(dto.adminNote) }),
+        ...(dto.note !== undefined && { note: normalizeOptionalString(dto.note) }),
         ...(dto.status !== undefined
           ? { status: dto.status as any }
           : customerIdUpdate === null
@@ -299,7 +293,6 @@ export class InboundPackagesService {
           select: {
             id: true,
             customerCode: true,
-            status: true,
             phoneCountryCode: true,
             phoneNumber: true,
             wechatId: true,
@@ -336,7 +329,6 @@ export class InboundPackagesService {
           select: {
             id: true,
             customerCode: true,
-            status: true,
             phoneCountryCode: true,
             phoneNumber: true,
             wechatId: true,

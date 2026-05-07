@@ -2,11 +2,42 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PaymentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-const VALID_TYPES = ['SHIPPING_FEE', 'REFUND'];
+function normalizeOptionalString(value?: string | null): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+const transactionSelect = {
+  id: true,
+  customerShipmentId: true,
+  customerId: true,
+  amountCents: true,
+  adminNote: true,
+  createdAt: true,
+  updatedAt: true,
+  customer: {
+    select: {
+      id: true,
+      customerCode: true,
+    },
+  },
+  customerShipment: {
+    select: {
+      id: true,
+      shipmentNo: true,
+      shipmentType: true,
+      paymentStatus: true,
+      customer: { select: { id: true, customerCode: true } },
+    },
+  },
+} as const;
 
 @Injectable()
 export class TransactionsService {
@@ -14,13 +45,9 @@ export class TransactionsService {
 
   async create(dto: {
     customerShipmentId: string;
-    type: string;
     amountCents: number;
     adminNote?: string;
   }) {
-    if (!VALID_TYPES.includes(dto.type)) {
-      throw new BadRequestException(`Invalid type: ${dto.type}. Must be one of: ${VALID_TYPES.join(', ')}`);
-    }
     if (!Number.isInteger(dto.amountCents) || dto.amountCents <= 0) {
       throw new BadRequestException('amountCents must be a positive integer');
     }
@@ -31,55 +58,40 @@ export class TransactionsService {
         select: {
           id: true,
           shipmentNo: true,
+          shipmentType: true,
           customerId: true,
           customer: { select: { id: true, customerCode: true } },
         },
       });
       if (!shipment) throw new NotFoundException('CustomerShipment not found');
 
-      const type = dto.type;
       const created = await tx.transactionRecord.create({
         data: {
           customerId: shipment.customerId,
           customerShipmentId: shipment.id,
-          type: type as any,
           amountCents: dto.amountCents,
-          adminNote: dto.adminNote,
+          adminNote: normalizeOptionalString(dto.adminNote),
         },
-        select: {
-          id: true,
-          customerShipmentId: true,
-          customerId: true,
-          type: true,
-          amountCents: true,
-          adminNote: true,
-          createdAt: true,
-          updatedAt: true,
-          customerShipment: {
-            select: {
-              id: true,
-              shipmentNo: true,
-              customer: { select: { id: true, customerCode: true } },
-            },
-          },
-        },
+        select: { id: true },
       });
 
-      if (type === 'SHIPPING_FEE') {
-        await tx.customerShipment.update({
-          where: { id: shipment.id },
-          data: { paymentStatus: PaymentStatus.PAID },
-        });
-      }
+      await tx.customerShipment.update({
+        where: { id: shipment.id },
+        data: { paymentStatus: PaymentStatus.PAID },
+      });
 
-      return created;
+      const result = await tx.transactionRecord.findUnique({
+        where: { id: created.id },
+        select: transactionSelect,
+      });
+
+      return { data: result };
     });
   }
 
   async findAll(query: {
     customerId?: string;
     customerShipmentId?: string;
-    type?: string;
     q?: string;
     page?: number;
     pageSize?: number;
@@ -91,7 +103,6 @@ export class TransactionsService {
     const where: any = {};
     if (query.customerId) where.customerId = query.customerId;
     if (query.customerShipmentId) where.customerShipmentId = query.customerShipmentId;
-    if (query.type) where.type = query.type;
     if (query.q) {
       where.OR = [
         { adminNote: { contains: query.q, mode: 'insensitive' } },
@@ -106,23 +117,7 @@ export class TransactionsService {
         where,
         skip,
         take,
-        select: {
-          id: true,
-          customerShipmentId: true,
-          customerId: true,
-          type: true,
-          amountCents: true,
-          adminNote: true,
-          createdAt: true,
-          updatedAt: true,
-          customerShipment: {
-            select: {
-              id: true,
-              shipmentNo: true,
-              customer: { select: { id: true, customerCode: true } },
-            },
-          },
-        },
+        select: transactionSelect,
         orderBy: { occurredAt: 'desc' },
       }),
       this.prisma.transactionRecord.count({ where }),
@@ -141,23 +136,7 @@ export class TransactionsService {
   async findOne(id: string) {
     const tx = await this.prisma.transactionRecord.findUnique({
       where: { id },
-      select: {
-        id: true,
-        customerShipmentId: true,
-        customerId: true,
-        type: true,
-        amountCents: true,
-        adminNote: true,
-        createdAt: true,
-        updatedAt: true,
-        customerShipment: {
-          select: {
-            id: true,
-            shipmentNo: true,
-            customer: { select: { id: true, customerCode: true } },
-          },
-        },
-      },
+      select: transactionSelect,
     });
     if (!tx) throw new NotFoundException('TransactionRecord not found');
     return { data: tx };
@@ -166,27 +145,18 @@ export class TransactionsService {
   async update(
     id: string,
     dto: {
-      type?: string;
-      amountCents?: number;
       adminNote?: string;
-      occurredAt?: string;
     },
   ) {
     const tx = await this.prisma.transactionRecord.findUnique({ where: { id } });
     if (!tx) throw new NotFoundException('TransactionRecord not found');
 
-    if (dto.type && !VALID_TYPES.includes(dto.type)) {
-      throw new BadRequestException(`Invalid type: ${dto.type}. Must be one of: ${VALID_TYPES.join(', ')}`);
-    }
-
     const updated = await this.prisma.transactionRecord.update({
       where: { id },
       data: {
-        ...(dto.type !== undefined && { type: dto.type as any }),
-        ...(dto.amountCents !== undefined && { amountCents: dto.amountCents }),
-        ...(dto.adminNote !== undefined && { adminNote: dto.adminNote }),
-        ...(dto.occurredAt !== undefined && { occurredAt: new Date(dto.occurredAt) }),
+        ...(dto.adminNote !== undefined && { adminNote: normalizeOptionalString(dto.adminNote) }),
       },
+      select: transactionSelect,
     });
     return { data: updated };
   }
@@ -198,10 +168,35 @@ export class TransactionsService {
       );
     }
 
-    const tx = await this.prisma.transactionRecord.findUnique({ where: { id } });
-    if (!tx) throw new NotFoundException('TransactionRecord not found');
+    return this.prisma.$transaction(async (prismaTx) => {
+      const tx = await prismaTx.transactionRecord.findUnique({
+        where: { id },
+        select: { id: true, customerShipmentId: true },
+      });
+      if (!tx) throw new NotFoundException('TransactionRecord not found');
+      if (!tx.customerShipmentId) {
+        throw new ConflictException('TransactionRecord has no customerShipmentId');
+      }
 
-    await this.prisma.transactionRecord.delete({ where: { id } });
-    return { deleted: true, id };
+      const shipment = await prismaTx.customerShipment.findUnique({
+        where: { id: tx.customerShipmentId },
+        select: { id: true },
+      });
+      if (!shipment) throw new NotFoundException('CustomerShipment not found for TransactionRecord');
+
+      await prismaTx.transactionRecord.delete({ where: { id } });
+      const updatedShipment = await prismaTx.customerShipment.update({
+        where: { id: tx.customerShipmentId },
+        data: { paymentStatus: PaymentStatus.UNPAID },
+        select: { paymentStatus: true },
+      });
+
+      return {
+        deleted: true,
+        id,
+        customerShipmentId: tx.customerShipmentId,
+        updatedPaymentStatus: updatedShipment.paymentStatus,
+      };
+    });
   }
 }

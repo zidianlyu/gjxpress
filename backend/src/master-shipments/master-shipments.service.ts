@@ -16,10 +16,29 @@ function generateBatchNo(): string {
 }
 
 const VALID_STATUSES = [
-  'CREATED', 'HANDED_TO_VENDOR', 'IN_TRANSIT',
-  'TRANSFER_OR_CUSTOMS_PROCESSING', 'ARRIVED_OVERSEAS', 'CLOSED', 'EXCEPTION',
+  'IN_TRANSIT', 'SIGNED', 'READY_FOR_PICKUP', 'EXCEPTION',
 ];
 const VALID_SHIPMENT_TYPES = ['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA'];
+const VALID_VENDOR_NAMES = ['DHL', 'UPS', 'FEDEX', 'EMS', 'OTHER'];
+const CUSTOMER_SHIPMENT_SELECT = {
+  id: true,
+  shipmentNo: true,
+  shipmentType: true,
+  status: true,
+  paymentStatus: true,
+  customer: { select: { id: true, customerCode: true } },
+} as const;
+
+function normalizeVendorName(value?: string | null): string {
+  const normalized = value?.trim().toUpperCase();
+  if (!normalized) {
+    throw new BadRequestException('vendorName is required');
+  }
+  if (!VALID_VENDOR_NAMES.includes(normalized)) {
+    throw new BadRequestException(`Invalid vendorName: ${value}. Must be one of: ${VALID_VENDOR_NAMES.join(', ')}`);
+  }
+  return normalized;
+}
 
 @Injectable()
 export class MasterShipmentsService {
@@ -30,11 +49,12 @@ export class MasterShipmentsService {
     vendorName: string;
     vendorTrackingNo: string;
     customerShipmentIds: string[];
-    status?: string;
-    adminNote?: string;
+    publicPublished?: boolean;
+    note?: string;
   }) {
-    if (!dto.vendorName || !dto.vendorTrackingNo) {
-      throw new BadRequestException('vendorName and vendorTrackingNo are required');
+    const vendorName = normalizeVendorName(dto.vendorName);
+    if (!dto.vendorTrackingNo || dto.vendorTrackingNo.trim().length === 0) {
+      throw new BadRequestException('vendorTrackingNo is required');
     }
     if (!dto.customerShipmentIds || dto.customerShipmentIds.length === 0) {
       throw new BadRequestException('customerShipmentIds is required and must not be empty');
@@ -42,6 +62,7 @@ export class MasterShipmentsService {
     if (dto.shipmentType && !VALID_SHIPMENT_TYPES.includes(dto.shipmentType)) {
       throw new BadRequestException(`Invalid shipmentType: ${dto.shipmentType}`);
     }
+    const shipmentType = dto.shipmentType || 'AIR_GENERAL';
 
     const ids = dto.customerShipmentIds;
     const uniqueIds = [...new Set(ids)];
@@ -49,59 +70,60 @@ export class MasterShipmentsService {
       throw new BadRequestException('customerShipmentIds contains duplicate values');
     }
 
-    const shipments = await this.prisma.customerShipment.findMany({
-      where: { id: { in: uniqueIds } },
-    });
-    if (shipments.length !== uniqueIds.length) {
-      const foundIds = new Set(shipments.map((s) => s.id));
-      const missing = uniqueIds.filter((id) => !foundIds.has(id));
-      throw new NotFoundException(`CustomerShipment IDs not found: ${missing.join(', ')}`);
-    }
-
-    const alreadyBatched = shipments.filter((s) => s.masterShipmentId !== null);
-    if (alreadyBatched.length > 0) {
-      throw new ConflictException(
-        `CustomerShipments already belong to another batch: ${alreadyBatched.map((s) => s.id).join(', ')}`,
-      );
-    }
-
-    let batchNo: string;
-    for (let i = 0; i < 20; i++) {
-      batchNo = generateBatchNo();
-      const exists = await this.prisma.masterShipment.findUnique({ where: { batchNo } });
-      if (!exists) break;
-      if (i === 19) throw new BadRequestException('Failed to generate unique batchNo');
-    }
-
     return this.prisma.$transaction(async (tx) => {
+      const shipments = await tx.customerShipment.findMany({
+        where: { id: { in: uniqueIds } },
+      });
+      if (shipments.length !== uniqueIds.length) {
+        const foundIds = new Set(shipments.map((s) => s.id));
+        const missing = uniqueIds.filter((id) => !foundIds.has(id));
+        throw new NotFoundException(`CustomerShipment IDs not found: ${missing.join(', ')}`);
+      }
+
+      const alreadyBatched = shipments.filter((s) => s.masterShipmentId !== null);
+      if (alreadyBatched.length > 0) {
+        throw new ConflictException('所选集运单已关联其他批次。');
+      }
+
+      const typeMismatched = shipments.filter((s) => s.shipmentType !== shipmentType);
+      if (typeMismatched.length > 0) {
+        throw new BadRequestException('所选集运单运输类型与批次运输类型不一致。');
+      }
+
+      const unpaid = shipments.filter((s) => s.paymentStatus !== 'PAID');
+      if (unpaid.length > 0) {
+        throw new ConflictException('所选集运单中存在未支付订单，请先完成支付后再创建批次。');
+      }
+
+      let batchNo: string;
+      for (let i = 0; i < 20; i++) {
+        batchNo = generateBatchNo();
+        const exists = await tx.masterShipment.findUnique({ where: { batchNo } });
+        if (!exists) break;
+        if (i === 19) throw new BadRequestException('Failed to generate unique batchNo');
+      }
+
       const master = await tx.masterShipment.create({
         data: {
           batchNo: batchNo!,
-          shipmentType: dto.shipmentType || 'AIR_GENERAL',
-          vendorName: dto.vendorName,
+          shipmentType,
+          vendorName,
           vendorTrackingNo: dto.vendorTrackingNo,
-          status: (dto.status as any) || 'CREATED',
-          adminNote: dto.adminNote,
+          status: 'IN_TRANSIT',
+          publicPublished: dto.publicPublished ?? true,
+          note: dto.note,
         },
       });
 
       await tx.customerShipment.updateMany({
         where: { id: { in: uniqueIds } },
-        data: { masterShipmentId: master.id },
+        data: { masterShipmentId: master.id, status: 'SHIPPED' },
       });
 
       const result = await tx.masterShipment.findUnique({
         where: { id: master.id },
         include: {
-          customerShipments: {
-            select: {
-              id: true,
-              shipmentNo: true,
-              status: true,
-              paymentStatus: true,
-              customer: { select: { id: true, customerCode: true } },
-            },
-          },
+          customerShipments: { select: CUSTOMER_SHIPMENT_SELECT },
         },
       });
 
@@ -112,7 +134,7 @@ export class MasterShipmentsService {
   async findAll(query: {
     q?: string;
     status?: string;
-    publicVisible?: string;
+    publicPublished?: string;
     page?: number;
     pageSize?: number;
   }) {
@@ -121,9 +143,14 @@ export class MasterShipmentsService {
     const skip = (page - 1) * take;
 
     const where: any = {};
-    if (query.status) where.status = query.status;
-    if (query.publicVisible !== undefined) {
-      where.publicVisible = query.publicVisible === 'true';
+    if (query.status) {
+      if (!VALID_STATUSES.includes(query.status)) {
+        throw new BadRequestException(`Invalid status: ${query.status}`);
+      }
+      where.status = query.status;
+    }
+    if (query.publicPublished !== undefined) {
+      where.publicPublished = query.publicPublished === 'true';
     }
     if (query.q) {
       where.OR = [
@@ -145,19 +172,9 @@ export class MasterShipmentsService {
           vendorName: true,
           vendorTrackingNo: true,
           status: true,
-          customerShipments: {
-            select: {
-              id: true,
-              shipmentNo: true,
-              status: true,
-              paymentStatus: true,
-              customerId: true,
-              customer: { select: { id: true, customerCode: true } },
-            },
-          },
-          publicVisible: true,
-          publicTitle: true,
-          publicStatusText: true,
+          customerShipments: { select: CUSTOMER_SHIPMENT_SELECT },
+          publicPublished: true,
+          note: true,
           publishedAt: true,
           handedToVendorAt: true,
           arrivedOverseasAt: true,
@@ -180,16 +197,7 @@ export class MasterShipmentsService {
     const master = await this.prisma.masterShipment.findUnique({
       where: { id },
       include: {
-        customerShipments: {
-          select: {
-            id: true,
-            shipmentNo: true,
-            status: true,
-            paymentStatus: true,
-            customerId: true,
-            customer: { select: { id: true, customerCode: true } },
-          },
-        },
+        customerShipments: { select: CUSTOMER_SHIPMENT_SELECT },
       },
     });
     if (!master) throw new NotFoundException('MasterShipment not found');
@@ -206,9 +214,7 @@ export class MasterShipmentsService {
 
     const now = new Date();
     const timestamps: any = {};
-    if (status === 'HANDED_TO_VENDOR' && !master.handedToVendorAt) timestamps.handedToVendorAt = now;
-    if (status === 'ARRIVED_OVERSEAS' && !master.arrivedOverseasAt) timestamps.arrivedOverseasAt = now;
-    if (status === 'CLOSED' && !master.closedAt) timestamps.closedAt = now;
+    if (status === 'SIGNED' && !master.arrivedOverseasAt) timestamps.arrivedOverseasAt = now;
 
     const updated = await this.prisma.masterShipment.update({
       where: { id },
@@ -223,34 +229,30 @@ export class MasterShipmentsService {
       shipmentType?: string;
       vendorName?: string;
       vendorTrackingNo?: string;
-      adminNote?: string;
-      publicTitle?: string;
-      publicSummary?: string;
-      publicStatusText?: string;
-      publicVisible?: boolean;
+      note?: string;
+      publicPublished?: boolean;
+      status?: string;
     },
   ) {
     const master = await this.prisma.masterShipment.findUnique({ where: { id } });
     if (!master) throw new NotFoundException('MasterShipment not found');
-    if (dto.shipmentType && !VALID_SHIPMENT_TYPES.includes(dto.shipmentType)) {
-      throw new BadRequestException(`Invalid shipmentType: ${dto.shipmentType}`);
+    if (dto.status && !VALID_STATUSES.includes(dto.status)) {
+      throw new BadRequestException(`Invalid status: ${dto.status}`);
     }
 
     const publishedAt =
-      dto.publicVisible === true && !master.publishedAt ? new Date() : undefined;
+      dto.publicPublished === true && !master.publishedAt ? new Date() : undefined;
 
     const updated = await this.prisma.masterShipment.update({
       where: { id },
       data: {
-        ...(dto.shipmentType !== undefined && { shipmentType: dto.shipmentType }),
-        ...(dto.vendorName !== undefined && { vendorName: dto.vendorName }),
-        ...(dto.vendorTrackingNo !== undefined && { vendorTrackingNo: dto.vendorTrackingNo }),
-        ...(dto.adminNote !== undefined && { adminNote: dto.adminNote }),
-        ...(dto.publicTitle !== undefined && { publicTitle: dto.publicTitle }),
-        ...(dto.publicSummary !== undefined && { publicSummary: dto.publicSummary }),
-        ...(dto.publicStatusText !== undefined && { publicStatusText: dto.publicStatusText }),
-        ...(dto.publicVisible !== undefined && { publicVisible: dto.publicVisible }),
+        ...(dto.note !== undefined && { note: dto.note }),
+        ...(dto.publicPublished !== undefined && { publicPublished: dto.publicPublished }),
+        ...(dto.status !== undefined && { status: dto.status as any }),
         ...(publishedAt && { publishedAt }),
+      },
+      include: {
+        customerShipments: { select: CUSTOMER_SHIPMENT_SELECT },
       },
     });
     return { data: updated };
@@ -263,116 +265,57 @@ export class MasterShipmentsService {
       );
     }
 
-    const master = await this.prisma.masterShipment.findUnique({
-      where: { id },
-      include: { _count: { select: { customerShipments: true } } },
-    });
-    if (!master) throw new NotFoundException('MasterShipment not found');
-
-    if (master.status !== 'CREATED') {
-      throw new ConflictException(
-        `Cannot hard delete master shipment with status ${master.status}. Only CREATED batches may be deleted.`,
-      );
-    }
-
-    const shipmentCount = master._count.customerShipments;
-    if (shipmentCount > 0) {
-      throw new ConflictException({
-        message: 'Cannot hard delete master shipment with related customer shipments',
-        blockers: { customerShipments: shipmentCount },
-      });
-    }
-
-    await this.prisma.masterShipment.delete({ where: { id } });
-    return { deleted: true, id };
-  }
-
-  async addCustomerShipments(id: string, customerShipmentIds: string[]) {
     const master = await this.prisma.masterShipment.findUnique({ where: { id } });
     if (!master) throw new NotFoundException('MasterShipment not found');
 
-    const shipments = await this.prisma.customerShipment.findMany({
-      where: { id: { in: customerShipmentIds } },
+    return this.prisma.$transaction(async (tx) => {
+      const detached = await tx.customerShipment.updateMany({
+        where: { masterShipmentId: id },
+        data: { masterShipmentId: null },
+      });
+      await tx.masterShipment.delete({ where: { id } });
+      return { deleted: true, id, detachedCustomerShipmentCount: detached.count };
     });
+  }
 
-    if (shipments.length !== customerShipmentIds.length) {
-      throw new NotFoundException('One or more CustomerShipment IDs not found');
-    }
-
-    const alreadyLinked = shipments.filter(
-      (s) => s.masterShipmentId && s.masterShipmentId !== id,
-    );
-    if (alreadyLinked.length > 0) {
-      throw new ConflictException(
-        `Shipments already belong to another MasterShipment: ${alreadyLinked.map((s) => s.id).join(', ')}`,
-      );
-    }
-
-    await this.prisma.customerShipment.updateMany({
-      where: { id: { in: customerShipmentIds } },
-      data: { masterShipmentId: id },
-    });
-
-    return { data: { masterShipmentId: id, addedCount: customerShipmentIds.length } };
+  async addCustomerShipments(id: string, customerShipmentIds: string[]) {
+    void customerShipmentIds;
+    const master = await this.prisma.masterShipment.findUnique({ where: { id } });
+    if (!master) throw new NotFoundException('MasterShipment not found');
+    throw new BadRequestException('批次关联集运单创建后只读，不能追加。');
   }
 
   async removeCustomerShipment(id: string, customerShipmentId: string) {
     const master = await this.prisma.masterShipment.findUnique({ where: { id } });
     if (!master) throw new NotFoundException('MasterShipment not found');
 
-    const blockedStatuses = ['HANDED_TO_VENDOR', 'IN_TRANSIT', 'TRANSFER_OR_CUSTOMS_PROCESSING',
-      'ARRIVED_OVERSEAS', 'CLOSED'];
-    if (blockedStatuses.includes(master.status)) {
-      throw new ConflictException(
-        `Cannot remove shipment from batch with status ${master.status}`,
-      );
-    }
-
-    const shipment = await this.prisma.customerShipment.findFirst({
-      where: { id: customerShipmentId, masterShipmentId: id },
-    });
-    if (!shipment) throw new NotFoundException('CustomerShipment not found in this MasterShipment');
-
-    await this.prisma.customerShipment.update({
-      where: { id: customerShipmentId },
-      data: { masterShipmentId: null },
-    });
-
-    return { data: { removed: customerShipmentId } };
+    void customerShipmentId;
+    throw new BadRequestException('批次关联集运单创建后只读，不能移除。');
   }
 
   async updatePublication(
     id: string,
     dto: {
-      publicVisible?: boolean;
-      publicTitle?: string;
-      publicSummary?: string;
-      publicStatusText?: string;
+      publicPublished?: boolean;
     },
   ) {
     const master = await this.prisma.masterShipment.findUnique({ where: { id } });
     if (!master) throw new NotFoundException('MasterShipment not found');
 
     const publishedAt =
-      dto.publicVisible === true && !master.publishedAt ? new Date() : undefined;
+      dto.publicPublished === true && !master.publishedAt ? new Date() : undefined;
 
     const updated = await this.prisma.masterShipment.update({
       where: { id },
       data: {
-        publicVisible: dto.publicVisible,
-        publicTitle: dto.publicTitle,
-        publicSummary: dto.publicSummary,
-        publicStatusText: dto.publicStatusText,
+        publicPublished: dto.publicPublished,
         ...(publishedAt && { publishedAt }),
       },
       select: {
         id: true,
         batchNo: true,
         status: true,
-        publicVisible: true,
-        publicTitle: true,
-        publicSummary: true,
-        publicStatusText: true,
+        publicPublished: true,
         publishedAt: true,
         updatedAt: true,
       },

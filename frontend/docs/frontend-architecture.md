@@ -69,14 +69,14 @@ export const siteConfig = {
   publicContacts: {
     domestic: {
       label: "国内联系人",
-      name: "阿骏",
+      name: "冯老板",
       phone: "+86 139-2903-5086",
       phoneHref: "tel:+8613929035086",
       wechat: "FENG13929035086",
     },
     us: {
       label: "美国联系人",
-      name: "吕哥",
+      name: "小吕",
       phone: "+1 951-660-1736",
       phoneHref: "tel:+19516601736",
       wechat: "zidianlyu",
@@ -196,21 +196,47 @@ Status labels are centralized in `src/lib/constants/status.ts`. Inbound package 
 
 Admin-facing customer identity uses `customerCode` such as `GJ3178`. Internal `customerId` UUID values are backend foreign keys and should not be presented as customer numbers. Admin create forms must not ask for or submit `customerId` unless an endpoint explicitly requires an internal id.
 
+Formal Customer records no longer have a `status` field in frontend types, forms, list filters, detail displays, or PATCH payloads. `/admin/customers` and `/admin/customers/:id` show contact fields only and do not expose disable/enable actions. CustomerRegistration review records also no longer expose `status` in frontend types or admin UI; `/admin/customer-registrations` and `/admin/customer-registrations/:id` do not display status, filter by status, or submit status in PATCH/approve payloads. This does not apply to logistics entity statuses.
+
 `src/components/admin/CustomerCodeInput.tsx` is the reusable admin customer-code input. It renders a fixed left `GJ` segment and lets admins enter only four digits. The component value and parent form state always use the full code (`""` or `GJ3178`), so payloads can submit `customerCode` directly.
 
-Admin customer shipment create submits `customerCode`; the backend resolves it to the internal `customer_id` UUID FK. Customer shipment decimal fields (`actualWeightKg`, `billingRateCnyPerKg`, and `billingWeightKg`) are sent as trimmed strings in API payloads. The displayed payable amount is `billingRateCnyPerKg * billingWeightKg`, formatted as CNY when both decimal strings are valid.
+Admin customer shipment create submits `customerCode`; the backend resolves it to the internal `customer_id` UUID FK. Customer shipments include `shipmentType`, with internal values `AIR_GENERAL`, `AIR_SENSITIVE`, and `SEA`, displayed as `空运普货`, `空运敏货`, and `海运`. The shared helper is `src/lib/shipment-types.ts` and is reused by CustomerShipment, MasterShipment, and Transaction admin UI. Customer shipment decimal fields (`actualWeightKg`, `billingRateCnyPerKg`, and `billingWeightKg`) are sent as trimmed strings in API payloads. The displayed payable amount is `billingRateCnyPerKg * billingWeightKg`, formatted as CNY when both decimal strings are valid.
 
 Customer shipment create notes end with exactly one `应付费用：...` line. If the amount can be calculated, the line uses the formatted payable amount; otherwise it uses `应付费用：待确认`.
 
+Customer shipment payment status UI displays and submits only `UNPAID`, `PAID`, and `REFUNDED`, shown to admins as `未支付`, `已支付`, and `已退款`. Legacy `PENDING`, missing values, and empty values display as `未支付`; legacy `REFUND` displays as `已退款`. Saving from the detail page always submits the new canonical values only.
+
 Customer and CustomerRegistration frontends do not expose or submit notes. Public registration collects only contact fields and privacy consent. Admin registration review allows editing contact fields, approving, or deleting the application. The registration delete action is labeled `删除申请`, uses the hard delete API (`DELETE /admin/customer-registrations/:id?confirm=DELETE_HARD`), and does not require typed `DELETE` confirmation in that specific review-detail flow.
 
-New customer review flow is: Public registration → Admin review → approve creates a formal Customer → backend hard deletes the CustomerRegistration. After approval, the frontend redirects to the created customer detail page when the API returns `response.customer.id`, otherwise back to the registration list. The frontend must not re-fetch the deleted registration.
+New customer review flow is: Public registration → Admin review → approve creates a formal Customer → backend hard deletes the CustomerRegistration. After approval, the frontend always redirects to `/admin/customers`. It must not redirect to `/admin/customers/:id`, stay on the registration detail, or re-fetch the deleted registration.
 
 Inbound package create requires a valid `customerCode` (`GJ` plus four digits). Admins enter only the four digits through `CustomerCodeInput`; the frontend payload submits the full business code such as `GJ1736`. When the backend reports a missing customer for that submitted code, the create modal shows `客户 GJ1736 不存在，请核实后重试。` without a Request ID. Unknown API errors may still show Request ID for troubleshooting.
 
-`支付订单` is the Admin display name for `/admin/transactions`; backend API paths and model names may still use `transactions`. The frontend does not implement online payment, payment links, or payment QR codes. Admins can create a shipping-fee payment order only from an unpaid customer shipment via the `入账` action. The action is a text button matching `编辑`, with no border and no icon. The modal displays the business shipment number label `集运单号` such as `GJS20260507267`, hides the raw `customerShipmentId` from the admin, and keeps that internal id only in the create payload. It prefills `customerShipmentId`, `billingRateCnyPerKg * billingWeightKg`, and type `SHIPPING_FEE`. Create payloads use `{ customerShipmentId, type, amountCents, adminNote? }` and must not submit `customerId`; the backend derives `customerId` from `customerShipmentId`. `/admin/transactions` remains a list/detail area and does not expose a top-right create button. The transactions list defaults to all types and must not hide `SHIPPING_FEE`.
+InboundPackage admin remarks use the single `note` field. The frontend no longer submits or renders inbound package `adminNote` / `issueNote`; during backend transition, detail hydration may display an old returned value as `note`, but PATCH/POST payloads use only `note`.
 
-Inbound package and customer shipment hard deletes are entity deletes only: the frontend calls the backend `?confirm=DELETE_HARD` endpoint through `adminApi`, and backend storage cleanup deletes any uploaded images. The frontend must not compute storage object paths or delete storage directly.
+`/tracking` is the public combined order query and batch update page. Batch updates load from the public backend API `GET /tracking/batch-updates?limit=10`, never from admin endpoints and never with an admin token. The UI tolerates raw arrays, `{ items }`, `{ data: { items } }`, `{ item }`, and `{ result }` shapes, and displays only low-sensitivity master shipment fields such as `shipmentType`, `vendorName`, `vendorTrackingNo`, status, timestamps, and aggregate shipment count. It does not display customer lists, customer codes, internal UUIDs, phone, WeChat, addresses, images, transactions, or admin notes.
+
+Public tracking queries normalize input with trim and uppercase, support shipment numbers such as `GJS20260507267`, and call the public tracking API with `q`. Results display `shipmentNo` and low-sensitivity logistics state only.
+
+`支付订单` is the Admin display name for `/admin/transactions`; backend API paths and model names may still use `transactions`. TransactionRecord no longer has its own `type`; order transport type is always displayed from `transaction.customerShipment.shipmentType`. The frontend does not implement online payment, payment links, or payment QR codes. Admins can create an order only from an unpaid customer shipment via the `支付` action. The modal title is `新建订单`, displays the business shipment number label `集运单号` such as `GJS20260507267`, hides the raw `customerShipmentId` from the admin, and keeps that internal id only in the create payload. It displays the shipment transport type as read-only information and displays amount as read-only, calculated from `billingRateCnyPerKg * billingWeightKg`. If the amount cannot be calculated, creation is disabled and admins must edit the shipment billing fields first. Create payloads use `{ customerShipmentId, amountCents, adminNote? }`, and must not submit `type`, `customerId`, or `customerCode`; the backend derives customer linkage from `customerShipmentId`. After successful creation from `/admin/customer-shipments`, the modal closes, resets, and redirects to `/admin/transactions`; failed creation keeps the modal open with entered values. `/admin/transactions` remains a list/detail area and does not expose a top-right create button.
+
+Transaction detail displays customer identity from `customerCode`, shipment identity from `shipmentNo`, and transport type from `customerShipment.shipmentType`. Its subtitle is `<客户ID>-<MM/DD-HH:mm>-<运输类型>`, for example `GJ5901-05/07-22:14-空运普货`, and never the raw transaction UUID. Amount and transport type are read-only in `基础信息`; the edit area only changes `备注`. Saving a transaction note must PATCH only `{ adminNote }`, then rehydrate the detail response so customer, shipment, amount, shipment type, and timestamps remain authoritative. Hard deleting a transaction calls `DELETE /admin/transactions/:id?confirm=DELETE_HARD`, then returns to `/admin/transactions`; the backend resets the related customer shipment `paymentStatus` to `UNPAID`.
+
+MasterShipment transport type uses the same `shipmentType` values and labels as CustomerShipment: `AIR_GENERAL` / `AIR_SENSITIVE` / `SEA` for `空运普货` / `空运敏货` / `海运`. MasterShipment status displays only `运输中`, `已签收`, `待客人领取`, and `异常`, backed by `IN_TRANSIT`, `SIGNED`, `READY_FOR_PICKUP`, and `EXCEPTION`; legacy status values normalize into those labels.
+
+The new international batch form labels transport as `运输类型`, keeps supplier as a select (`DHL`, `UPS`, `FEDEX`, `EMS`, `OTHER`), does not expose a status field, and submits `{ shipmentType, vendorName, vendorTrackingNo, customerShipmentIds }`. The customer shipment selector displays each option as `<集运单号> <客户code> <运输类型>`, falls back to `未生成单号` and `未知客户`, and only offers customer shipments that are unbatched, `PAID`, and the same `shipmentType` as the form. The frontend sends `unbatched=true`, `shipmentType`, and `paymentStatus=PAID`, keeps a local filter fallback, clears selected shipments when transport type changes, and validates selected shipment type and payment status again before submit. After create succeeds, the backend updates linked CustomerShipment records to `SHIPPED`; the frontend closes the modal, resets form state, clears cached candidates, and refreshes the master shipment list so any displayed customer shipment status can show `已发货`.
+
+MasterShipment detail treats transport type, supplier, supplier tracking number, status, and associated customer shipments as read-only basic information. Associated customer shipments are listed line by line as `<集运单号> · <客户编号> · <运输类型> · <费用状态> · <运输状态>` without raw UUIDs. The page no longer supports adding or removing associated shipments from the detail view; admin can only edit the batch note, and saving sends `{ note }`.
+
+MasterShipment public publishing uses `publicPublished` with a single `公开发布` / `撤销发布` action. `publicTitle`, `publicSummary`, and `publicStatusText` are removed from frontend admin state, payloads, and types. Public `/tracking` should only show published batches returned by the public backend API.
+
+Deleting a MasterShipment is allowed even when it has associated customer shipments; the backend detaches those links. The frontend still calls `DELETE /admin/master-shipments/:id?confirm=DELETE_HARD`, shows blocking loading while deleting, and returns to `/admin/master-shipments`. If the response includes `detachedCustomerShipmentCount`, the list page displays the detached count.
+
+Deleting a paid CustomerShipment is blocked in the frontend with `当前集运单已支付，若要删除，请先删除对应的支付订单。`; if the backend returns a payment/transaction blocker, the same message is shown without exposing the Request ID for that known case. Admins must delete the corresponding payment order first so the shipment payment status returns to unpaid before deleting the shipment.
+
+All entity hard delete flows use a full-page blocking loading overlay after the admin confirms deletion and before the API returns. This covers customer registrations, customers, inbound packages, customer shipments, master shipments, and transactions. Delete confirmation dialogs do not require typed `DELETE`, but API calls still include `confirm=DELETE_HARD`.
+
+Inbound package and customer shipment hard deletes are entity deletes only: the frontend calls the backend `?confirm=DELETE_HARD` endpoint through `adminApi`, and backend storage cleanup deletes any uploaded images. The frontend must not compute storage object paths or delete storage directly. Master shipment, transaction, customer shipment, and inbound package detail hard delete dialogs do not require typing `DELETE`, but the API call still includes `confirm=DELETE_HARD`.
 
 Customer shipments do not support cancellation in Admin UI. Problem cases should be handled by updating the shipment status to `EXCEPTION` or another existing status.
 
@@ -228,7 +254,11 @@ Inbound package image uploads must only run after create returns a real package 
 
 Customer shipment image uploads follow the same rule: create first through the backend API, extract a real shipment `id`, then upload images through `/admin/customer-shipments/:id/images`.
 
-Master shipments include `shipmentType` in create and update payloads. Valid internal values are `AIR_GENERAL`, `AIR_SENSITIVE`, and `SEA`, displayed to admins as `空运普货`, `空运敏货`, and `海运`. New batch forms show `类型` at the top, before supplier fields and customer shipment selection. Lists and detail pages display the Chinese label, with old records defaulting to `空运普货` when the value is missing.
+Master shipments include `shipmentType` in create and update payloads. Valid internal values are `AIR_GENERAL`, `AIR_SENSITIVE`, and `SEA`, displayed to admins as `空运普货`, `空运敏货`, and `海运`. New batch forms show `类型` at the top, before supplier fields and customer shipment selection. The supplier field is labeled `供应商`, uses a fixed select, and submits `vendorName` as one of `DHL`, `UPS`, `FEDEX`, `EMS`, or `OTHER`; arbitrary free text is not allowed. Lists and detail pages display the supplier value as stored.
+
+Master shipment create uses the admin blocking loading overlay while the create API is pending. During that state admins cannot close the modal, cancel, change selected customer shipments, resubmit, or interact with the underlying admin page. Success closes and resets the modal, clears selected customer shipments, refreshes the list, and shows a success message; failure leaves entered values and selections intact.
+
+Public layout details: `/compensation` uses the shared public container width (`max-w-6xl` with responsive horizontal padding) for the abnormal handling FAQ section so it aligns with surrounding sections. `/compliance` keeps FAQ and related links visible and crawlable but removes their outer bordered wrappers, relying on spacing and internal link cards for separation.
 
 ---
 
@@ -431,12 +461,14 @@ handoffSummary: '支持本地上门递送或预约交接，具体安排由工作
 
 ### 6.5 Public Nav And Tracking Consolidation
 
-- Public nav uses: 服务, 查询订单, 新客户注册, 联系, 合规, 隐私, 管理员
+- Public nav uses: 服务介绍, 查询订单, 新客户注册, 联系我们, 管理员
+- 合规说明 and 隐私政策 are no longer first-level nav items, but remain crawlable from the public footer and the `/services` related说明 flow
 - Logo remains the only home link; there is no separate 首页 nav tab
 - The former 查询 and 批次更新 nav entries are merged into 查询订单, linking to `/tracking`
 - `/tracking` shows public batch update content at the top and keeps the order/tracking query form below it
 - `/batch-updates` and `/batch-updates/:path*` are no longer content routes; `next.config.ts` permanently redirects them to `/tracking`
 - Sitemap and footer links exclude `/batch-updates`; do not request indexing for that URL in Google Search Console
+- `/compliance` and `/privacy` remain indexable and stay in `sitemap.ts`
 
 **AppVersionBadge:**
 
@@ -472,9 +504,9 @@ handoffSummary: '支持本地上门递送或预约交接，具体安排由工作
 **Link Distribution:**
 
 - Homepage: Core service and registration links
-- Services: Registration, tracking, compliance, FAQ
+- Services: Registration, tracking, compliance, privacy, terms, compensation, FAQ
 - Register: Privacy, services, compliance
-- Compliance: Terms, compensation, registration
+- Compliance: Services, privacy, terms, compensation, disclaimer, contact
 - FAQ: Services, registration, tracking, compliance
 
 **SEO Benefits:**

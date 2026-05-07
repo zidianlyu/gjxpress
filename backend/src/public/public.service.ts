@@ -5,7 +5,6 @@ import { CreateCustomerRegistrationDto } from '../customer-registrations/dto/cre
 import {
   CUSTOMER_SHIPMENT_STATUS_LABELS,
   MASTER_SHIPMENT_STATUS_LABELS,
-  PAYMENT_STATUS_LABELS,
   getCustomerShipmentStage,
 } from '../common/status-labels';
 
@@ -48,13 +47,13 @@ export class PublicService {
   }
 
   async trackShipment(shipmentNo: string) {
+    const normalizedShipmentNo = shipmentNo.trim().toUpperCase();
     const shipment = await this.prisma.customerShipment.findUnique({
-      where: { shipmentNo },
+      where: { shipmentNo: normalizedShipmentNo },
       select: {
-        id: true,
         shipmentNo: true,
+        shipmentType: true,
         status: true,
-        paymentStatus: true,
         publicTrackingEnabled: true,
         internationalTrackingNo: true,
         sentToOverseasAt: true,
@@ -66,12 +65,12 @@ export class PublicService {
         updatedAt: true,
         masterShipment: {
           select: {
-            batchNo: true,
+            vendorName: true,
+            vendorTrackingNo: true,
+            shipmentType: true,
             status: true,
-            publicVisible: true,
-            publicTitle: true,
-            publicSummary: true,
-            publicStatusText: true,
+            publicPublished: true,
+            updatedAt: true,
           },
         },
         _count: { select: { items: true } },
@@ -82,27 +81,28 @@ export class PublicService {
       return {
         found: false,
         message: 'NO_RECORD',
-        shipmentNo,
+        shipmentNo: normalizedShipmentNo,
       };
     }
 
-    const batch = shipment.masterShipment?.publicVisible
+    const batch = shipment.masterShipment && shipment.masterShipment.publicPublished
       ? {
-          batchNo: shipment.masterShipment.batchNo,
+          vendorName: shipment.masterShipment.vendorName,
+          vendorTrackingNo: shipment.masterShipment.vendorTrackingNo,
+          shipmentType: shipment.masterShipment.shipmentType,
+          status: shipment.masterShipment.status,
           statusLabel: MASTER_SHIPMENT_STATUS_LABELS[shipment.masterShipment.status] ?? shipment.masterShipment.status,
-          publicTitle: shipment.masterShipment.publicTitle,
-          publicSummary: shipment.masterShipment.publicSummary,
-          publicStatusText: shipment.masterShipment.publicStatusText,
+          updatedAt: shipment.masterShipment.updatedAt,
         }
       : null;
 
     return {
       found: true,
       shipmentNo: shipment.shipmentNo,
+      shipmentType: shipment.shipmentType,
       status: shipment.status,
       statusLabel: CUSTOMER_SHIPMENT_STATUS_LABELS[shipment.status] ?? shipment.status,
       stage: getCustomerShipmentStage(shipment.status),
-      paymentStatusLabel: PAYMENT_STATUS_LABELS[shipment.paymentStatus] ?? shipment.paymentStatus,
       packageCount: shipment._count.items,
       timeline: {
         createdAt: shipment.createdAt,
@@ -122,28 +122,25 @@ export class PublicService {
       where: { batchNo },
       select: {
         batchNo: true,
+        shipmentType: true,
         status: true,
-        publicVisible: true,
-        publicTitle: true,
-        publicSummary: true,
-        publicStatusText: true,
+        publicPublished: true,
         publishedAt: true,
         arrivedOverseasAt: true,
         updatedAt: true,
       },
     });
 
-    if (!master || !master.publicVisible) {
+    if (!master || !master.publicPublished) {
       throw new NotFoundException('Batch not found or not publicly visible');
     }
 
     return {
       data: {
         batchNo: master.batchNo,
+        shipmentType: master.shipmentType,
+        status: master.status,
         statusLabel: MASTER_SHIPMENT_STATUS_LABELS[master.status] ?? master.status,
-        publicTitle: master.publicTitle,
-        publicSummary: master.publicSummary,
-        publicStatusText: master.publicStatusText,
         publishedAt: master.publishedAt,
         arrivedOverseasAt: master.arrivedOverseasAt,
         updatedAt: master.updatedAt,
@@ -165,33 +162,36 @@ export class PublicService {
 
     const [data, total] = await Promise.all([
       this.prisma.masterShipment.findMany({
-        where: { publicVisible: true },
+        where: { publicPublished: true },
         skip,
         take,
         select: {
           batchNo: true,
+          shipmentType: true,
           status: true,
-          publicTitle: true,
-          publicSummary: true,
-          publicStatusText: true,
           publishedAt: true,
-          arrivedOverseasAt: true,
+          vendorName: true,
+          vendorTrackingNo: true,
+          createdAt: true,
           updatedAt: true,
+          _count: { select: { customerShipments: true } },
         },
-        orderBy: { publishedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.masterShipment.count({ where: { publicVisible: true } }),
+      this.prisma.masterShipment.count({ where: { publicPublished: true } }),
     ]);
 
     return {
       data: data.map((m) => ({
         batchNo: m.batchNo,
+        vendorName: m.vendorName,
+        vendorTrackingNo: m.vendorTrackingNo,
+        shipmentType: m.shipmentType,
+        status: m.status,
         statusLabel: MASTER_SHIPMENT_STATUS_LABELS[m.status] ?? m.status,
-        publicTitle: m.publicTitle,
-        publicSummary: m.publicSummary,
-        publicStatusText: m.publicStatusText,
+        customerShipmentCount: m._count.customerShipments,
         publishedAt: m.publishedAt,
-        arrivedOverseasAt: m.arrivedOverseasAt,
+        createdAt: m.createdAt,
         updatedAt: m.updatedAt,
       })),
       pagination: { page, pageSize: take, total, totalPages: Math.ceil(total / take) },

@@ -38,7 +38,7 @@ export class CustomerRegistrationsController {
   constructor(private readonly service: CustomerRegistrationsService) {}
 
   @Post()
-  @ApiOperation({ summary: '[Admin] Manually create a customer registration (enters PENDING queue)' })
+  @ApiOperation({ summary: '[Admin] Manually create a customer registration (enters review queue)' })
   @ApiGenericCreated('Registration created.')
   adminCreate(@Body() dto: CreateCustomerRegistrationDto) {
     return this.service.adminCreate(dto);
@@ -47,16 +47,14 @@ export class CustomerRegistrationsController {
   @Get()
   @ApiOperation({ summary: '[Admin] List customer registrations with search and pagination' })
   @ApiQuery({ name: 'q', required: false, type: String, description: 'Search phone, wechat id, address, or generated code.' })
-  @ApiQuery({ name: 'status', required: false, enum: ['PENDING'], description: 'Registration review status. Defaults to PENDING.' })
   @ApiPaginationQueries()
   @ApiItemsPaginatedOk('Customer registrations with pagination.')
   findAll(
     @Query('q') q?: string,
-    @Query('status') status?: string,
     @Query('page') page?: number,
     @Query('pageSize') pageSize?: number,
   ) {
-    return this.service.findAll({ q, status, page, pageSize });
+    return this.service.findAll({ q, page, pageSize });
   }
 
   @Get(':id')
@@ -104,7 +102,7 @@ export class PublicCustomerRegistrationsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Submit new customer registration application (public, no auth)' })
-  @ApiGenericCreated('Customer registration submitted; response includes generated customerCode and PENDING status.')
+  @ApiGenericCreated('Customer registration submitted; response includes generated customerCode.')
   submitRegistration(
     @Body() dto: CreateCustomerRegistrationDto,
     @Req() req: Request,

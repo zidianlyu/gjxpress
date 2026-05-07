@@ -10,17 +10,19 @@ interface RelatedLinksProps {
   title?: string;
   links: RelatedLink[];
   className?: string;
+  flush?: boolean;
 }
 
 export function RelatedLinks({ 
   title = "相关链接", 
   links, 
-  className = "" 
+  className = "",
+  flush = false,
 }: RelatedLinksProps) {
   if (!links.length) return null;
 
   return (
-    <div className={`mt-12 pt-8 border-t border-border ${className}`}>
+    <div className={`${flush ? '' : 'mt-12 border-t border-border pt-8'} ${className}`}>
       <h3 className="text-lg font-semibold mb-4">{title}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {links.map((link) => (

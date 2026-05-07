@@ -15,7 +15,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, IsUUID, IsBoolean, IsInt, Min, Matches, ValidateIf } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsUUID, IsBoolean, IsInt, Min, Matches, ValidateIf, IsIn } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomerShipmentsService } from './customer-shipments.service';
@@ -36,6 +36,7 @@ import {
 } from '../common/swagger/api-docs';
 
 const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
+const SHIPMENT_TYPES = ['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA'];
 
 function normalizeDecimalInput(value: unknown): unknown {
   if (value === undefined || value === null) return value;
@@ -47,14 +48,16 @@ class UpdateCustomerShipmentDto {
   @IsString() @IsOptional() @Transform(({ value }) => String(value).trim().toUpperCase()) @Matches(/^GJ\d{4}$/, { message: 'customerCode must match /^GJ\\d{4}$/' }) customerCode?: string;
   @ApiPropertyOptional({ description: 'Admin/customer shipment notes.' })
   @IsString() @IsOptional() notes?: string;
+  @ApiPropertyOptional({ enum: SHIPMENT_TYPES, description: 'Shipment type: AIR_GENERAL=空运普货, AIR_SENSITIVE=空运敏货, SEA=海运.' })
+  @IsIn(SHIPMENT_TYPES) @IsOptional() shipmentType?: string;
   @ApiPropertyOptional({ description: 'International carrier tracking number.' })
   @IsString() @IsOptional() internationalTrackingNo?: string;
   @ApiPropertyOptional({ type: Boolean, description: 'Whether public tracking endpoint can show this shipment.' })
   @IsBoolean() @IsOptional() @Transform(({ value }) => value === 'true' || value === true) publicTrackingEnabled?: boolean;
   @ApiPropertyOptional({ description: 'Customer shipment status.' })
   @IsString() @IsOptional() status?: string;
-  @ApiPropertyOptional({ description: 'Payment status.' })
-  @IsString() @IsOptional() paymentStatus?: string;
+  @ApiPropertyOptional({ enum: ['UNPAID', 'PAID', 'REFUNDED'], description: 'Payment status.' })
+  @IsIn(['UNPAID', 'PAID', 'REFUNDED']) @IsOptional() paymentStatus?: string;
   @ApiPropertyOptional({ type: Number, description: 'Number of pieces in this customer shipment.' })
   @IsInt() @Min(1) @Type(() => Number) @IsOptional() quantity?: number;
   @ApiPropertyOptional({ description: 'Actual weight in kg, accepted as a non-negative decimal string or number.', example: '2.50' })
@@ -86,6 +89,8 @@ class CreateCustomerShipmentDto {
   @IsUUID() @IsOptional() customerId?: string;
   @ApiPropertyOptional({ type: [String], description: 'Inbound package ids to include.' })
   @IsArray() @IsUUID(undefined, { each: true }) @IsOptional() inboundPackageIds?: string[];
+  @ApiPropertyOptional({ enum: SHIPMENT_TYPES, default: 'AIR_GENERAL', description: 'Shipment type: AIR_GENERAL=空运普货, AIR_SENSITIVE=空运敏货, SEA=海运.' })
+  @IsIn(SHIPMENT_TYPES) @IsOptional() shipmentType?: string;
   @ApiPropertyOptional({ description: 'Notes.' })
   @IsString() @IsOptional() notes?: string;
   @ApiPropertyOptional({ type: Number, default: 1, description: 'Number of pieces in this customer shipment.' })
@@ -120,8 +125,8 @@ class UpdateShipmentStatusDto {
 }
 
 class UpdatePaymentStatusDto {
-  @ApiProperty({ description: 'Payment status.' })
-  @IsString() paymentStatus: string;
+  @ApiProperty({ enum: ['UNPAID', 'PAID', 'REFUNDED'], description: 'Payment status.' })
+  @IsIn(['UNPAID', 'PAID', 'REFUNDED']) paymentStatus: string;
 }
 
 class AddItemDto {
@@ -152,7 +157,8 @@ export class CustomerShipmentsController {
   @ApiOperation({ summary: '[Admin] List customer shipments' })
   @ApiQuery({ name: 'q', required: false, type: String, description: 'Search shipment number, customer code, tracking number, or notes.' })
   @ApiQuery({ name: 'status', required: false, enum: ['PACKED', 'SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP', 'EXCEPTION'], description: 'Shipment status filter.' })
-  @ApiQuery({ name: 'paymentStatus', required: false, type: String, description: 'Payment status filter.' })
+  @ApiQuery({ name: 'paymentStatus', required: false, enum: ['UNPAID', 'PAID', 'REFUNDED'], description: 'Payment status filter.' })
+  @ApiQuery({ name: 'shipmentType', required: false, enum: SHIPMENT_TYPES, description: 'Shipment type filter.' })
   @ApiQuery({ name: 'customerId', required: false, type: String, description: 'Customer id filter.' })
   @ApiQuery({ name: 'masterShipmentId', required: false, type: String, description: 'Master shipment id filter.' })
   @ApiQuery({ name: 'unbatched', required: false, type: Boolean, description: 'true = only shipments not yet in any batch.' })
@@ -162,13 +168,14 @@ export class CustomerShipmentsController {
     @Query('q') q?: string,
     @Query('status') status?: string,
     @Query('paymentStatus') paymentStatus?: string,
+    @Query('shipmentType') shipmentType?: string,
     @Query('customerId') customerId?: string,
     @Query('masterShipmentId') masterShipmentId?: string,
     @Query('unbatched') unbatched?: string,
     @Query('page') page?: number,
     @Query('pageSize') pageSize?: number,
   ) {
-    return this.service.findAll({ q, status, paymentStatus, customerId, masterShipmentId, unbatched, page, pageSize });
+    return this.service.findAll({ q, status, paymentStatus, shipmentType, customerId, masterShipmentId, unbatched, page, pageSize });
   }
 
   @Get(':id')

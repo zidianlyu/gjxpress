@@ -41,7 +41,7 @@ export default function InboundPackagesPage() {
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
-    domesticTrackingNo: '', customerCode: '', adminNote: '',
+    domesticTrackingNo: '', customerCode: '', note: '',
   });
   const [localFiles, setLocalFiles] = useState<File[]>([]);
   const [creating, setCreating] = useState(false);
@@ -50,7 +50,7 @@ export default function InboundPackagesPage() {
   const [createSuccess, setCreateSuccess] = useState('');
 
   const resetCreateForm = () => {
-    setCreateForm({ domesticTrackingNo: '', customerCode: '', adminNote: '' });
+    setCreateForm({ domesticTrackingNo: '', customerCode: '', note: '' });
     setLocalFiles([]);
     setCreateError('');
   };
@@ -105,7 +105,7 @@ export default function InboundPackagesPage() {
       const pkg = await adminApi.createInboundPackage({
         domesticTrackingNo: createForm.domesticTrackingNo.trim() || null,
         customerCode: createForm.customerCode.trim(),
-        adminNote: createForm.adminNote.trim() || undefined,
+        note: createForm.note.trim() || undefined,
       });
       const packageId = getEntityId(pkg);
 
@@ -325,8 +325,8 @@ export default function InboundPackagesPage() {
                 disabled={creating}
               />
               <div>
-                <label className="block text-xs font-medium mb-1">管理员备注</label>
-                <textarea value={createForm.adminNote} onChange={(e) => setCreateForm(f => ({ ...f, adminNote: e.target.value }))} rows={2} placeholder="可选" className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none" disabled={creating} />
+                <label className="block text-xs font-medium mb-1">备注</label>
+                <textarea value={createForm.note} onChange={(e) => setCreateForm(f => ({ ...f, note: e.target.value }))} rows={2} placeholder="可选" className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none" disabled={creating} />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1">图片</label>

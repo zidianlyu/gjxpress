@@ -21,12 +21,9 @@ export const CUSTOMER_SHIPMENT_STATUS_LABELS: Record<CustomerShipmentStatus, str
 };
 
 export const MASTER_SHIPMENT_STATUS_LABELS: Record<MasterShipmentStatus, string> = {
-  CREATED: '已创建',
-  HANDED_TO_VENDOR: '已交供应商',
   IN_TRANSIT: '运输中',
-  TRANSFER_OR_CUSTOMS_PROCESSING: '转运处理中',
-  ARRIVED_OVERSEAS: '已到达海外仓',
-  CLOSED: '已关闭',
+  SIGNED: '已签收',
+  READY_FOR_PICKUP: '待客人领取',
   EXCEPTION: '异常',
 };
 

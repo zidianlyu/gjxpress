@@ -1,4 +1,5 @@
 // Admin-facing types
+import type { ShipmentType } from '@/lib/shipment-types';
 
 // Auth
 export type AdminLoginRequest = {
@@ -28,7 +29,6 @@ export type Customer = {
   phoneNumber?: string | null;
   wechatId?: string | null;
   domesticReturnAddress?: string | null;
-  status: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -45,7 +45,6 @@ export type UpdateCustomerPayload = {
   phoneNumber?: string;
   wechatId?: string | null;
   domesticReturnAddress?: string | null;
-  status?: 'ACTIVE' | 'DISABLED';
 };
 
 // Customer Registration
@@ -53,10 +52,9 @@ export type CustomerRegistration = {
   id: string;
   customerCode: string;
   phoneCountryCode?: string | null;
-  phoneNumber: string;
+  phoneNumber?: string | null;
   wechatId?: string | null;
   domesticReturnAddress?: string | null;
-  status?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -80,7 +78,6 @@ export type ApproveCustomerRegistrationResponse = {
   customer?: {
     id: string;
     customerCode: string;
-    status?: 'ACTIVE' | 'DISABLED';
   };
 };
 
@@ -97,14 +94,12 @@ export type InboundPackage = {
   customer?: {
     id: string;
     customerCode: string;
-    status?: string;
     phoneCountryCode?: string | null;
     phoneNumber?: string | null;
     wechatId?: string | null;
   } | null;
   warehouseReceivedAt?: string | null;
-  adminNote?: string | null;
-  issueNote?: string | null;
+  note?: string | null;
   imageUrls: string[];
   createdAt: string;
   updatedAt: string;
@@ -114,7 +109,7 @@ export type CreateInboundPackagePayload = {
   domesticTrackingNo?: string | null;
   customerCode: string;
   warehouseReceivedAt?: string;
-  adminNote?: string;
+  note?: string;
 };
 
 // Customer Shipment
@@ -122,7 +117,7 @@ export type CustomerShipmentStatus = 'PACKED' | 'SHIPPED' | 'ARRIVED' | 'READY_F
 
 export type LegacyCustomerShipmentStatus = 'DRAFT' | 'SENT_TO_OVERSEAS' | 'ARRIVED_OVERSEAS' | 'LOCAL_DELIVERY_REQUESTED' | 'LOCAL_DELIVERY_IN_PROGRESS' | 'COMPLETED';
 
-export type PaymentStatus = 'UNPAID' | 'PENDING' | 'PAID' | 'WAIVED' | 'REFUNDED';
+export type PaymentStatus = 'UNPAID' | 'PAID' | 'REFUNDED';
 
 export type CustomerShipment = {
   id: string;
@@ -131,14 +126,14 @@ export type CustomerShipment = {
   customer?: {
     id: string;
     customerCode: string;
-    status?: string;
     phoneCountryCode?: string | null;
     phoneNumber?: string | null;
     wechatId?: string | null;
   } | null;
   masterShipmentId?: string | null;
+  shipmentType?: ShipmentType | string | null;
   status: string;
-  paymentStatus?: string | null;
+  paymentStatus?: PaymentStatus | string | null;
   internationalTrackingNo?: string | null;
   publicTrackingEnabled?: boolean;
   actualWeightKg?: string | number | null;
@@ -154,6 +149,7 @@ export type CustomerShipment = {
 
 export type CreateCustomerShipmentPayload = {
   customerCode: string;
+  shipmentType: ShipmentType;
   inboundPackageIds?: string[];
   quantity: number;
   actualWeightKg: string;
@@ -164,11 +160,12 @@ export type CreateCustomerShipmentPayload = {
 };
 
 export type UpdateCustomerShipmentPayload = {
+  shipmentType?: ShipmentType | string;
   notes?: string;
   internationalTrackingNo?: string;
   publicTrackingEnabled?: boolean;
   status?: string;
-  paymentStatus?: string;
+  paymentStatus?: PaymentStatus | string;
   quantity?: number;
   actualWeightKg?: string | null;
   volumeFormula?: string | null;
@@ -177,52 +174,44 @@ export type UpdateCustomerShipmentPayload = {
 };
 
 // Master Shipment
-export type MasterShipmentStatus = 'CREATED' | 'HANDED_TO_VENDOR' | 'IN_TRANSIT' | 'TRANSFER_OR_CUSTOMS_PROCESSING' | 'ARRIVED_OVERSEAS' | 'CLOSED' | 'EXCEPTION';
-export type MasterShipmentType = 'AIR_GENERAL' | 'AIR_SENSITIVE' | 'SEA';
+export type MasterShipmentStatus = 'IN_TRANSIT' | 'SIGNED' | 'READY_FOR_PICKUP' | 'EXCEPTION';
+export type MasterShipmentType = ShipmentType;
+export type MasterShipmentVendor = 'DHL' | 'UPS' | 'FEDEX' | 'EMS' | 'OTHER';
 
 export type MasterShipment = {
   id: string;
   batchNo: string;
   shipmentType?: MasterShipmentType | string | null;
-  vendorName?: string | null;
-  vendorTrackingNo?: string | null;
-  status: string;
-  publicVisible: boolean;
-  publicTitle?: string | null;
-  publicSummary?: string | null;
-  publicStatusText?: string | null;
+  vendorName: MasterShipmentVendor | string;
+  vendorTrackingNo: string;
+  status: MasterShipmentStatus | string;
+  publicPublished?: boolean;
+  publicVisible?: boolean;
   publishedAt?: string | null;
-  handedToVendorAt?: string | null;
-  arrivedOverseasAt?: string | null;
-  closedAt?: string | null;
+  note?: string | null;
   adminNote?: string | null;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
   customerShipments?: CustomerShipment[];
 };
 
 export type CreateMasterShipmentPayload = {
   shipmentType: MasterShipmentType;
-  vendorName: string;
+  vendorName: MasterShipmentVendor | string;
   vendorTrackingNo: string;
   customerShipmentIds: string[];
-  status?: string;
-  adminNote?: string;
 };
 
 // Transaction Record
-export type AdminTransactionType = 'SHIPPING_FEE' | 'REFUND';
-
 export type TransactionRecord = {
   id: string;
   customerId?: string | null;
   customerShipmentId: string;
-  type: 'SHIPPING_FEE' | 'REFUND' | string;
   amountCents: number;
   adminNote?: string | null;
   occurredAt?: string;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt?: string | null;
   customer?: {
     id: string;
     customerCode: string;
@@ -233,6 +222,7 @@ export type TransactionRecord = {
   customerShipment?: {
     id: string;
     shipmentNo?: string | null;
+    shipmentType?: ShipmentType | string | null;
     status?: string;
     customer?: {
       id: string;
@@ -243,17 +233,12 @@ export type TransactionRecord = {
 
 export type CreateTransactionPayload = {
   customerShipmentId: string;
-  type: 'SHIPPING_FEE' | 'REFUND';
   amountCents: number;
   adminNote?: string;
-  occurredAt?: string;
 };
 
 export type UpdateTransactionPayload = {
-  type?: 'SHIPPING_FEE' | 'REFUND';
-  amountCents?: number;
   adminNote?: string | null;
-  occurredAt?: string;
 };
 
 // Delete response
@@ -261,6 +246,7 @@ export type DeleteResponse = {
   deleted: boolean;
   id: string;
   deletedImageCount?: number;
+  detachedCustomerShipmentCount?: number;
 };
 
 // Delete blockers (from 409)

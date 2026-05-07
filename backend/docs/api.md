@@ -1592,7 +1592,6 @@ Create a new customer. `customerCode` is auto-generated (format: `GJ####`, e.g. 
   "phoneNumber": "13800000000",
   "wechatId": "wx_zhangsan",
   "domesticReturnAddress": "广东省广州市天河区...",
-  "status": "ACTIVE",
   "createdAt": "...",
   "updatedAt": "..."
 }
@@ -1606,9 +1605,9 @@ Create a new customer. `customerCode` is auto-generated (format: `GJ####`, e.g. 
 
 List customers with search and pagination.
 
-**Query params:** `q`, `status` (`ACTIVE`|`DISABLED`), `page`, `pageSize`
+**Query params:** `q`, `page`, `pageSize`
 
-`q` searches: `customerCode`, `phoneNumber`, `wechatId`. If `status` is omitted, all customer statuses are returned. Default `page=1`, `pageSize=20`, max `pageSize=100`. Ordered by `createdAt desc`.
+`q` searches: `customerCode`, `phoneNumber`, `wechatId`. Formal Customer no longer has a `status` field. Default `page=1`, `pageSize=20`, max `pageSize=100`. Ordered by `createdAt desc`.
 
 **Response 200:**
 ```json
@@ -1621,7 +1620,6 @@ List customers with search and pagination.
       "phoneNumber": "13800000000",
       "wechatId": "wx_zhangsan",
       "domesticReturnAddress": "广东省广州市天河区...",
-      "status": "ACTIVE",
       "createdAt": "2026-05-05T10:00:00.000Z",
       "updatedAt": "2026-05-05T10:00:00.000Z"
     }
@@ -1654,29 +1652,13 @@ Update customer fields. Cannot change `customerCode`.
   "phoneCountryCode": "+1",
   "phoneNumber": "4155550000",
   "wechatId": "wx_lisi",
-  "domesticReturnAddress": "广东省广州市越秀区...",
-  "status": "ACTIVE"
+  "domesticReturnAddress": "广东省广州市越秀区..."
 }
 ```
 
-`status` accepts only `ACTIVE` or `DISABLED`. `customerCode` is immutable through this endpoint.
+`customerCode` is immutable through this endpoint. Formal Customer and CustomerRegistration no longer have `status`, and enable/disable customer endpoints are no longer supported.
 
-**Errors:** 400 if status is invalid. 401 if bearer token is missing/invalid. 403 if the token is not admin. 404 if not found. 409 if new phone conflicts.
-
----
-
-### PATCH /api/admin/customers/:id/disable
-
-Soft-disable customer. Sets `status = DISABLED`. **No hard delete.** Customers with associated packages/shipments must never be hard deleted.
-
-**Response 200:**
-```json
-{
-  "data": { "id": "...", "customerCode": "GJ0427", "status": "DISABLED", "updatedAt": "..." }
-}
-```
-
-**Errors:** 404 if not found.
+**Errors:** 401 if bearer token is missing/invalid. 403 if the token is not admin. 404 if not found. 409 if new phone conflicts.
 
 ---
 
@@ -1692,7 +1674,7 @@ Create an inbound package record.
   "domesticTrackingNo": "YT123456789",
   "customerCode": "GJ0427",
   "warehouseReceivedAt": "2026-05-05T10:00:00.000Z",
-  "adminNote": "内部备注"
+  "note": "客户要求合箱前确认外箱状态"
 }
 ```
 
@@ -1734,8 +1716,7 @@ Create an inbound package record.
       },
       "customerId": "uuid",
       "warehouseReceivedAt": "2026-05-05T10:00:00.000Z",
-      "adminNote": "内部备注",
-      "issueNote": null,
+      "note": "客户要求合箱前确认外箱状态",
       "imageUrls": [],
       "inShipment": false,
       "createdAt": "2026-05-05T10:00:00.000Z",
@@ -1765,8 +1746,7 @@ General update. All fields optional.
 {
   "domesticTrackingNo": "...",
   "warehouseReceivedAt": "...",
-  "issueNote": "...",
-  "adminNote": "...",
+  "note": "...",
   "status": "ARRIVED"
 }
 ```
@@ -1909,7 +1889,7 @@ Update payment status only. **No online payment integration.** Manual record onl
 { "paymentStatus": "PAID" }
 ```
 
-Valid values: `UNPAID`, `PROCESSING`, `PENDING`, `PAID`, `WAIVED`, `REFUNDED`
+Valid values: `UNPAID`（未支付）, `PAID`（已支付）, `REFUNDED`（已退款）.
 
 ---
 
@@ -1938,9 +1918,9 @@ Remove a package from the shipment.
 
 | Resource | Hard Delete | Soft Disable/Cancel | Reason |
 |---|---|---|---|
-| Customer | ❌ Never | ✅ `PATCH /:id/disable` (status=DISABLED) | Has packages/shipments |
+| Customer | ❌ Never | ❌ Not supported; formal Customer has no `status` | Has packages/shipments |
 | InboundPackage | ❌ Never | ❌ Not implemented (no `archivedAt` in schema) | Avoid business record loss |
-| CustomerShipment | ✅ `DELETE /:id?confirm=DELETE_HARD` | ❌ Cancel endpoint removed; use status `EXCEPTION` only for exception handling | Hard delete is blocked if in-transit/completed, batched, or has transactions |
+| CustomerShipment | ✅ `DELETE /:id?confirm=DELETE_HARD` | ❌ Cancel endpoint removed; use status `EXCEPTION` only for exception handling | Hard delete is blocked if paid or has TransactionRecords; delete the payment order first so paymentStatus returns to UNPAID. Existing in-transit/batched blockers still apply. |
 | CustomerShipmentItem | N/A | ✅ `DELETE /:id/items/:itemId` (blocked if in transit) | Restores package to ARRIVED |
 
 ---
@@ -1996,7 +1976,7 @@ curl -s -X PATCH "$BASE/admin/customers/<id>/disable" \
 curl -s -X POST "$BASE/admin/inbound-packages" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"customerCode":"GJ0001","warehouseReceivedAt":"2026-05-05T10:00:00.000Z","adminNote":"无国内单号也可创建"}'
+  -d '{"customerCode":"GJ0001","warehouseReceivedAt":"2026-05-05T10:00:00.000Z","note":"无国内单号也可创建"}'
 
 curl -s "$BASE/admin/inbound-packages?status=ARRIVED" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
@@ -2004,7 +1984,7 @@ curl -s "$BASE/admin/inbound-packages?status=ARRIVED" \
 curl -s -X PATCH "$BASE/admin/inbound-packages/<id>" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"adminNote":"已确认重量"}'
+  -d '{"note":"已确认重量"}'
 
 curl -s -X PATCH "$BASE/admin/inbound-packages/<id>/assign-customer" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -2034,11 +2014,13 @@ curl -s -X PATCH "$BASE/admin/customer-shipments/<id>/payment-status" \
 curl -s -X POST "$BASE/admin/transactions" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"customerShipmentId":"<shipment-uuid>","type":"SHIPPING_FEE","amountCents":16000,"adminNote":"运费支付订单"}'
+  -d '{"customerShipmentId":"<shipment-uuid>","amountCents":16000,"adminNote":"订单创建"}'
 
 # Transaction creation derives customerId from customerShipmentId, creates a
-# TransactionRecord, and for SHIPPING_FEE marks CustomerShipment.paymentStatus=PAID.
-# GET /admin/transactions returns all types by default, including SHIPPING_FEE.
+# TransactionRecord, and marks CustomerShipment.paymentStatus=PAID.
+# DELETE /admin/transactions/:id?confirm=DELETE_HARD resets the related CustomerShipment.paymentStatus=UNPAID.
+# PATCH /admin/transactions/:id only accepts adminNote.
+# GET /admin/transactions returns customerShipment.shipmentType for transport-type display.
 
 # Check X-Request-Id in response
 curl -si "$BASE/admin/customers" \
@@ -2204,19 +2186,21 @@ Create a batch and atomically link customer shipments.
   "vendorName": "DHL",
   "vendorTrackingNo": "DHL1234567890",
   "customerShipmentIds": ["uuid1", "uuid2"],
-  "adminNote": "First batch of May"
+  "note": "First batch of May"
 }
 ```
 
 **Rules:**
 - `vendorName`, `vendorTrackingNo`, `customerShipmentIds` are all **required**.
+- `vendorName` is the API field for the frontend label “供应商”; allowed values are `DHL`, `UPS`, `FEDEX`, `EMS`, `OTHER`.
 - `shipmentType` is optional for backward compatibility and defaults to `AIR_GENERAL`.
 - Allowed `shipmentType` values: `AIR_GENERAL`（空运普货）, `AIR_SENSITIVE`（空运敏货）, `SEA`（海运）.
 - `customerShipmentIds` must be non-empty.
 - No duplicate IDs in the array → 400.
 - All IDs must exist → 404 with list of missing IDs.
-- None of the shipments may already belong to another batch → 409 with conflicting IDs.
-- Creation and linking happen in a single database transaction.
+- Selected CustomerShipments must be unbatched (`masterShipmentId=null`), `paymentStatus=PAID`, and the same `shipmentType` as the batch.
+- Creation, linking, and setting selected CustomerShipment `status=SHIPPED` happen in a single database transaction.
+- `status` defaults to `IN_TRANSIT`; `publicPublished` defaults to true.
 
 **Response 201:**
 ```json
@@ -2227,14 +2211,16 @@ Create a batch and atomically link customer shipments.
     "shipmentType": "AIR_GENERAL",
     "vendorName": "DHL",
     "vendorTrackingNo": "DHL1234567890",
-    "status": "CREATED",
-    "adminNote": "First batch of May",
+    "status": "IN_TRANSIT",
+    "publicPublished": true,
+    "note": "First batch of May",
     "customerShipments": [
       {
         "id": "uuid1",
         "shipmentNo": "GJS20260515001",
-        "status": "PACKED",
-        "paymentStatus": "UNPAID",
+        "shipmentType": "AIR_GENERAL",
+        "status": "SHIPPED",
+        "paymentStatus": "PAID",
         "customer": { "id": "...", "customerCode": "GJ0001" }
       }
     ],
@@ -2244,9 +2230,13 @@ Create a batch and atomically link customer shipments.
 }
 ```
 
-**Errors:** 400 for missing/empty fields or duplicate IDs. 404 for unknown shipment IDs. 409 for already-batched shipments.
+**Errors:** 400 for missing/empty fields, duplicate IDs, or shipmentType mismatch. 404 for unknown shipment IDs. 409 for already-batched or unpaid shipments.
 
-Migration `add_master_shipment_type` adds `master_shipments.shipment_type` with default `AIR_GENERAL`.
+`PATCH /api/admin/master-shipments/:id` only accepts `note`, `publicPublished`, and `status`. `shipmentType`, `vendorName`, `vendorTrackingNo`, and linked CustomerShipments are read-only after creation. Public text fields `publicTitle`, `publicSummary`, and `publicStatusText` were removed.
+
+`DELETE /api/admin/master-shipments/:id?confirm=DELETE_HARD` detaches linked CustomerShipments and deletes the MasterShipment. It does not delete CustomerShipments, Customers, TransactionRecords, or InboundPackages, and it does not roll back CustomerShipment.status from SHIPPED.
+
+Migration `add_customer_shipment_type` adds `customer_shipments.shipment_type`; migration `add_master_shipment_type` adds `master_shipments.shipment_type`. Migration `update_master_shipment_public_and_status` removes public text fields, reuses `public_visible` as API `publicPublished`, maps MasterShipment statuses to `IN_TRANSIT`, `SIGNED`, `READY_FOR_PICKUP`, `EXCEPTION`, and sets default status to `IN_TRANSIT`.
 
 ---
 
@@ -2397,13 +2387,41 @@ No auth required.
 
 Each item includes: `id`, `customerCode`, `phoneCountryCode`, `phoneNumber`, `wechatId`, `domesticReturnAddress`, `status`, `createdAt`, `updatedAt`. It does not include `notes`, `reviewNote`, or rejection fields.
 
+Formal Customer records and CustomerRegistration records do not have `status`. A CustomerRegistration row exists only while it is waiting for review.
+
+---
+
+## 26. Public Tracking
+
+### GET /api/tracking/batch-updates
+
+Public, no auth. Returns recent `MasterShipment` rows ordered by `createdAt desc`.
+
+**Query params:** `limit` (default 10, max 50)
+
+**Response 200:** `{ "items": [...], "total": 0 }`
+
+Each item includes only low-sensitive batch fields: `vendorName`, `vendorTrackingNo`, `shipmentType`, `status`, `statusLabel`, `customerShipmentCount`, `createdAt`, `updatedAt`. It does not include internal ids, linked customer shipments, customer identifiers, phone, WeChat, addresses, images, transactions, or admin notes.
+
+### GET /api/tracking?q=GJS20260507267
+
+Public, no auth. Searches low-sensitive tracking data by exact `shipmentNo` first for `GJS...`, then by `customerCode`, `domesticTrackingNo`, `internationalTrackingNo`, or master shipment `vendorTrackingNo`.
+
+The response contains `shipmentNo`, shipment `status`, timestamps, low-sensitive master shipment fields, and a public timeline. It excludes `customerId`, customer phone/WeChat/address, package images, transactions, payment data, notes, internal UUIDs, and raw relation objects.
+
+Compatibility route: `GET /api/tracking/search?q=...`.
+
+`CustomerShipment.publicTrackingEnabled` remains in the schema with default `true`; rows with `false` return `NO_RECORD`.
+
+Migration `remove_customer_status` removes formal `Customer.status`; migration `remove_customer_registration_status` removes `CustomerRegistration.status`. Customer enable/disable endpoints are no longer supported.
+
 ---
 
 ## 25.4 Admin — Create Registration (Manual)
 
 ### POST /api/admin/customer-registrations
 
-Admin creates a registration manually, enters PENDING queue.
+Admin creates a registration manually; the row itself represents a pending review item.
 
 **Request:** Same as Public (`phoneNumber` required, others optional).
 
@@ -2427,7 +2445,6 @@ Admin creates a registration manually, enters PENDING queue.
     "phoneNumber": "13800000000",
     "wechatId": "optional",
     "domesticReturnAddress": "...",
-    "status": "PENDING",
     "createdAt": "...",
     "updatedAt": "..."
   }
@@ -2477,7 +2494,6 @@ Approve and atomically create a formal `Customer`.
     "phoneNumber": "13800000000",
     "wechatId": "optional",
     "domesticReturnAddress": "...",
-    "status": "ACTIVE",
     "createdAt": "...",
     "updatedAt": "..."
   }
@@ -2518,8 +2534,8 @@ curl -s -X POST "$BASE/public/customer-registrations" \
   -H "Content-Type: application/json" \
   -d '{"phoneCountryCode":"+86","phoneNumber":"13800000000","wechatId":"wx123","domesticReturnAddress":"广东省..."}'
 
-# Admin: list pending registrations
-curl -s "$BASE/admin/customer-registrations?status=PENDING" \
+# Admin: list registrations waiting for review
+curl -s "$BASE/admin/customer-registrations" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 
 # Admin: get detail

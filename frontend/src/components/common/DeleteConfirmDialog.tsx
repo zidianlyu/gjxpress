@@ -47,6 +47,8 @@ export function DeleteConfirmDialog({
     setDeleting(true);
     try {
       await onConfirm();
+    } catch {
+      // The parent owns rendering the error message in the dialog.
     } finally {
       setDeleting(false);
       setInput('');
@@ -54,6 +56,7 @@ export function DeleteConfirmDialog({
   };
 
   const handleClose = () => {
+    if (deleting) return;
     setInput('');
     onClose();
   };
@@ -66,7 +69,7 @@ export function DeleteConfirmDialog({
             <AlertTriangle className="h-5 w-5" />
             <h2 className="text-lg font-semibold">{title}</h2>
           </div>
-          <button onClick={handleClose} className="text-muted-foreground hover:text-foreground p-1">
+          <button onClick={handleClose} disabled={deleting} className="text-muted-foreground hover:text-foreground p-1 disabled:opacity-50">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -118,6 +121,7 @@ export function DeleteConfirmDialog({
                     placeholder={expectedConfirmation}
                     className="w-full px-3 py-2 rounded-md border bg-background text-sm font-mono"
                     autoFocus
+                    disabled={deleting}
                   />
                 </div>
               )}
@@ -125,7 +129,8 @@ export function DeleteConfirmDialog({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2 rounded-md border text-sm hover:bg-muted"
+                  disabled={deleting}
+                  className="px-4 py-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50"
                 >
                   {cancelButtonText}
                 </button>
@@ -145,7 +150,8 @@ export function DeleteConfirmDialog({
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 rounded-md border text-sm hover:bg-muted"
+                disabled={deleting}
+                className="px-4 py-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50"
               >
                 关闭
               </button>

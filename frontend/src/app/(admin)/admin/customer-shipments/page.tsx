@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Search, Plus, Loader2, X } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
@@ -16,8 +17,10 @@ import { CustomerCodeInput, isCustomerCodeComplete } from '@/components/admin/Cu
 import { buildDefaultShipmentNotes, ensurePayableAmountLine, formatPayableAmount, isPositiveDecimalString, sanitizeDecimalString } from '@/lib/admin/customer-shipment-form';
 import { computeShipmentPayableAmountYuan, isUnpaidShipment } from '@/lib/admin/payment-order';
 import { getEntityId, safeShortId } from '@/lib/api/unwrap';
+import { SHIPMENT_TYPE_OPTIONS, formatShipmentType, type ShipmentType } from '@/lib/shipment-types';
 
 export default function CustomerShipmentsPage() {
+  const router = useRouter();
   const [shipments, setShipments] = useState<CustomerShipment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,6 +34,7 @@ export default function CustomerShipmentsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
     customerCode: '',
+    shipmentType: 'AIR_GENERAL' as ShipmentType,
     quantity: '1',
     notes: '',
     actualWeightKg: '',
@@ -57,6 +61,7 @@ export default function CustomerShipmentsPage() {
   const resetCreateForm = () => {
     setCreateForm({
       customerCode: '',
+      shipmentType: 'AIR_GENERAL',
       quantity: '1',
       notes: '',
       actualWeightKg: '',
@@ -156,6 +161,7 @@ export default function CustomerShipmentsPage() {
       const finalNotes = ensurePayableAmountLine(finalNotesBase, payableText);
       const shipment = await adminApi.createCustomerShipment({
         customerCode: trimmedCustomerCode,
+        shipmentType: createForm.shipmentType,
         quantity,
         notes: finalNotes,
         actualWeightKg,
@@ -295,6 +301,7 @@ export default function CustomerShipmentsPage() {
                   <tr>
                     <th className="text-left px-4 py-3 font-medium">集运单号</th>
                     <th className="text-left px-4 py-3 font-medium">客户</th>
+                    <th className="text-left px-4 py-3 font-medium">运输类型</th>
                     <th className="text-left px-4 py-3 font-medium">件数</th>
                     <th className="text-left px-4 py-3 font-medium">运输状态</th>
                     <th className="text-left px-4 py-3 font-medium">费用状态</th>
@@ -307,6 +314,7 @@ export default function CustomerShipmentsPage() {
                     <tr key={s.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3 font-mono text-xs">{s.shipmentNo || safeShortId(s.id)}</td>
                       <td className="px-4 py-3 text-xs">{s.customer?.customerCode || '-'}</td>
+                      <td className="px-4 py-3 text-xs">{formatShipmentType(s.shipmentType)}</td>
                       <td className="px-4 py-3 text-xs">{s.quantity || 1}</td>
                       <td className="px-4 py-3">
                         <CustomerShipmentStatusBadge status={s.status} />
@@ -324,11 +332,11 @@ export default function CustomerShipmentsPage() {
                             <button
                               type="button"
                               onClick={() => openPaymentDialog(s)}
-                              aria-label="为该集运单入账"
-                              title="新建支付订单"
+                              aria-label="为该集运单创建订单"
+                              title="新建订单"
                               className="text-primary text-xs hover:underline"
                             >
-                              入账
+                              支付
                             </button>
                           )}
                         </div>
@@ -355,6 +363,7 @@ export default function CustomerShipmentsPage() {
                     </span>
                     <PaymentStatusBadge status={s.paymentStatus || ''} />
                   </div>
+                  <p className="mt-1 text-xs text-muted-foreground">运输类型：{formatShipmentType(s.shipmentType)}</p>
                   <div className="mt-3 flex items-center justify-between">
                     <Link href={`/admin/customer-shipments/${s.id}`} className="text-xs text-primary hover:underline">
                       编辑
@@ -363,11 +372,11 @@ export default function CustomerShipmentsPage() {
                       <button
                         type="button"
                         onClick={() => openPaymentDialog(s)}
-                        aria-label="为该集运单入账"
-                        title="新建支付订单"
+                        aria-label="为该集运单创建订单"
+                        title="新建订单"
                         className="text-xs text-primary hover:underline"
                       >
-                        入账
+                        支付
                       </button>
                     )}
                   </div>
@@ -405,6 +414,22 @@ export default function CustomerShipmentsPage() {
             <form onSubmit={handleCreate} className="space-y-4">
               <CustomerCodeInput value={createForm.customerCode} onChange={handleCustomerCodeChange} required disabled={creating} />
               <div>
+                <label className="block text-xs font-medium mb-1">运输类型 *</label>
+                <select
+                  value={createForm.shipmentType}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, shipmentType: e.target.value as ShipmentType }))}
+                  className="w-full px-3 py-2 rounded-md border bg-background text-sm"
+                  required
+                  disabled={creating}
+                >
+                  {SHIPMENT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-medium mb-1">件数 *</label>
                 <input type="number" min={1} step={1} value={createForm.quantity} onChange={(e) => setCreateForm((f) => ({ ...f, quantity: e.target.value }))} placeholder="例如 3" className="w-full px-3 py-2 rounded-md border bg-background text-sm" required disabled={creating} />
               </div>
@@ -412,7 +437,7 @@ export default function CustomerShipmentsPage() {
               {/* Billing fields */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium mb-1">实际体重</label>
+                  <label className="block text-xs font-medium mb-1">实际重量 *</label>
                   <div className="flex">
                     <input
                       type="text"
@@ -449,7 +474,7 @@ export default function CustomerShipmentsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1">计费重量</label>
+                <label className="block text-xs font-medium mb-1">计费重量 *</label>
                 <div className="flex">
                   <input
                     type="text"
@@ -469,7 +494,7 @@ export default function CustomerShipmentsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1">计费基础</label>
+                <label className="block text-xs font-medium mb-1">计费基础 *</label>
                 <div className="flex">
                   <span className="inline-flex items-center px-2 bg-muted border border-r-0 rounded-l-md text-xs text-muted-foreground">¥</span>
                   <input
@@ -538,10 +563,11 @@ export default function CustomerShipmentsPage() {
         defaultCustomerShipmentId={paymentDialogShipment?.id}
         defaultShipmentNo={paymentDialogShipment?.shipmentNo || undefined}
         defaultAmountYuan={paymentDialogAmount || undefined}
-        defaultType="SHIPPING_FEE"
+        defaultShipmentType={paymentDialogShipment?.shipmentType}
         lockCustomerShipment
-        amountHelperText={paymentDialogShipment && !paymentDialogAmount ? '无法自动计算金额，请手动填写。' : undefined}
-        onCreated={fetchData}
+        onCreated={() => {
+          router.push('/admin/transactions');
+        }}
       />
     </div>
   );

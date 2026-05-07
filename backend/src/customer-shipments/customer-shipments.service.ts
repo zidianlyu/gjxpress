@@ -21,21 +21,35 @@ const VALID_STATUSES = [
   'PACKED', 'SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP', 'EXCEPTION',
 ];
 
-const VALID_PAYMENT_STATUSES = ['UNPAID', 'PROCESSING', 'PENDING', 'PAID', 'WAIVED', 'REFUNDED'];
+const VALID_PAYMENT_STATUSES = ['UNPAID', 'PAID', 'REFUNDED'];
+const VALID_SHIPMENT_TYPES = ['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA'];
 const BLOCKED_ITEM_MUTATION_STATUSES = ['SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP'];
 const CUSTOMER_CODE_PATTERN = /^GJ\d{4}$/;
 const CUSTOMER_SELECT = {
   id: true,
   customerCode: true,
-  status: true,
-  phoneCountryCode: true,
-  phoneNumber: true,
 } as const;
 
 function assertCustomerShipmentStatus(status: string) {
   if (!VALID_STATUSES.includes(status)) {
     throw new BadRequestException(
       `Invalid status: ${status}. Must be one of: ${VALID_STATUSES.join(', ')}`,
+    );
+  }
+}
+
+function assertPaymentStatus(paymentStatus: string) {
+  if (!VALID_PAYMENT_STATUSES.includes(paymentStatus)) {
+    throw new BadRequestException(
+      `Invalid paymentStatus: ${paymentStatus}. Must be one of: ${VALID_PAYMENT_STATUSES.join(', ')}`,
+    );
+  }
+}
+
+function assertShipmentType(shipmentType: string) {
+  if (!VALID_SHIPMENT_TYPES.includes(shipmentType)) {
+    throw new BadRequestException(
+      `Invalid shipmentType: ${shipmentType}. Must be one of: ${VALID_SHIPMENT_TYPES.join(', ')}`,
     );
   }
 }
@@ -63,6 +77,7 @@ function formatCustomerShipment(shipment: any) {
     shipmentNo: shipment.shipmentNo,
     customerId: shipment.customerId,
     customer: shipment.customer,
+    shipmentType: shipment.shipmentType,
     status: shipment.status,
     paymentStatus: shipment.paymentStatus,
     actualWeightKg: shipment.actualWeightKg,
@@ -107,7 +122,11 @@ export class CustomerShipmentsService {
     volumeFormula?: string;
     billingRateCnyPerKg?: string;
     billingWeightKg?: string;
+    shipmentType?: string;
   }) {
+    const shipmentType = dto.shipmentType || 'AIR_GENERAL';
+    assertShipmentType(shipmentType);
+
     const customerCode = normalizeCustomerCode(dto.customerCode);
     const customer = customerCode
       ? await this.prisma.customer.findUnique({ where: { customerCode } })
@@ -164,6 +183,7 @@ export class CustomerShipmentsService {
         data: {
           shipmentNo: shipmentNo!,
           customerId,
+          shipmentType,
           quantity,
           notes: dto.notes,
           ...(dto.actualWeightKg !== undefined && { actualWeightKg: dto.actualWeightKg }),
@@ -200,6 +220,7 @@ export class CustomerShipmentsService {
     customerId?: string;
     masterShipmentId?: string;
     unbatched?: string;
+    shipmentType?: string;
     page?: number;
     pageSize?: number;
   }) {
@@ -212,7 +233,14 @@ export class CustomerShipmentsService {
       assertCustomerShipmentStatus(query.status);
       where.status = query.status;
     }
-    if (query.paymentStatus) where.paymentStatus = query.paymentStatus;
+    if (query.paymentStatus) {
+      assertPaymentStatus(query.paymentStatus);
+      where.paymentStatus = query.paymentStatus;
+    }
+    if (query.shipmentType) {
+      assertShipmentType(query.shipmentType);
+      where.shipmentType = query.shipmentType;
+    }
     if (query.customerId) where.customerId = query.customerId;
     if (query.masterShipmentId) where.masterShipmentId = query.masterShipmentId;
     if (query.unbatched === 'true') where.masterShipmentId = null;
@@ -232,7 +260,7 @@ export class CustomerShipmentsService {
         take,
         include: {
           customer: { select: CUSTOMER_SELECT },
-          masterShipment: { select: { id: true, batchNo: true, status: true } },
+          masterShipment: { select: { id: true, batchNo: true, status: true, shipmentType: true } },
           _count: { select: { items: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -253,7 +281,7 @@ export class CustomerShipmentsService {
       where: { id },
       include: {
         customer: { select: CUSTOMER_SELECT },
-        masterShipment: { select: { id: true, batchNo: true, status: true, vendorName: true } },
+        masterShipment: { select: { id: true, batchNo: true, status: true, shipmentType: true, vendorName: true } },
         items: {
           include: {
             inboundPackage: {
@@ -262,7 +290,7 @@ export class CustomerShipmentsService {
           },
         },
         transactions: {
-          select: { id: true, type: true, amountCents: true, occurredAt: true },
+          select: { id: true, amountCents: true, occurredAt: true },
         },
       },
     });
@@ -284,15 +312,15 @@ export class CustomerShipmentsService {
       volumeFormula?: string;
       billingRateCnyPerKg?: string;
       billingWeightKg?: string;
+      shipmentType?: string;
     },
   ) {
     const shipment = await this.prisma.customerShipment.findUnique({ where: { id } });
     if (!shipment) throw new NotFoundException('CustomerShipment not found');
 
     if (dto.status) assertCustomerShipmentStatus(dto.status);
-    if (dto.paymentStatus && !VALID_PAYMENT_STATUSES.includes(dto.paymentStatus)) {
-      throw new BadRequestException(`Invalid paymentStatus: ${dto.paymentStatus}`);
-    }
+    if (dto.paymentStatus) assertPaymentStatus(dto.paymentStatus);
+    if (dto.shipmentType) assertShipmentType(dto.shipmentType);
 
     let customerIdUpdate: string | undefined;
     if (dto.customerCode !== undefined) {
@@ -328,6 +356,7 @@ export class CustomerShipmentsService {
         ...(dto.publicTrackingEnabled !== undefined && { publicTrackingEnabled: dto.publicTrackingEnabled }),
         ...(dto.status !== undefined && { status: dto.status as any }),
         ...(dto.paymentStatus !== undefined && { paymentStatus: dto.paymentStatus as any }),
+        ...(dto.shipmentType !== undefined && { shipmentType: dto.shipmentType }),
         ...(dto.quantity !== undefined && { quantity: normalizeQuantity(dto.quantity) }),
         ...(dto.actualWeightKg !== undefined && { actualWeightKg: dto.actualWeightKg }),
         ...(dto.volumeFormula !== undefined && { volumeFormula: dto.volumeFormula }),
@@ -357,6 +386,19 @@ export class CustomerShipmentsService {
     });
     if (!shipment) throw new NotFoundException('CustomerShipment not found');
 
+    if (shipment.paymentStatus === 'PAID' || shipment._count.transactions > 0) {
+      throw new ConflictException({
+        message: '当前集运单已支付，若要删除，请先删除对应的支付订单。',
+        blockers: [
+          {
+            type: 'TRANSACTION_RECORD',
+            message: '当前集运单已支付，若要删除，请先删除对应的支付订单。',
+            count: shipment._count.transactions,
+          },
+        ],
+      });
+    }
+
     if (BLOCKED_ITEM_MUTATION_STATUSES.includes(shipment.status)) {
       throw new ConflictException(
         `Cannot hard delete shipment with status ${shipment.status}. Shipment is in transit or completed.`,
@@ -367,13 +409,6 @@ export class CustomerShipmentsService {
       throw new ConflictException(
         'Cannot hard delete shipment that is linked to a MasterShipment. Remove it from the batch first.',
       );
-    }
-
-    if (shipment._count.transactions > 0) {
-      throw new ConflictException({
-        message: 'Cannot hard delete shipment with related transaction records',
-        blockers: { transactions: shipment._count.transactions },
-      });
     }
 
     const deletedImageCount = await this.imageService.removeByPublicUrls(shipment.imageUrls);
@@ -424,9 +459,7 @@ export class CustomerShipmentsService {
   }
 
   async updatePaymentStatus(id: string, paymentStatus: string) {
-    if (!VALID_PAYMENT_STATUSES.includes(paymentStatus)) {
-      throw new BadRequestException(`Invalid paymentStatus: ${paymentStatus}`);
-    }
+    assertPaymentStatus(paymentStatus);
 
     const shipment = await this.prisma.customerShipment.findUnique({ where: { id } });
     if (!shipment) throw new NotFoundException('CustomerShipment not found');

@@ -44,10 +44,8 @@ class UpdateInboundPackageDto {
   @IsString() @IsOptional() customerCode?: string;
   @ApiPropertyOptional({ format: 'date-time', description: 'Warehouse received timestamp.' })
   @IsString() @IsOptional() warehouseReceivedAt?: string;
-  @ApiPropertyOptional({ description: 'Issue note.' })
-  @IsString() @IsOptional() issueNote?: string;
-  @ApiPropertyOptional({ description: 'Admin note.' })
-  @IsString() @IsOptional() adminNote?: string;
+  @ApiPropertyOptional({ description: 'Internal package note.' })
+  @IsString() @IsOptional() note?: string;
   @ApiPropertyOptional({ description: 'Inbound package status.' })
   @IsString() @IsOptional() status?: string;
 }
@@ -116,7 +114,7 @@ export class InboundPackagesController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '[Admin] General update for inbound package (domesticTrackingNo, warehouseReceivedAt, issueNote, adminNote, status)' })
+  @ApiOperation({ summary: '[Admin] General update for inbound package (domesticTrackingNo, warehouseReceivedAt, note, status)' })
   @ApiIdParam('id', 'Inbound package id')
   @ApiGenericOk('Inbound package updated.')
   update(@Param('id') id: string, @Body() dto: UpdateInboundPackageDto) {

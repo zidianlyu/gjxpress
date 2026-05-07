@@ -16,7 +16,7 @@ const footerLinks = {
     { label: '合规说明', href: '/compliance' },
     { label: '隐私政策', href: '/privacy' },
     { label: '服务条款', href: '/terms' },
-    { label: '异常与赔付说明', href: '/compensation' },
+    { label: '赔付说明', href: '/compensation' },
     { label: '免责声明', href: '/disclaimer' },
   ],
   management: [{ label: '管理员入口', href: '/admin/login' }],

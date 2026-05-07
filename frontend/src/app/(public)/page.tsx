@@ -126,7 +126,7 @@ export default function HomePage() {
 
       {/* Service Workflow Section */}
       <section className="py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold tracking-tight">服务流程</h2>
             <p className="mt-4 text-muted-foreground">
@@ -137,7 +137,7 @@ export default function HomePage() {
             {workflowSteps.map((item) => (
               <div
                 key={item.step}
-                className="relative flex items-start gap-4 p-6 rounded-lg border bg-card"
+                className="relative flex items-start gap-4 rounded-2xl border bg-card p-5 sm:p-6"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
                   {item.step}

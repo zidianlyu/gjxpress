@@ -11,12 +11,10 @@ export const SITE_CONFIG = {
 
 // Navigation links for public site
 export const PUBLIC_NAV_LINKS = [
-  { href: '/services', label: '服务' },
+  { href: '/services', label: '服务介绍' },
   { href: '/tracking', label: '查询订单' },
   { href: '/register', label: '新客户注册' },
-  { href: '/contact', label: '联系' },
-  { href: '/compliance', label: '合规' },
-  { href: '/privacy', label: '隐私' },
+  { href: '/contact', label: '联系我们' },
   { href: '/admin/login', label: '管理员' },
 ];
 

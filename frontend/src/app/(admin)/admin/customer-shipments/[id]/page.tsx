@@ -6,17 +6,18 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
-import type { CustomerShipment, CustomerShipmentStatus, PaymentStatus } from '@/types/admin';
+import type { CustomerShipment, CustomerShipmentStatus } from '@/types/admin';
 import { CustomerShipmentStatusBadge, PaymentStatusBadge } from '@/components/common/StatusBadge';
-import { CUSTOMER_SHIPMENT_STATUS_LABELS, CUSTOMER_SHIPMENT_STATUS_OPTIONS, PAYMENT_STATUS_LABELS, normalizeCustomerShipmentStatus } from '@/lib/constants/status';
+import { CUSTOMER_SHIPMENT_STATUS_LABELS, CUSTOMER_SHIPMENT_STATUS_OPTIONS, normalizeCustomerShipmentStatus } from '@/lib/constants/status';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
+import { AdminBlockingOverlay } from '@/components/admin/AdminBlockingOverlay';
 import { ServerImageGrid } from '@/components/admin/ImageManager';
 import { formatPayableAmount, isPositiveDecimalString, sanitizeDecimalString } from '@/lib/admin/customer-shipment-form';
 import { safeShortId, unwrapApiItem } from '@/lib/api/unwrap';
+import { CUSTOMER_SHIPMENT_PAYMENT_STATUS_OPTIONS, normalizePaymentStatus, type CustomerShipmentPaymentStatus } from '@/lib/customer-shipment-status';
+import { SHIPMENT_TYPE_OPTIONS, formatShipmentType, type ShipmentType } from '@/lib/shipment-types';
 
 const ALL_STATUSES: CustomerShipmentStatus[] = ['PACKED', 'SHIPPED', 'ARRIVED', 'READY_FOR_PICKUP', 'PICKED_UP', 'EXCEPTION'];
-
-const ALL_PAYMENT_STATUSES: PaymentStatus[] = ['UNPAID', 'PENDING', 'PAID', 'WAIVED', 'REFUNDED'];
 
 export default function CustomerShipmentDetailPage() {
   const params = useParams();
@@ -36,10 +37,11 @@ export default function CustomerShipmentDetailPage() {
 
   // Status update
   const [newStatus, setNewStatus] = useState('');
-  const [newPaymentStatus, setNewPaymentStatus] = useState('');
+  const [newPaymentStatus, setNewPaymentStatus] = useState<CustomerShipmentPaymentStatus>('UNPAID');
 
   // Billing fields
   const [billingForm, setBillingForm] = useState({
+    shipmentType: 'AIR_GENERAL' as ShipmentType,
     quantity: '1',
     actualWeightKg: '',
     volumeFormula: '',
@@ -77,8 +79,9 @@ export default function CustomerShipmentDetailPage() {
       }
       setShipment(data);
       setNewStatus(normalizeCustomerShipmentStatus(data.status || ''));
-      setNewPaymentStatus(data.paymentStatus || '');
+      setNewPaymentStatus(normalizePaymentStatus(data.paymentStatus));
       setBillingForm({
+        shipmentType: (data.shipmentType as ShipmentType | null) || 'AIR_GENERAL',
         quantity: String(data.quantity || 1),
         actualWeightKg: data.actualWeightKg?.toString() || '',
         volumeFormula: data.volumeFormula || '',
@@ -124,7 +127,7 @@ export default function CustomerShipmentDetailPage() {
   };
 
   const handlePaymentStatusUpdate = async () => {
-    if (!newPaymentStatus || newPaymentStatus === shipment?.paymentStatus) return;
+    if (!newPaymentStatus || newPaymentStatus === normalizePaymentStatus(shipment?.paymentStatus)) return;
     setSaving(true);
     setActionMsg('');
     setActionError('');
@@ -177,6 +180,7 @@ export default function CustomerShipmentDetailPage() {
       }
       const updated = await adminApi.updateCustomerShipment(id, {
         quantity,
+        shipmentType: billingForm.shipmentType,
         actualWeightKg: actualWeightKg || null,
         volumeFormula: billingForm.volumeFormula || null,
         billingRateCnyPerKg: billingRateCnyPerKg || null,
@@ -235,16 +239,37 @@ export default function CustomerShipmentDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlockers, setDeleteBlockers] = useState<Record<string, number> | undefined>(undefined);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const paidDeleteWarning = '当前集运单已支付，若要删除，请先删除对应的支付订单。';
+
+  const openDeleteDialog = () => {
+    setDeleteBlockers(undefined);
+    setDeleteError(normalizePaymentStatus(shipment?.paymentStatus) === 'PAID' ? paidDeleteWarning : '');
+    setShowDelete(true);
+  };
+
+  const isPaymentDeleteBlocker = (err: ApiError) => {
+    const text = `${err.message} ${JSON.stringify(err.details || {})}`.toLowerCase();
+    return text.includes('payment') || text.includes('transaction') || text.includes('paid') || text.includes('支付') || text.includes('订单');
+  };
 
   const handleDelete = async () => {
     setDeleteError('');
     setDeleteBlockers(undefined);
+    if (normalizePaymentStatus(shipment?.paymentStatus) === 'PAID') {
+      setDeleteError(paidDeleteWarning);
+      return;
+    }
+    setIsDeleting(true);
     try {
       await adminApi.hardDeleteCustomerShipment(id);
       router.push('/admin/customer-shipments');
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 409 && err.details) {
+        if (err.status === 409 && isPaymentDeleteBlocker(err)) {
+          setDeleteError(paidDeleteWarning);
+        } else if (err.status === 409 && err.details) {
           setDeleteBlockers(err.details as Record<string, number>);
         } else {
           setDeleteError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
@@ -252,6 +277,7 @@ export default function CustomerShipmentDetailPage() {
       } else {
         setDeleteError('删除失败');
       }
+      setIsDeleting(false);
       throw err;
     }
   };
@@ -314,6 +340,10 @@ export default function CustomerShipmentDetailPage() {
               {shipment.customer?.customerCode || '-'} {shipment.customer?.wechatId ? `(${shipment.customer.wechatId})` : ''}
             </div>
             <div>
+              <span className="text-muted-foreground">运输类型：</span>
+              {formatShipmentType(shipment.shipmentType)}
+            </div>
+            <div>
               <span className="text-muted-foreground">件数：</span>
               {shipment.quantity || 1}
             </div>
@@ -353,6 +383,20 @@ export default function CustomerShipmentDetailPage() {
           <h2 className="font-semibold">计费信息</h2>
           <form onSubmit={handleBillingSave} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1">运输类型</label>
+                <select
+                  value={billingForm.shipmentType}
+                  onChange={(e) => setBillingForm((f) => ({ ...f, shipmentType: e.target.value as ShipmentType }))}
+                  className="w-full px-3 py-2 rounded-md border bg-background text-sm"
+                >
+                  {SHIPMENT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-medium mb-1">件数</label>
                 <input type="number" min={1} step={1} value={billingForm.quantity} onChange={(e) => setBillingForm((f) => ({ ...f, quantity: e.target.value }))} className="w-full px-3 py-2 rounded-md border bg-background text-sm" placeholder="例如 3" />
@@ -453,14 +497,14 @@ export default function CustomerShipmentDetailPage() {
         <div className="rounded-lg border p-4 space-y-3">
           <h2 className="font-semibold">更新费用状态</h2>
           <div className="flex gap-2">
-            <select value={newPaymentStatus} onChange={(e) => setNewPaymentStatus(e.target.value)} className="flex-1 px-3 py-2 rounded-md border bg-background text-sm">
-              {ALL_PAYMENT_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {PAYMENT_STATUS_LABELS[s] || s}
+            <select value={newPaymentStatus} onChange={(e) => setNewPaymentStatus(e.target.value as CustomerShipmentPaymentStatus)} className="flex-1 px-3 py-2 rounded-md border bg-background text-sm">
+              {CUSTOMER_SHIPMENT_PAYMENT_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
-            <button onClick={handlePaymentStatusUpdate} disabled={saving || newPaymentStatus === shipment.paymentStatus} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50">
+            <button onClick={handlePaymentStatusUpdate} disabled={saving || newPaymentStatus === normalizePaymentStatus(shipment.paymentStatus)} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50">
               更新
             </button>
           </div>
@@ -470,7 +514,7 @@ export default function CustomerShipmentDetailPage() {
         <div className="rounded-lg border border-red-100 p-4 space-y-3">
           <h2 className="font-semibold text-red-700">危险操作</h2>
           <p className="text-xs text-muted-foreground">永久删除此集运单，此操作不可恢复。</p>
-          <button onClick={() => setShowDelete(true)} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
+          <button onClick={openDeleteDialog} disabled={saving || isDeleting} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
             永久删除
           </button>
         </div>
@@ -484,18 +528,23 @@ export default function CustomerShipmentDetailPage() {
       <DeleteConfirmDialog
         open={showDelete}
         onClose={() => {
+          if (isDeleting) return;
           setShowDelete(false);
           setDeleteError('');
           setDeleteBlockers(undefined);
         }}
         onConfirm={handleDelete}
-        title="永久删除集运单"
-        description="删除后此集运单数据将不可恢复。删除后将同时彻底删除该记录已上传的图片，无法恢复。如存在关联支付订单或已发货，系统会阻止删除。"
+        title="删除集运单"
+        description={normalizePaymentStatus(shipment.paymentStatus) === 'PAID' ? paidDeleteWarning : '删除后此集运单数据将不可恢复。删除后将同时彻底删除该记录已上传的图片，无法恢复。如存在关联支付订单或已发货，系统会阻止删除。'}
         confirmText="DELETE"
+        confirmButtonText="删除"
+        cancelButtonText="取消"
+        requireTypedConfirmation={false}
         entityLabel={displayShipmentNo}
         blockers={deleteBlockers}
         error={deleteError}
       />
+      {isDeleting && <AdminBlockingOverlay title="正在删除，请稍候" description="正在删除集运单并清理图片..." />}
     </div>
   );
 }

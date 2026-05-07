@@ -6,6 +6,14 @@ import { publicApi } from '@/lib/api/public';
 import { ApiError } from '@/lib/api/client';
 import type { PublicTrackingResult } from '@/types/public';
 import { PublicBatchUpdates } from '@/components/public/PublicBatchUpdates';
+import {
+  formatCustomerShipmentStatus,
+  formatMasterShipmentStatus,
+  formatMasterShipmentType,
+  formatMasterShipmentVendor,
+  formatPublicDateTime,
+  normalizeTrackingQuery,
+} from '@/lib/public-tracking';
 
 export default function TrackingPage() {
   const [query, setQuery] = useState('');
@@ -16,8 +24,9 @@ export default function TrackingPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = query.trim();
-    if (!trimmed) return;
+    const normalizedQuery = normalizeTrackingQuery(query);
+    if (!normalizedQuery) return;
+    setQuery(normalizedQuery);
 
     setIsLoading(true);
     setError('');
@@ -25,8 +34,8 @@ export default function TrackingPage() {
     setSearched(true);
 
     try {
-      const response = await publicApi.tracking(trimmed);
-      setResult(response.data);
+      const response = await publicApi.tracking(normalizedQuery);
+      setResult(response);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 404) {
@@ -100,22 +109,44 @@ export default function TrackingPage() {
               </div>
               <dl className="space-y-3">
                 <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                  <dt className="text-muted-foreground">查询单号</dt>
-                  <dd className="break-all font-medium">{result.query}</dd>
+                  <dt className="text-muted-foreground">集运单号</dt>
+                  <dd className="break-all font-medium">{result.shipmentNo || result.query || normalizeTrackingQuery(query)}</dd>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                   <dt className="text-muted-foreground">当前状态</dt>
-                  <dd className="font-medium">{result.statusText}</dd>
+                  <dd className="font-medium">{result.statusText || formatCustomerShipmentStatus(result.status)}</dd>
                 </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                  <dt className="text-muted-foreground">阶段</dt>
-                  <dd className="font-medium">{result.stage}</dd>
-                </div>
-                {result.lastUpdatedAt && (
+                {result.stage && (
                   <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                    <dt className="text-muted-foreground">最后更新</dt>
-                    <dd className="font-medium">
-                      {new Date(result.lastUpdatedAt).toLocaleString('zh-CN')}
+                    <dt className="text-muted-foreground">阶段</dt>
+                    <dd className="font-medium">{result.stage}</dd>
+                  </div>
+                )}
+                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+                  <dt className="text-muted-foreground">最后更新</dt>
+                  <dd className="font-medium">{formatPublicDateTime(result.updatedAt || result.lastUpdatedAt || result.createdAt)}</dd>
+                </div>
+                {result.masterShipment && (
+                  <div className="border-t pt-3">
+                    <dt className="mb-2 text-muted-foreground">国际批次</dt>
+                    <dd className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                      <span>类型：{formatMasterShipmentType(result.masterShipment.shipmentType)}</span>
+                      <span>供应商：{formatMasterShipmentVendor(result.masterShipment.vendorName)}</span>
+                      <span className="break-all">供应商单号：{result.masterShipment.vendorTrackingNo || '-'}</span>
+                      <span>状态：{formatMasterShipmentStatus(result.masterShipment.status)}</span>
+                    </dd>
+                  </div>
+                )}
+                {result.timeline && result.timeline.length > 0 && (
+                  <div className="border-t pt-3">
+                    <dt className="mb-2 text-muted-foreground">物流节点</dt>
+                    <dd className="space-y-2">
+                      {result.timeline.map((item, index) => (
+                        <div key={`${item.label}-${index}`} className="flex flex-col gap-1 rounded-md bg-muted/40 p-3 text-sm sm:flex-row sm:justify-between">
+                          <span>{item.label}</span>
+                          <span className="text-muted-foreground">{formatPublicDateTime(item.time)}</span>
+                        </div>
+                      ))}
                     </dd>
                   </div>
                 )}

@@ -178,12 +178,13 @@ Sections:
 
 1. **Hero** — H1: "服务介绍"，副标题描述中国到美国跨境物流信息与转运协助
 2. **中国→美国线路服务** — 文案说明 + 空运/海运 link cards
-3. **基础服务包含** — 7-item icon grid: 咨询与线路建议, 国内仓入库记录, 包裹拍照, 拆箱与整理, 合箱出库, 物流状态记录, 异常协助 (注: 非"免费服务", 以实际订单和工作人员确认为准)
-4. **费用参考** — 3 pricing cards (参考价/起): 空运普通¥70/kg起, 空运需确认¥80/kg起, 海运普通¥25/kg起 + amber disclaimer
+3. **基础服务包含** — 7-item icon grid in the unified `max-w-6xl` public container: 咨询与线路建议, 国内仓入库记录, 包裹拍照, 拆箱与整理, 合箱出库, 物流状态记录, 异常协助 (注: 非"免费服务", 以实际订单和工作人员确认为准)
+4. **费用参考** — 3 pricing cards in the unified `max-w-6xl` public container (参考价/起): 空运普通¥70/kg起, 空运需确认¥80/kg起, 海运普通¥25/kg起 + amber disclaimer
 5. **计费说明** — 实际重量 vs 体积重, 取较大值, 进位计算, 附计费示例 (2kg实际 vs 2.548kg体积重 → 按3kg)
 6. **时效说明** — 空运/海运卡片 + blue info card: 时效均为参考, 不承接急单
 7. **服务区域与交接方式** — 服务 Santa Clara、San Jose、Milpitas、Fremont 及湾区周边客户 + 本地递送或预约交接说明
-8. **CTA** — 新客户注册(/register), 查询物流状态(/tracking), 查看合规说明(/compliance)
+8. **相关说明 flow** — 合规说明(/compliance), 隐私政策(/privacy), 服务条款(/terms), 赔付说明(/compensation)
+9. **CTA** — 新客户注册(/register), 查询物流状态(/tracking), 查看合规说明(/compliance)
 
 ---
 
@@ -688,7 +689,7 @@ File: `src/app/(admin)/admin/inbound-packages/page.tsx`
 Features:
 
 - List with search, status filter, pagination
-- Create modal with: optional domesticTrackingNo, customerCode, adminNote, images
+- Create modal with: optional domesticTrackingNo, customerCode, note, images
 - CustomerCodeInput shows fixed `GJ`; admin enters four digits, payload keeps full `GJxxxx`
 - Images upload only after create response returns package id; no id means upload is blocked
 - Empty domesticTrackingNo displays as `未填写`
@@ -971,7 +972,7 @@ Features:
 - Edit/complete customer information through `PATCH /admin/customer-registrations/:id`
 - Approve through `POST /admin/customer-registrations/:id/approve`; request body does not include notes or reviewNote
 - After approval, backend creates a formal Customer and hard deletes the CustomerRegistration
-- Frontend does not re-fetch the registration after approval; it redirects to `/admin/customers/:customerId` when response.customer.id exists, otherwise to `/admin/customer-registrations`
+- Frontend does not re-fetch the registration after approval; it redirects to `/admin/customers`
 - Hard delete with confirmation dialog: `此操作会永久删除该注册申请，无法恢复。`
 - Detail page has no registration notes, reviewNote, reject dialog, reject button, or reject API call
 
@@ -1066,10 +1067,12 @@ Sections:
 
 1. **服务定位** — 跨境物流信息与转运协助, 不构成法律意见
 2. **普通品类** — green card: 衣物, 鞋帽, 家居, 饰品, 日用品
-3. **需提前确认** — amber card: 带电, 液体/膏体, 化妆品, 食品, 药品, 品牌, 高价值, 易碎品
+3. **敏感** — amber card: 带电, 液体/膏体, 化妆品, 食品, 药品, 品牌, 高价值, 易碎品
 4. **暂不承接** — red card: 危险品, 受管制, 活体动物, 果蔬, 酒类烟草, 冷藏, 违禁物
 5. **用户责任** — blue info card
 6. **时效边界** — amber warning card
+7. **合规常见问题** — unified `max-w-6xl` public container with aligned card padding
+8. **相关链接** — unified `max-w-6xl` public container linking to 服务介绍, 隐私政策, 服务条款, 赔付说明, 免责声明, 联系我们
 
 ### /terms 服务条款
 
@@ -1128,13 +1131,14 @@ Not used: "最终解释权归公司"
 
 ### 14.1 Container Centering
 
-All public page sections use `mx-auto max-w-7xl px-4 sm:px-6 lg:px-8` for consistent centering. The Tailwind CSS v4 `container` utility only sets `width: 100%` and does NOT auto-center, so we avoid using it directly. Inner content areas may further constrain width with `max-w-3xl`, `max-w-2xl`, etc.
+Public content sections use centered containers such as `mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8` for consistent laptop and desktop alignment. The Tailwind CSS v4 `container` utility only sets `width: 100%` and does NOT auto-center, so we avoid using it directly. Inner content areas may further constrain width with `max-w-3xl`, `max-w-2xl`, etc.
 
 ### 14.2 Public Navbar
 
 - Logo (left) links to `/` with `aria-label="返回首页"` — serves as the Home button
 - **No "首页" tab** — Logo is the sole home link, avoiding redundancy
-- Nav items (right): 服务, 查询订单, 新客户注册, 联系, 合规, 隐私, 管理员
+- Nav items (right): 服务介绍, 查询订单, 新客户注册, 联系我们, 管理员
+- 合规说明 and 隐私政策 are not first-level nav items; they remain available from the footer and `/services` related说明 flow
 - **"Admin" renamed to "管理员"** for consistent Chinese language
 - Layout: `justify-between` — Logo on the left, nav links on the right
 - Desktop: horizontal nav items

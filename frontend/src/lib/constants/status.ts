@@ -30,26 +30,33 @@ export const CUSTOMER_SHIPMENT_STATUS_LABELS: Record<string, string> = {
 };
 
 export const MASTER_SHIPMENT_STATUS_LABELS: Record<string, string> = {
-  CREATED: '已创建',
-  HANDED_TO_VENDOR: '已交供应商',
   IN_TRANSIT: '运输中',
-  TRANSFER_OR_CUSTOMS_PROCESSING: '转运处理中',
-  ARRIVED_OVERSEAS: '已到达海外仓',
-  CLOSED: '已关闭',
+  SIGNED: '已签收',
+  READY_FOR_PICKUP: '待客人领取',
   EXCEPTION: '异常',
+  TRANSPORTING: '运输中',
+  IN_PROGRESS: '运输中',
+  PENDING: '运输中',
+  DELIVERED: '已签收',
+  ARRIVED: '已签收',
+  ARRIVED_OVERSEAS: '已签收',
 };
 
 export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   UNPAID: '未支付',
-  PENDING: '支付处理中',
+  PENDING: '未支付',
+  PAYMENT_PENDING: '未支付',
   PAID: '已支付',
-  WAIVED: '已免除',
   REFUNDED: '已退款',
+  REFUND: '已退款',
 };
 
 export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
-  SHIPPING_FEE: '运费',
+  AIR_GENERAL: '空运普货',
+  AIR_SENSITIVE: '空运敏货',
+  SEA: '海运',
   REFUND: '退款',
+  SHIPPING_FEE: '运费（旧）',
 };
 
 // Status colors for badges
@@ -83,20 +90,21 @@ export const CUSTOMER_SHIPMENT_STATUS_COLORS: Record<string, string> = {
 };
 
 export const MASTER_SHIPMENT_STATUS_COLORS: Record<string, string> = {
-  CREATED: 'bg-gray-100 text-gray-700',
-  HANDED_TO_VENDOR: 'bg-blue-100 text-blue-700',
   IN_TRANSIT: 'bg-cyan-100 text-cyan-700',
-  TRANSFER_OR_CUSTOMS_PROCESSING: 'bg-orange-100 text-orange-700',
-  ARRIVED_OVERSEAS: 'bg-green-100 text-green-700',
-  CLOSED: 'bg-slate-100 text-slate-700',
+  SIGNED: 'bg-green-100 text-green-700',
+  READY_FOR_PICKUP: 'bg-amber-100 text-amber-700',
   EXCEPTION: 'bg-rose-100 text-rose-700',
+  TRANSPORTING: 'bg-cyan-100 text-cyan-700',
+  IN_PROGRESS: 'bg-cyan-100 text-cyan-700',
+  PENDING: 'bg-cyan-100 text-cyan-700',
+  DELIVERED: 'bg-green-100 text-green-700',
+  ARRIVED: 'bg-green-100 text-green-700',
+  ARRIVED_OVERSEAS: 'bg-green-100 text-green-700',
 };
 
 export const PAYMENT_STATUS_COLORS: Record<string, string> = {
   UNPAID: 'bg-red-100 text-red-700',
-  PENDING: 'bg-yellow-100 text-yellow-700',
   PAID: 'bg-green-100 text-green-700',
-  WAIVED: 'bg-slate-100 text-slate-700',
   REFUNDED: 'bg-purple-100 text-purple-700',
 };
 

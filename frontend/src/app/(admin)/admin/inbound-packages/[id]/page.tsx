@@ -11,6 +11,7 @@ import { InboundPackageStatusBadge } from '@/components/common/StatusBadge';
 import { INBOUND_PACKAGE_STATUS_LABELS, INBOUND_PACKAGE_STATUS_OPTIONS, normalizeInboundPackageStatus } from '@/lib/constants/status';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
 import { ServerImageGrid } from '@/components/admin/ImageManager';
+import { AdminBlockingOverlay } from '@/components/admin/AdminBlockingOverlay';
 import { CustomerCodeInput, isCustomerCodeComplete } from '@/components/admin/CustomerCodeInput';
 import { formatDateTime } from '@/lib/format';
 
@@ -32,14 +33,18 @@ function fromDateTimeLocal(value: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function getInboundPackageNote(pkg: InboundPackage): string {
+  const legacy = pkg as InboundPackage & { adminNote?: string | null; issueNote?: string | null };
+  return pkg.note || legacy.adminNote || legacy.issueNote || '';
+}
+
 function buildForm(pkg: InboundPackage) {
   return {
     domesticTrackingNo: pkg.domesticTrackingNo || '',
     customerCode: pkg.customer?.customerCode || '',
     status: normalizeInboundPackageStatus(pkg.status),
     warehouseReceivedAt: toDateTimeLocal(pkg.warehouseReceivedAt),
-    adminNote: pkg.adminNote || '',
-    issueNote: pkg.issueNote || '',
+    note: getInboundPackageNote(pkg),
   };
 }
 
@@ -62,8 +67,7 @@ export default function InboundPackageDetailPage() {
     customerCode: '',
     status: 'UNIDENTIFIED',
     warehouseReceivedAt: '',
-    adminNote: '',
-    issueNote: '',
+    note: '',
   });
 
 
@@ -108,8 +112,7 @@ export default function InboundPackageDetailPage() {
         customerCode: form.customerCode.trim() || null,
         status: form.status,
         warehouseReceivedAt: fromDateTimeLocal(form.warehouseReceivedAt),
-        adminNote: form.adminNote.trim() || null,
-        issueNote: form.issueNote.trim() || null,
+        note: form.note.trim() || null,
       });
       setPkg(updated);
       setForm(buildForm(updated));
@@ -167,9 +170,11 @@ export default function InboundPackageDetailPage() {
   // Delete state
   const [showDelete, setShowDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeletePkg = async () => {
     setDeleteError('');
+    setIsDeleting(true);
     try {
       await adminApi.hardDeleteInboundPackage(id);
       router.push('/admin/inbound-packages');
@@ -179,6 +184,7 @@ export default function InboundPackageDetailPage() {
       } else {
         setDeleteError('删除失败');
       }
+      setIsDeleting(false);
       throw err;
     }
   };
@@ -272,21 +278,11 @@ export default function InboundPackageDetailPage() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1">管理员备注</label>
+            <label className="block text-xs font-medium mb-1">备注</label>
             <textarea
-              value={form.adminNote}
-              onChange={(e) => setForm(f => ({ ...f, adminNote: e.target.value }))}
-              rows={2}
-              placeholder="可选"
-              className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1">异常备注</label>
-            <textarea
-              value={form.issueNote}
-              onChange={(e) => setForm(f => ({ ...f, issueNote: e.target.value }))}
-              rows={2}
+              value={form.note}
+              onChange={(e) => setForm(f => ({ ...f, note: e.target.value }))}
+              rows={3}
               placeholder="可选"
               className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
             />
@@ -318,7 +314,7 @@ export default function InboundPackageDetailPage() {
         <div className="rounded-lg border border-red-200 p-4 space-y-3">
           <h2 className="font-semibold text-red-700">危险操作</h2>
           <p className="text-xs text-muted-foreground">永久删除此入库包裹，此操作不可恢复。</p>
-          <button onClick={() => setShowDelete(true)} disabled={saving} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
+          <button onClick={() => setShowDelete(true)} disabled={saving || isDeleting} className="px-4 py-2 rounded-md border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50">
             永久删除
           </button>
         </div>
@@ -326,14 +322,22 @@ export default function InboundPackageDetailPage() {
 
       <DeleteConfirmDialog
         open={showDelete}
-        onClose={() => { setShowDelete(false); setDeleteError(''); }}
+        onClose={() => {
+          if (isDeleting) return;
+          setShowDelete(false);
+          setDeleteError('');
+        }}
         onConfirm={handleDeletePkg}
-        title="永久删除入库包裹"
+        title="删除入库包裹"
         description="删除后此入库包裹数据将不可恢复。删除后将同时彻底删除该记录已上传的图片，无法恢复。"
         confirmText="DELETE"
+        confirmButtonText="删除"
+        cancelButtonText="取消"
+        requireTypedConfirmation={false}
         entityLabel={pkg.domesticTrackingNo || '未填写单号包裹'}
         error={deleteError}
       />
+      {isDeleting && <AdminBlockingOverlay title="正在删除，请稍候" description="正在删除入库包裹并清理图片..." />}
     </div>
   );
 }

@@ -31,15 +31,15 @@ const baseServices = [
 const pricingItems = [
   {
     title: '空运普通品类',
-    price: '¥70/kg 起',
+    price: '参考价 ¥70/kg 起',
     note: '适合大部分常见商品',
     color: 'bg-green-50 border-green-200',
     iconColor: 'bg-green-100 text-green-600',
     icon: Plane,
   },
   {
-    title: '空运需提前确认品类',
-    price: '¥80/kg 起',
+    title: '空运敏感品类',
+    price: '参考价 ¥80/kg 起',
     note: '特殊品类需与工作人员确认',
     color: 'bg-blue-50 border-blue-200',
     iconColor: 'bg-blue-100 text-blue-600',
@@ -47,7 +47,7 @@ const pricingItems = [
   },
   {
     title: '海运普通品类',
-    price: '¥25/kg 起',
+    price: '参考价 ¥25/kg 起',
     note: '适合大件和对时效要求不高的包裹',
     color: 'bg-amber-50 border-amber-200',
     iconColor: 'bg-amber-100 text-amber-600',
@@ -123,16 +123,16 @@ export default function ServicesPage() {
 
       {/* 2. Base Services */}
       <section className="py-16 md:py-24 bg-muted/50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-4">
             <h2 className="text-3xl font-bold tracking-tight">基础服务包含</h2>
           </div>
           <p className="text-center text-sm text-muted-foreground mb-10 max-w-2xl mx-auto">
             以下基础服务通常包含在服务流程中，具体以实际订单和工作人员确认为准。
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {baseServices.map((svc) => (
-              <div key={svc.label} className="flex items-center gap-3 p-4 rounded-lg border bg-card">
+              <div key={svc.label} className="flex items-center gap-3 rounded-2xl border bg-card p-5 sm:p-6">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 shrink-0">
                   <svc.icon className="h-4 w-4 text-primary" />
                 </div>
@@ -145,16 +145,16 @@ export default function ServicesPage() {
 
       {/* 3. Pricing Reference */}
       <section className="py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold tracking-tight">费用参考</h2>
             <p className="mt-4 text-muted-foreground">
-              以下价格为参考起步价，部分需提前确认的品类费用可能不同
+              以下价格为参考价 / 起，部分敏感的品类费用可能不同
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
             {pricingItems.map((item) => (
-              <div key={item.title} className={`p-6 rounded-lg border ${item.color}`}>
+              <div key={item.title} className={`rounded-2xl border p-5 sm:p-6 ${item.color}`}>
                 <div className={`flex h-10 w-10 items-center justify-center rounded-full ${item.iconColor} mb-4`}>
                   <item.icon className="h-5 w-5" />
                 </div>
@@ -165,11 +165,30 @@ export default function ServicesPage() {
             ))}
           </div>
           <div className="mt-8 max-w-3xl mx-auto">
-            <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-200 bg-amber-50">
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
               <Info className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <p className="text-sm text-amber-800 leading-relaxed">
-                实际费用以打包后的实际重量、体积重、品类、线路和工作人员确认为准。部分需提前确认的品类，请先联系工作人员确认费用。
+                最终以实际打包记录、线路安排和工作人员确认为准。部分敏感的品类，请先联系工作人员确认费用。
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Service Rules */}
+      <section className="pb-16 md:pb-24">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                下单或注册前，建议先了解服务边界、隐私政策和相关说明。
+              </p>
+              <div className="flex flex-wrap gap-3 text-sm">
+                <Link href="/compliance" className="font-medium text-primary hover:underline">合规说明</Link>
+                <Link href="/privacy" className="font-medium text-primary hover:underline">隐私政策</Link>
+                <Link href="/terms" className="font-medium text-primary hover:underline">服务条款</Link>
+                <Link href="/compensation" className="font-medium text-primary hover:underline">赔付说明</Link>
+              </div>
             </div>
           </div>
         </div>

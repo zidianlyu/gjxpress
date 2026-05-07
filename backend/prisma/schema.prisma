@@ -65,11 +65,6 @@ enum AdminStatus {
   DISABLED
 }
 
-enum CustomerStatus {
-  ACTIVE
-  DISABLED
-}
-
 enum InboundPackageStatus {
   UNIDENTIFIED
   ARRIVED
@@ -86,24 +81,10 @@ enum CustomerShipmentStatus {
 }
 
 enum MasterShipmentStatus {
-  CREATED
-  HANDED_TO_VENDOR
   IN_TRANSIT
-  TRANSFER_OR_CUSTOMS_PROCESSING
-  ARRIVED_OVERSEAS
-  CLOSED
+  SIGNED
+  READY_FOR_PICKUP
   EXCEPTION
-}
-
-enum TransactionType {
-  SHIPPING_FEE
-  REFUND
-}
-
-enum CustomerRegistrationStatus {
-  PENDING
-  APPROVED
-  REJECTED
 }
 
 enum SourcePlatform {
@@ -655,15 +636,14 @@ model AdminAccount {
 }
 
 model Customer {
-  id                    String         @id @default(uuid()) @db.Uuid
-  customerCode          String         @unique @map("customer_code") @db.VarChar(16)
-  phoneCountryCode      String         @default("+86") @map("phone_country_code") @db.VarChar(8)
-  phoneNumber           String         @map("phone_number") @db.VarChar(32)
-  wechatId              String?        @map("wechat_id") @db.VarChar(64)
-  domesticReturnAddress String?        @map("domestic_return_address") @db.Text
-  status                CustomerStatus @default(ACTIVE)
-  createdAt             DateTime       @default(now()) @map("created_at")
-  updatedAt             DateTime       @updatedAt @map("updated_at")
+  id                    String   @id @default(uuid()) @db.Uuid
+  customerCode          String   @unique @map("customer_code") @db.VarChar(16)
+  phoneCountryCode      String   @default("+86") @map("phone_country_code") @db.VarChar(8)
+  phoneNumber           String   @map("phone_number") @db.VarChar(32)
+  wechatId              String?  @map("wechat_id") @db.VarChar(64)
+  domesticReturnAddress String?  @map("domestic_return_address") @db.Text
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   inboundPackages   InboundPackage[]
   customerShipments CustomerShipment[]
@@ -674,7 +654,6 @@ model Customer {
   @@index([customerCode])
   @@index([phoneNumber])
   @@index([wechatId])
-  @@index([status])
   @@map("customers")
 }
 
@@ -686,8 +665,6 @@ model CustomerRegistration {
   phoneNumber           String  @map("phone_number") @db.VarChar(32)
   wechatId              String? @map("wechat_id") @db.VarChar(64)
   domesticReturnAddress String? @map("domestic_return_address") @db.Text
-
-  status CustomerRegistrationStatus @default(PENDING)
 
   approvedAt        DateTime? @map("approved_at")
   approvedByAdminId String?   @map("approved_by_admin_id") @db.Uuid
@@ -707,7 +684,6 @@ model CustomerRegistration {
   @@index([customerCode])
   @@index([phoneNumber])
   @@index([wechatId])
-  @@index([status])
   @@index([createdAt])
   @@map("customer_registrations")
 }
@@ -721,8 +697,7 @@ model InboundPackage {
 
   warehouseReceivedAt DateTime? @map("warehouse_received_at")
   imageUrls           String[]  @default([]) @map("image_urls")
-  issueNote           String?   @map("issue_note")
-  adminNote           String?   @map("admin_note")
+  note                String?   @map("note")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -747,6 +722,7 @@ model CustomerShipment {
 
   status        CustomerShipmentStatus @default(PACKED)
   paymentStatus PaymentStatus          @default(UNPAID) @map("payment_status")
+  shipmentType  String                 @default("AIR_GENERAL") @map("shipment_type")
   quantity      Int                    @default(1) @map("quantity")
 
   internationalTrackingNo String? @map("international_tracking_no") @db.VarChar(128)
@@ -802,18 +778,15 @@ model MasterShipment {
   vendorTrackingNo String @map("vendor_tracking_no") @db.VarChar(128)
   shipmentType     String @default("AIR_GENERAL") @map("shipment_type")
 
-  status MasterShipmentStatus @default(CREATED)
+  status MasterShipmentStatus @default(IN_TRANSIT)
 
-  publicVisible    Boolean   @default(false) @map("public_visible")
-  publicTitle      String?   @map("public_title") @db.VarChar(128)
-  publicSummary    String?   @map("public_summary")
-  publicStatusText String?   @map("public_status_text") @db.VarChar(128)
-  publishedAt      DateTime? @map("published_at")
+  publicPublished Boolean   @default(true) @map("public_visible")
+  publishedAt     DateTime? @map("published_at")
 
   handedToVendorAt  DateTime? @map("handed_to_vendor_at")
   arrivedOverseasAt DateTime? @map("arrived_overseas_at")
   closedAt          DateTime? @map("closed_at")
-  adminNote         String?   @map("admin_note")
+  note              String?   @map("admin_note")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -821,7 +794,7 @@ model MasterShipment {
   customerShipments CustomerShipment[]
 
   @@index([status])
-  @@index([publicVisible])
+  @@index([publicPublished])
   @@index([batchNo])
   @@map("master_shipments")
 }
@@ -835,8 +808,7 @@ model TransactionRecord {
   customerShipmentId String           @map("customer_shipment_id") @db.Uuid
   customerShipment   CustomerShipment @relation(fields: [customerShipmentId], references: [id])
 
-  type        TransactionType @default(REFUND)
-  amountCents Int             @map("amount_cents")
+  amountCents Int @map("amount_cents")
 
   adminNote  String?  @map("admin_note")
   occurredAt DateTime @default(now()) @map("occurred_at")

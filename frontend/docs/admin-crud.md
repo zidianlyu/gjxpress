@@ -159,7 +159,7 @@ Inbound package and customer shipment entity hard deletes call only backend DELE
 
 Customer shipments are not cancelled from Admin. Use status updates such as `EXCEPTION` for problem handling.
 
-`支付订单` is the Admin display name for `/admin/transactions`; API paths and payload enums remain transaction-based (`SHIPPING_FEE`, `REFUND`). The UI does not implement online payment, payment links, or payment QR codes. Unpaid customer shipment rows can open the payment order create modal with shipment id, calculated shipping fee, and type `SHIPPING_FEE` prefilled; backend owns any resulting shipment payment-status update.
+`支付订单` is the Admin display name for `/admin/transactions`; API paths remain `/admin/transactions`. The UI does not implement online payment, payment links, or payment QR codes. Unpaid customer shipment rows open the `新建订单` modal from the `支付` action with shipment id, calculated shipping fee, and type `AIR_GENERAL` prefilled. Create payloads use `AIR_GENERAL` / `AIR_SENSITIVE` / `SEA` / `REFUND` and include `customerShipmentId`, never `customerId`; backend owns any resulting shipment payment-status update. Transaction detail makes amount and type read-only and PATCHes only `adminNote` when saving remarks.
 
 ---
 

@@ -463,10 +463,10 @@ export const metadata: Metadata = {
 - Improved crawlability and user navigation
 
 **Link Distribution:**
-- Homepage → Services, Register, Tracking, Compliance
-- Services → Register, Tracking, Compliance, Compensation, FAQ
+- Homepage → Services, Register, Tracking, Contact, Compliance
+- Services → Register, Tracking, Compliance, Privacy, Terms, Compensation, FAQ
 - Register → Privacy, Services, Compliance, FAQ
-- Compliance → Terms, Compensation, Register
+- Compliance → Services, Privacy, Terms, Compensation, Disclaimer, Contact
 - FAQ → Services, Register, Tracking, Compliance
 
 **SEO Benefits:**
@@ -665,6 +665,12 @@ Title: 查询订单与批次更新｜广骏国际快运
 Description: 通过客户编号或物流信息查询订单状态，并查看广骏国际快运中国到美国线路的批次更新说明。
 ```
 
+Frontend behavior:
+
+- Batch updates are loaded from the public backend API (`/tracking/batch-updates`), not from admin endpoints.
+- Order search supports shipment numbers such as `GJS20260507267`; query inputs are trimmed and uppercased before calling the public tracking API.
+- Public tracking renders only low-sensitivity logistics fields and excludes internal UUIDs, customer contact details, private addresses, images, transaction records, and admin notes.
+
 ---
 
 ## 4.1c-3 Batch Updates Redirect
@@ -677,6 +683,13 @@ Implementation:
 Permanent redirect to /tracking.
 No canonical, sitemap entry, or independent content page.
 ```
+
+---
+
+## 4.1c-3a Compliance And Compensation Layout Notes
+
+- `/compensation` keeps the abnormal handling FAQ visible in server-rendered page content and aligns it to the shared public container width.
+- `/compliance` keeps FAQ content and related crawlable links visible while removing the outer bordered wrappers from those sections.
 
 ---
 
@@ -1211,6 +1224,8 @@ Before launch:
 - [ ] `/contact` is included in sitemap
 - [ ] Contact page has title, description, canonical, and breadcrumb JSON-LD
 - [ ] Organization / LocalBusiness JSON-LD uses public contactPoint telephone values and does not output private address fields
+- [ ] Public nav uses 服务介绍 / 查询订单 / 新客户注册 / 联系我们 / 管理员
+- [ ] 合规说明 and 隐私政策 are reachable from footer and `/services` related说明 flow, remain indexable, and stay in sitemap
 - [ ] Public nav merges 查询 and 批次更新 into 查询订单 at `/tracking`
 - [ ] `/batch-updates` is absent from sitemap/nav/footer and permanently redirects to `/tracking`
 - [ ] 404 page created

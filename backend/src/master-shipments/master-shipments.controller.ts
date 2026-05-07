@@ -27,27 +27,32 @@ import {
   deletedSchema,
 } from '../common/swagger/api-docs';
 
+const MASTER_SHIPMENT_VENDORS = ['DHL', 'UPS', 'FEDEX', 'EMS', 'OTHER'];
+const MASTER_SHIPMENT_STATUSES = ['IN_TRANSIT', 'SIGNED', 'READY_FOR_PICKUP', 'EXCEPTION'];
+const SHIPMENT_TYPES = ['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA'];
+
 class CreateMasterShipmentDto {
   @ApiPropertyOptional({
-    enum: ['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA'],
+    enum: SHIPMENT_TYPES,
     description: 'Shipment type: AIR_GENERAL=空运普货, AIR_SENSITIVE=空运敏货, SEA=海运.',
   })
-  @IsIn(['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA']) @IsOptional() shipmentType?: string;
-  @ApiProperty({ description: 'Vendor or carrier name.' })
-  @IsString() vendorName: string;
+  @IsIn(SHIPMENT_TYPES) @IsOptional() shipmentType?: string;
+  @ApiProperty({ enum: MASTER_SHIPMENT_VENDORS, description: '供应商. API field remains vendorName.' })
+  @Transform(({ value }) => String(value).trim().toUpperCase())
+  @IsIn(MASTER_SHIPMENT_VENDORS) vendorName: string;
   @ApiProperty({ description: 'Vendor tracking number.' })
   @IsString() vendorTrackingNo: string;
   @ApiProperty({ type: [String], format: 'uuid', description: 'Customer shipment ids included in this batch.' })
   @IsArray() @ArrayNotEmpty() @ArrayMinSize(1) @IsUUID('all', { each: true }) customerShipmentIds: string[];
-  @ApiPropertyOptional({ description: 'Initial master shipment status.' })
-  @IsString() @IsOptional() status?: string;
+  @ApiPropertyOptional({ type: Boolean, default: true, description: 'Whether this batch is visible in public batch updates.' })
+  @IsBoolean() @IsOptional() @Transform(({ value }) => value === 'true' || value === true) publicPublished?: boolean;
   @ApiPropertyOptional({ description: 'Admin note.' })
-  @IsString() @IsOptional() adminNote?: string;
+  @IsString() @IsOptional() note?: string;
 }
 
 class UpdateMasterShipmentStatusDto {
-  @ApiProperty({ description: 'Master shipment status.' })
-  @IsString() status: string;
+  @ApiProperty({ enum: MASTER_SHIPMENT_STATUSES, description: 'Master shipment status.' })
+  @IsIn(MASTER_SHIPMENT_STATUSES) status: string;
 }
 
 class AddCustomerShipmentsDto {
@@ -56,36 +61,17 @@ class AddCustomerShipmentsDto {
 }
 
 class UpdateMasterShipmentDto {
-  @ApiPropertyOptional({
-    enum: ['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA'],
-    description: 'Shipment type: AIR_GENERAL=空运普货, AIR_SENSITIVE=空运敏货, SEA=海运.',
-  })
-  @IsIn(['AIR_GENERAL', 'AIR_SENSITIVE', 'SEA']) @IsOptional() shipmentType?: string;
-  @ApiPropertyOptional({ description: 'Vendor or carrier name.' })
-  @IsString() @IsOptional() vendorName?: string;
-  @ApiPropertyOptional({ description: 'Vendor tracking number.' })
-  @IsString() @IsOptional() vendorTrackingNo?: string;
   @ApiPropertyOptional({ description: 'Admin note.' })
-  @IsString() @IsOptional() adminNote?: string;
-  @ApiPropertyOptional({ description: 'Public title shown on public batch updates.' })
-  @IsString() @IsOptional() publicTitle?: string;
-  @ApiPropertyOptional({ description: 'Public summary shown on public batch updates.' })
-  @IsString() @IsOptional() publicSummary?: string;
-  @ApiPropertyOptional({ description: 'Public status text.' })
-  @IsString() @IsOptional() publicStatusText?: string;
-  @ApiPropertyOptional({ type: Boolean, description: 'Whether this batch is visible publicly.' })
-  @IsBoolean() @IsOptional() @Transform(({ value }) => value === 'true' || value === true) publicVisible?: boolean;
+  @IsString() @IsOptional() note?: string;
+  @ApiPropertyOptional({ type: Boolean, description: 'Whether this batch is visible in public batch updates.' })
+  @IsBoolean() @IsOptional() @Transform(({ value }) => value === 'true' || value === true) publicPublished?: boolean;
+  @ApiPropertyOptional({ enum: MASTER_SHIPMENT_STATUSES, description: 'Master shipment status.' })
+  @IsIn(MASTER_SHIPMENT_STATUSES) @IsOptional() status?: string;
 }
 
 class UpdatePublicationDto {
-  @ApiPropertyOptional({ type: Boolean, description: 'Whether this batch is visible publicly.' })
-  @IsBoolean() @IsOptional() @Transform(({ value }) => value === 'true' || value === true) publicVisible?: boolean;
-  @ApiPropertyOptional({ description: 'Public title shown on public batch updates.' })
-  @IsString() @IsOptional() publicTitle?: string;
-  @ApiPropertyOptional({ description: 'Public summary shown on public batch updates.' })
-  @IsString() @IsOptional() publicSummary?: string;
-  @ApiPropertyOptional({ description: 'Public status text.' })
-  @IsString() @IsOptional() publicStatusText?: string;
+  @ApiPropertyOptional({ type: Boolean, description: 'Whether this batch is visible in public batch updates.' })
+  @IsBoolean() @IsOptional() @Transform(({ value }) => value === 'true' || value === true) publicPublished?: boolean;
 }
 
 @ApiTags('Admin - MasterShipments')
@@ -105,19 +91,19 @@ export class MasterShipmentsController {
 
   @Get()
   @ApiOperation({ summary: '[Admin] List master shipments' })
-  @ApiQuery({ name: 'q', required: false, type: String, description: 'Search batch number, vendor, tracking, or public text.' })
-  @ApiQuery({ name: 'status', required: false, type: String, description: 'Master shipment status filter.' })
-  @ApiQuery({ name: 'publicVisible', required: false, type: Boolean, description: 'Public visibility filter.' })
+  @ApiQuery({ name: 'q', required: false, type: String, description: 'Search batch number, vendor, or tracking.' })
+  @ApiQuery({ name: 'status', required: false, enum: MASTER_SHIPMENT_STATUSES, description: 'Master shipment status filter.' })
+  @ApiQuery({ name: 'publicPublished', required: false, type: Boolean, description: 'Public publication filter.' })
   @ApiPaginationQueries()
   @ApiPaginatedOk('Master shipments with customerShipmentCount plus pagination.')
   findAll(
     @Query('q') q?: string,
     @Query('status') status?: string,
-    @Query('publicVisible') publicVisible?: string,
+    @Query('publicPublished') publicPublished?: string,
     @Query('page') page?: number,
     @Query('pageSize') pageSize?: number,
   ) {
-    return this.service.findAll({ q, status, publicVisible, page, pageSize });
+    return this.service.findAll({ q, status, publicPublished, page, pageSize });
   }
 
   @Get(':id')
@@ -129,7 +115,7 @@ export class MasterShipmentsController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '[Admin] General update (shipmentType, vendorName, vendorTrackingNo, adminNote, publicTitle, publicSummary, publicStatusText, publicVisible)' })
+  @ApiOperation({ summary: '[Admin] Update master shipment note, publicPublished, or status' })
   @ApiIdParam('id', 'Master shipment id')
   @ApiGenericOk('Master shipment updated.')
   update(@Param('id') id: string, @Body() dto: UpdateMasterShipmentDto) {
@@ -138,7 +124,7 @@ export class MasterShipmentsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '[Admin] Hard delete master shipment. Requires ?confirm=DELETE_HARD. Only CREATED status, no linked customer shipments.' })
+  @ApiOperation({ summary: '[Admin] Hard delete master shipment. Requires ?confirm=DELETE_HARD. Detaches linked customer shipments.' })
   @ApiIdParam('id', 'Master shipment id')
   @ApiQuery({ name: 'confirm', required: true, type: String, description: 'Must be DELETE_HARD.', example: 'DELETE_HARD' })
   @ApiResponse({ status: 200, description: 'Master shipment hard deleted.', schema: deletedSchema })
@@ -172,7 +158,7 @@ export class MasterShipmentsController {
   }
 
   @Patch(':id/publication')
-  @ApiOperation({ summary: '[Admin] Set public visibility and announcement text' })
+  @ApiOperation({ summary: '[Admin] Set public publication flag' })
   @ApiIdParam('id', 'Master shipment id')
   @ApiGenericOk('Publication settings updated.')
   updatePublication(@Param('id') id: string, @Body() dto: UpdatePublicationDto) {
