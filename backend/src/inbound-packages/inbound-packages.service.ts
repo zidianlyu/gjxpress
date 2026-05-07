@@ -9,6 +9,7 @@ import { CreateInboundPackageDto } from './dto/create-inbound-package.dto';
 import { INBOUND_PACKAGE_STATUS_LABELS } from '../common/status-labels';
 
 const VALID_INBOUND_PACKAGE_STATUSES = ['UNIDENTIFIED', 'ARRIVED', 'CONSOLIDATED'];
+const CUSTOMER_CODE_PATTERN = /^GJ\d{4}$/;
 
 function normalizeOptionalString(value?: string | null): string | null | undefined {
   if (value === undefined) return undefined;
@@ -25,6 +26,16 @@ function assertInboundPackageStatus(status: string) {
   }
 }
 
+function normalizeCustomerCode(value?: string | null): string | null | undefined {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) return normalized;
+  const upper = normalized.toUpperCase();
+  if (!CUSTOMER_CODE_PATTERN.test(upper)) {
+    throw new BadRequestException('customerCode must match /^GJ\\d{4}$/');
+  }
+  return upper;
+}
+
 function formatInboundPackage(pkg: any) {
   return {
     id: pkg.id,
@@ -35,6 +46,7 @@ function formatInboundPackage(pkg: any) {
       ? {
           id: pkg.customer.id,
           customerCode: pkg.customer.customerCode,
+          status: pkg.customer.status,
           phoneCountryCode: pkg.customer.phoneCountryCode,
           phoneNumber: pkg.customer.phoneNumber,
           wechatId: pkg.customer.wechatId,
@@ -102,6 +114,7 @@ export class InboundPackagesService {
           select: {
             id: true,
             customerCode: true,
+            status: true,
             phoneCountryCode: true,
             phoneNumber: true,
             wechatId: true,
@@ -167,6 +180,7 @@ export class InboundPackagesService {
             select: {
               id: true,
               customerCode: true,
+              status: true,
               phoneCountryCode: true,
               phoneNumber: true,
               wechatId: true,
@@ -195,6 +209,7 @@ export class InboundPackagesService {
           select: {
             id: true,
             customerCode: true,
+            status: true,
             wechatId: true,
             phoneCountryCode: true,
             phoneNumber: true,
@@ -217,6 +232,7 @@ export class InboundPackagesService {
     id: string,
     dto: {
       domesticTrackingNo?: string;
+      customerCode?: string | null;
       warehouseReceivedAt?: string;
       issueNote?: string;
       adminNote?: string;
@@ -227,6 +243,7 @@ export class InboundPackagesService {
     if (!pkg) throw new NotFoundException('InboundPackage not found');
 
     const domesticTrackingNo = normalizeOptionalString(dto.domesticTrackingNo);
+    const customerCode = normalizeCustomerCode(dto.customerCode);
 
     if (domesticTrackingNo && domesticTrackingNo !== pkg.domesticTrackingNo) {
       const conflict = await this.prisma.inboundPackage.findFirst({
@@ -243,20 +260,42 @@ export class InboundPackagesService {
       assertInboundPackageStatus(dto.status);
     }
 
+    let customerIdUpdate: string | null | undefined;
+    if (dto.customerCode !== undefined) {
+      if (customerCode === null) {
+        customerIdUpdate = null;
+      } else {
+        const customer = await this.prisma.customer.findUnique({
+          where: { customerCode },
+          select: { id: true },
+        });
+        if (!customer) throw new NotFoundException(`Customer with code ${customerCode} not found`);
+        customerIdUpdate = customer.id;
+      }
+    }
+
     const updated = await this.prisma.inboundPackage.update({
       where: { id },
       data: {
         ...(dto.domesticTrackingNo !== undefined && { domesticTrackingNo }),
+        ...(customerIdUpdate !== undefined && { customerId: customerIdUpdate }),
         ...(dto.warehouseReceivedAt !== undefined && { warehouseReceivedAt: new Date(dto.warehouseReceivedAt) }),
         ...(dto.issueNote !== undefined && { issueNote: normalizeOptionalString(dto.issueNote) }),
         ...(dto.adminNote !== undefined && { adminNote: normalizeOptionalString(dto.adminNote) }),
-        ...(dto.status !== undefined && { status: dto.status as any }),
+        ...(dto.status !== undefined
+          ? { status: dto.status as any }
+          : customerIdUpdate === null
+            ? { status: 'UNIDENTIFIED' as any }
+            : customerIdUpdate
+              ? { status: pkg.status === 'UNIDENTIFIED' ? 'ARRIVED' as any : pkg.status }
+              : {}),
       },
       include: {
         customer: {
           select: {
             id: true,
             customerCode: true,
+            status: true,
             phoneCountryCode: true,
             phoneNumber: true,
             wechatId: true,
@@ -293,6 +332,7 @@ export class InboundPackagesService {
           select: {
             id: true,
             customerCode: true,
+            status: true,
             phoneCountryCode: true,
             phoneNumber: true,
             wechatId: true,

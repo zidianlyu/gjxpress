@@ -55,9 +55,10 @@ export const envValidationSchema = Joi.object({
   WAREHOUSE_COPY_TEMPLATE: Joi.string().allow('').default('收件人：{recipientName}\n电话：{phone}\n地址：{fullAddress}\n邮编：{postalCode}'),
 
   // Storage
-  SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES: Joi.string().default('gjxpress-storage'),
-  SUPABASE_ADMIN_IMAGE_BUCKET: Joi.string().default('gjxpress-admin-images'),
-
+  SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES: Joi.string().trim().required().messages({
+    'any.required': 'SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES is required. Set it to the Supabase Storage bucket for package/inbound images.',
+    'string.empty': 'SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES cannot be empty.',
+  }),
   // Server
   PORT: Joi.number().default(3000),
   CORS_ORIGINS: Joi.string().optional(),

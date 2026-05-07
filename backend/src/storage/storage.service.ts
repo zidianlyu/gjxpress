@@ -29,7 +29,11 @@ export class StorageService {
   ) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const supabaseServiceKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
-    this.bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES') || 'gjxpress-storage';
+    const bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES')?.trim();
+    if (!bucketName) {
+      throw new Error('Missing required env SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES');
+    }
+    this.bucketName = bucketName;
 
     if (supabaseUrl && supabaseServiceKey) {
       this.supabase = createClient(supabaseUrl, supabaseServiceKey, {

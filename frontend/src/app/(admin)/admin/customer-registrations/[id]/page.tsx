@@ -171,15 +171,16 @@ export default function CustomerRegistrationDetailPage() {
       const updated = await adminApi.updateCustomer(reg.createdCustomer.id, {
         status: customerStatus,
       });
+      const nextStatus = updated.status === 'DISABLED' ? 'DISABLED' : 'ACTIVE';
       setReg(prev => prev ? {
         ...prev,
         createdCustomer: prev.createdCustomer ? {
           ...prev.createdCustomer,
-          status: updated.status,
+          status: nextStatus,
           updatedAt: updated.updatedAt,
         } : prev.createdCustomer,
       } : prev);
-      setCustomerStatus(updated.status);
+      setCustomerStatus(nextStatus);
       setCustomerStatusSuccess('客户状态已更新');
     } catch (err) {
       if (err instanceof ApiError) {

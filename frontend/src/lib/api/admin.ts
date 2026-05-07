@@ -40,6 +40,8 @@ type PaginationLike<T> =
       };
     };
 
+type ItemLike<T> = T | { data?: T; item?: T };
+
 // File upload helper — uses FormData, skips JSON Content-Type
 async function adminApiUpload<T>(
   path: string,
@@ -179,6 +181,14 @@ function cleanInboundPackagePayload(data: CreateInboundPackagePayload): CreateIn
   };
 }
 
+function unwrapApiItem<T>(value: ItemLike<T>): T {
+  if (value && typeof value === 'object') {
+    if ('item' in value && value.item && typeof value.item === 'object') return value.item as T;
+    if ('data' in value && value.data && typeof value.data === 'object') return value.data as T;
+  }
+  return value as T;
+}
+
 export const adminApi = {
   // === Customers ===
   listCustomers: async (params?: { q?: string; status?: string; page?: number; pageSize?: number }) => {
@@ -193,14 +203,14 @@ export const adminApi = {
   getCustomers: (params?: { q?: string; status?: string; page?: number; pageSize?: number }) =>
     adminApi.listCustomers(params),
 
-  getCustomerById: (id: string) =>
-    adminApiFetch<Customer>(`/admin/customers/${id}`),
+  getCustomerById: async (id: string) =>
+    unwrapApiItem(await adminApiFetch<ItemLike<Customer>>(`/admin/customers/${id}`)),
 
   createCustomer: (data: CreateCustomerPayload) =>
     adminApiFetch<Customer>('/admin/customers', { method: 'POST', body: data }),
 
-  updateCustomer: (id: string, data: UpdateCustomerPayload) =>
-    adminApiFetch<Customer>(`/admin/customers/${id}`, { method: 'PATCH', body: data }),
+  updateCustomer: async (id: string, data: UpdateCustomerPayload) =>
+    unwrapApiItem(await adminApiFetch<ItemLike<Customer>>(`/admin/customers/${id}`, { method: 'PATCH', body: data })),
 
   disableCustomer: (id: string) =>
     adminApiFetch<Customer>(`/admin/customers/${id}/disable`, { method: 'PATCH' }),
@@ -218,26 +228,26 @@ export const adminApi = {
   getInboundPackages: (params?: { q?: string; status?: string; customerId?: string; customerCode?: string; page?: number; pageSize?: number }) =>
     adminApi.listInboundPackages(params),
 
-  getInboundPackageById: (id: string) =>
-    adminApiFetch<InboundPackage>(`/admin/inbound-packages/${id}`),
+  getInboundPackageById: async (id: string) =>
+    unwrapApiItem(await adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}`)),
 
-  createInboundPackage: (data: CreateInboundPackagePayload) =>
-    adminApiFetch<InboundPackage>('/admin/inbound-packages', { method: 'POST', body: cleanInboundPackagePayload(data) }),
+  createInboundPackage: async (data: CreateInboundPackagePayload) =>
+    unwrapApiItem(await adminApiFetch<ItemLike<InboundPackage>>('/admin/inbound-packages', { method: 'POST', body: cleanInboundPackagePayload(data) })),
 
   updateInboundPackage: (id: string, data: Partial<{
     domesticTrackingNo: string | null;
-    warehouseReceivedAt: string;
-    adminNote: string;
-    issueNote: string;
+    customerCode: string | null;
+    warehouseReceivedAt: string | null;
+    adminNote: string | null;
+    issueNote: string | null;
     status: string;
-  }>) =>
-    adminApiFetch<InboundPackage>(`/admin/inbound-packages/${id}`, { method: 'PATCH', body: data }),
+  }>) => adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}`, { method: 'PATCH', body: data }).then(unwrapApiItem),
 
   assignCustomerToPackage: (id: string, data: { customerCode: string }) =>
-    adminApiFetch<InboundPackage>(`/admin/inbound-packages/${id}/assign-customer`, { method: 'PATCH', body: data }),
+    adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}/assign-customer`, { method: 'PATCH', body: data }).then(unwrapApiItem),
 
   updateInboundPackageStatus: (id: string, data: { status: string }) =>
-    adminApiFetch<InboundPackage>(`/admin/inbound-packages/${id}/status`, { method: 'PATCH', body: data }),
+    adminApiFetch<ItemLike<InboundPackage>>(`/admin/inbound-packages/${id}/status`, { method: 'PATCH', body: data }).then(unwrapApiItem),
 
   // Inbound Package images
   listInboundPackageImages: (id: string) =>
@@ -266,7 +276,7 @@ export const adminApi = {
     adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}`),
 
   createCustomerShipment: (data: CreateCustomerShipmentPayload) =>
-    adminApiFetch<CustomerShipment>('/admin/customer-shipments', { method: 'POST', body: data }),
+    adminApiFetch<ItemLike<CustomerShipment>>('/admin/customer-shipments', { method: 'POST', body: data }).then(unwrapApiItem),
 
   updateCustomerShipment: (id: string, data: UpdateCustomerShipmentPayload) =>
     adminApiFetch<CustomerShipment>(`/admin/customer-shipments/${id}`, { method: 'PATCH', body: data }),

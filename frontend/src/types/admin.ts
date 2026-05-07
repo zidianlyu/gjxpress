@@ -24,12 +24,12 @@ export type AdminLoginResponse = {
 export type Customer = {
   id: string;
   customerCode: string;
-  phoneCountryCode: string;
-  phoneNumber: string;
+  phoneCountryCode?: string | null;
+  phoneNumber?: string | null;
   wechatId?: string | null;
   domesticReturnAddress?: string | null;
   notes?: string | null;
-  status: 'ACTIVE' | 'DISABLED';
+  status: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -127,11 +127,14 @@ export type LegacyInboundPackageStatus =
 export type InboundPackage = {
   id: string;
   domesticTrackingNo?: string | null;
-  status: InboundPackageStatus | LegacyInboundPackageStatus;
+  customerId?: string | null;
+  status: InboundPackageStatus | LegacyInboundPackageStatus | string;
   customer?: {
     id: string;
     customerCode: string;
-    phoneNumber?: string;
+    status?: string;
+    phoneCountryCode?: string | null;
+    phoneNumber?: string | null;
     wechatId?: string | null;
   } | null;
   warehouseReceivedAt?: string | null;
@@ -139,7 +142,7 @@ export type InboundPackage = {
   issueNote?: string | null;
   imageUrls: string[];
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
 };
 
 export type CreateInboundPackagePayload = {
@@ -194,7 +197,7 @@ export type CustomerShipment = {
 };
 
 export type CreateCustomerShipmentPayload = {
-  customerId: string;
+  customerCode: string;
   inboundPackageIds?: string[];
   quantity?: number;
   notes?: string;

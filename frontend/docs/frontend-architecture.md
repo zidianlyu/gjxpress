@@ -177,6 +177,12 @@ Status labels are centralized in `src/lib/constants/status.ts`. Inbound package 
 
 Admin-facing customer identity uses `customerCode` such as `GJ3178`. Internal `customerId` UUID values are backend foreign keys and should not be presented as customer numbers. If a backend endpoint explicitly requires `customerId`, the frontend should resolve from `customerCode` before submit.
 
+`src/components/admin/CustomerCodeInput.tsx` is the reusable admin customer-code input. It renders a fixed left `GJ` segment and lets admins enter only four digits. The component value and parent form state always use the full code (`""` or `GJ3178`), so payloads can submit `customerCode` directly.
+
+Admin detail pages must hydrate from their detail APIs on page load using route params, not from list-page state. This keeps `/admin/customers/:id` and `/admin/inbound-packages/:id` refresh-safe and direct-link safe.
+
+Inbound package image uploads must only run after create returns a real package `id`. If the create response does not include an id in raw object, `{ item }`, or `{ data }`, the frontend stops image upload and shows an explicit error instead of calling `/undefined/images`.
+
 ---
 
 ## 5. FAQ System

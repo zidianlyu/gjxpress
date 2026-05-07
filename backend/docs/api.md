@@ -1011,7 +1011,7 @@ Auth: User or Admin
 {
   "data": {
     "imageId": "img_123",
-    "bucket": "package-images",
+    "bucket": "gjxpress-storage",
     "path": "packages/pkg_123/OUTER/20260504_uuid.jpg",
     "uploadUrl": "https://...",
     "token": "signed_upload_token",
@@ -2058,7 +2058,7 @@ curl -si "$BASE/admin/customers" \
 > Auth: All endpoints require admin JWT.
 > Image uploads use `multipart/form-data` (field name: `file`).
 > Max image size: **10 MB**. Allowed MIME: `image/jpeg`, `image/png`, `image/webp`, `image/heic`.
-> Images stored in Supabase Storage (`SUPABASE_ADMIN_IMAGE_BUCKET`). Public URLs are stable and stored in `imageUrls[]`.
+> Images stored in Supabase Storage bucket configured by `SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES`. Public URLs are stable and stored in `imageUrls[]`.
 
 ---
 

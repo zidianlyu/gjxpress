@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { ImageType } from '@prisma/client';
 
@@ -26,7 +27,16 @@ export interface ImageMetadata {
 
 @Injectable()
 export class ImageService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private config: ConfigService,
+  ) {}
+
+  private getBucketName(): string {
+    const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES')?.trim();
+    if (!bucket) throw new Error('Missing required env SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES');
+    return bucket;
+  }
 
   /**
    * Add multiple images to a package (batch save)
@@ -40,7 +50,7 @@ export class ImageService {
       data: images.map((img) => ({
         packageId,
         imageType: img.type,
-        bucket: 'package-images',
+        bucket: this.getBucketName(),
         storagePath: img.url,
         publicUrl: img.url,
         status: 'UPLOADED' as const,
@@ -60,7 +70,7 @@ export class ImageService {
       data: {
         packageId,
         imageType: metadata.type,
-        bucket: 'package-images',
+        bucket: this.getBucketName(),
         storagePath: metadata.url,
         publicUrl: metadata.url,
         status: 'UPLOADED',

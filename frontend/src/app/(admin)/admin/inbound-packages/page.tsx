@@ -12,6 +12,32 @@ import { Pagination } from '@/components/common/Pagination';
 import { InboundPackageStatusBadge } from '@/components/common/StatusBadge';
 import { TrackingBarcodeScanner } from '@/components/admin/TrackingBarcodeScanner';
 import { INBOUND_PACKAGE_STATUS_OPTIONS } from '@/lib/constants/status';
+import { CustomerCodeInput, isCustomerCodeComplete } from '@/components/admin/CustomerCodeInput';
+
+function getCreatedEntityId(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.id === 'string' && record.id) return record.id;
+  for (const key of ['item', 'data']) {
+    const nested = record[key];
+    if (nested && typeof nested === 'object') {
+      const nestedId = (nested as Record<string, unknown>).id;
+      if (typeof nestedId === 'string' && nestedId) return nestedId;
+    }
+  }
+  return null;
+}
+
+function getLowSensitivityShape(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object') return { type: typeof value };
+  const record = value as Record<string, unknown>;
+  return {
+    keys: Object.keys(record),
+    hasId: typeof record.id === 'string',
+    itemKeys: record.item && typeof record.item === 'object' ? Object.keys(record.item as Record<string, unknown>) : undefined,
+    dataKeys: record.data && typeof record.data === 'object' ? Object.keys(record.data as Record<string, unknown>) : undefined,
+  };
+}
 
 export default function InboundPackagesPage() {
   const router = useRouter();
@@ -68,6 +94,10 @@ export default function InboundPackagesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (createForm.customerCode && !isCustomerCodeComplete(createForm.customerCode)) {
+      setCreateError('客户编号必须是 GJ 加 4 位数字');
+      return;
+    }
     setCreating(true);
     setCreateError('');
     setCreateSuccess('');
@@ -77,22 +107,31 @@ export default function InboundPackagesPage() {
         customerCode: createForm.customerCode.trim() || undefined,
         adminNote: createForm.adminNote.trim() || undefined,
       });
+      const packageId = getCreatedEntityId(pkg);
 
       // Upload images if any
       if (localFiles.length > 0) {
+        if (!packageId) {
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('[admin:inbound:create:missing-id]', getLowSensitivityShape(pkg));
+          }
+          setCreateError('入库包裹已提交但后端未返回包裹 ID，无法上传图片，请刷新列表确认后重试。');
+          fetchData();
+          return;
+        }
         let failCount = 0;
         for (const file of localFiles) {
           try {
-            await adminApi.uploadInboundPackageImage(pkg.id, file);
+            await adminApi.uploadInboundPackageImage(packageId, file);
           } catch {
             failCount++;
           }
         }
         if (failCount > 0) {
-          setCreateSuccess(`包裹已创建，但 ${failCount} 张图片上传失败，请在详情页继续上传`);
+          setCreateError(`入库包裹已创建，但 ${failCount} 张图片上传失败，请进入详情页继续上传。`);
           setLocalFiles([]);
           setCreateForm({ domesticTrackingNo: '', customerCode: '', adminNote: '' });
-          setTimeout(() => router.push(`/admin/inbound-packages/${pkg.id}`), 1500);
+          setTimeout(() => router.push(`/admin/inbound-packages/${packageId}`), 1500);
           return;
         }
       }
@@ -264,10 +303,10 @@ export default function InboundPackagesPage() {
                   <TrackingBarcodeScanner onConfirm={(value) => setCreateForm(f => ({ ...f, domesticTrackingNo: value }))} />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">客户编号</label>
-                <input type="text" value={createForm.customerCode} onChange={(e) => setCreateForm(f => ({ ...f, customerCode: e.target.value.toUpperCase() }))} placeholder="可选，如 GJ3178；留空则为未识别包裹" className="w-full px-3 py-2 rounded-md border bg-background text-sm" />
-              </div>
+              <CustomerCodeInput
+                value={createForm.customerCode}
+                onChange={(customerCode) => setCreateForm(f => ({ ...f, customerCode }))}
+              />
               <div>
                 <label className="block text-xs font-medium mb-1">管理员备注</label>
                 <textarea value={createForm.adminNote} onChange={(e) => setCreateForm(f => ({ ...f, adminNote: e.target.value }))} rows={2} placeholder="可选" className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none" />

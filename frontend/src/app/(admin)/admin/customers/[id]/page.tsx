@@ -8,6 +8,18 @@ import { adminApi } from '@/lib/api/admin';
 import { ApiError } from '@/lib/api/client';
 import type { Customer } from '@/types/admin';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
+import { formatDateTime } from '@/lib/format';
+
+function buildForm(customer: Customer) {
+  return {
+    phoneCountryCode: customer.phoneCountryCode || '+86',
+    phoneNumber: customer.phoneNumber || '',
+    wechatId: customer.wechatId || '',
+    domesticReturnAddress: customer.domesticReturnAddress || '',
+    notes: customer.notes || '',
+    status: customer.status || 'ACTIVE',
+  };
+}
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -32,15 +44,12 @@ export default function CustomerDetailPage() {
     setErrorRequestId('');
     try {
       const data = await adminApi.getCustomerById(id);
+      if (!data?.id) {
+        setError('未找到客户');
+        return;
+      }
       setCustomer(data);
-      setForm({
-        phoneCountryCode: data.phoneCountryCode || '+86',
-        phoneNumber: data.phoneNumber || '',
-        wechatId: data.wechatId || '',
-        domesticReturnAddress: data.domesticReturnAddress || '',
-        notes: data.notes || '',
-        status: data.status || 'ACTIVE',
-      });
+      setForm(buildForm(data));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -76,6 +85,7 @@ export default function CustomerDetailPage() {
         status: form.status as 'ACTIVE' | 'DISABLED',
       });
       setCustomer(updated);
+      setForm(buildForm(updated));
       setSaveSuccess('保存成功');
       setEditing(false);
     } catch (err) {
@@ -221,7 +231,7 @@ export default function CustomerDetailPage() {
                   <option value="+1">+1</option>
                 </select>
               ) : (
-                <input type="text" value={customer.phoneCountryCode} disabled className="w-full px-3 py-2 rounded-md border bg-muted text-sm" />
+                <input type="text" value={customer.phoneCountryCode || '-'} disabled className="w-full px-3 py-2 rounded-md border bg-muted text-sm" />
               )}
             </div>
             <div className="flex-1">
@@ -235,7 +245,7 @@ export default function CustomerDetailPage() {
                   required
                 />
               ) : (
-                <input type="text" value={customer.phoneNumber} disabled className="w-full px-3 py-2 rounded-md border bg-muted text-sm" />
+                <input type="text" value={customer.phoneNumber || '-'} disabled className="w-full px-3 py-2 rounded-md border bg-muted text-sm" />
               )}
             </div>
           </div>
@@ -286,8 +296,8 @@ export default function CustomerDetailPage() {
           </div>
 
           <div className="text-xs text-muted-foreground">
-            <p>创建时间：{new Date(customer.createdAt).toLocaleString('zh-CN')}</p>
-            {customer.updatedAt && <p>更新时间：{new Date(customer.updatedAt).toLocaleString('zh-CN')}</p>}
+            <p>创建时间：{formatDateTime(customer.createdAt)}</p>
+            <p>更新时间：{formatDateTime(customer.updatedAt)}</p>
           </div>
 
           <div className="flex flex-wrap gap-2 pt-4 border-t">

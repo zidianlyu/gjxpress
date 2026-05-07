@@ -24,6 +24,21 @@ const CUSTOMER_LIST_SELECT = {
 const VALID_CUSTOMER_STATUSES = ['ACTIVE', 'DISABLED'];
 const MAX_CODE_RETRIES = 50;
 
+function trimRequiredString(value: string, fieldName: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new BadRequestException(`${fieldName} cannot be empty`);
+  }
+  return trimmed;
+}
+
+function trimNullableString(value?: string | null): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
 @Injectable()
 export class CustomersService {
   constructor(private prisma: PrismaService) {}
@@ -141,9 +156,19 @@ export class CustomersService {
     const customer = await this.prisma.customer.findUnique({ where: { id } });
     if (!customer) throw new NotFoundException('Customer not found');
 
+    const phoneCountryCode = dto.phoneCountryCode !== undefined
+      ? trimRequiredString(dto.phoneCountryCode, 'phoneCountryCode')
+      : undefined;
+    const phoneNumber = dto.phoneNumber !== undefined
+      ? trimRequiredString(dto.phoneNumber, 'phoneNumber')
+      : undefined;
+    const wechatId = trimNullableString(dto.wechatId);
+    const domesticReturnAddress = trimNullableString(dto.domesticReturnAddress);
+    const notes = trimNullableString(dto.notes);
+
     if (dto.phoneNumber || dto.phoneCountryCode) {
-      const newCountry = dto.phoneCountryCode || customer.phoneCountryCode;
-      const newPhone = dto.phoneNumber || customer.phoneNumber;
+      const newCountry = phoneCountryCode || customer.phoneCountryCode;
+      const newPhone = phoneNumber || customer.phoneNumber;
       const conflict = await this.prisma.customer.findFirst({
         where: {
           phoneCountryCode: newCountry,
@@ -161,13 +186,14 @@ export class CustomersService {
     const updated = await this.prisma.customer.update({
       where: { id },
       data: {
-        ...(dto.phoneCountryCode !== undefined && { phoneCountryCode: dto.phoneCountryCode }),
-        ...(dto.phoneNumber !== undefined && { phoneNumber: dto.phoneNumber }),
-        ...(dto.wechatId !== undefined && { wechatId: dto.wechatId }),
-        ...(dto.domesticReturnAddress !== undefined && { domesticReturnAddress: dto.domesticReturnAddress }),
-        ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(dto.phoneCountryCode !== undefined && { phoneCountryCode }),
+        ...(dto.phoneNumber !== undefined && { phoneNumber }),
+        ...(dto.wechatId !== undefined && { wechatId }),
+        ...(dto.domesticReturnAddress !== undefined && { domesticReturnAddress }),
+        ...(dto.notes !== undefined && { notes }),
         ...(dto.status !== undefined && { status: dto.status }),
       },
+      select: CUSTOMER_LIST_SELECT,
     });
     return { data: updated };
   }

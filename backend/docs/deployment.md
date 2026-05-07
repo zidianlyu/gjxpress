@@ -248,7 +248,7 @@ DIRECT_URL=
 
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
-SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES=package-images
+SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES=gjxpress-storage
 
 JWT_SECRET=
 JWT_EXPIRES_IN=7d
@@ -282,7 +282,7 @@ DIRECT_URL="postgresql://..."
 
 SUPABASE_URL="https://xxxxx.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="xxxxx"
-SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES="package-images"
+SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES="gjxpress-storage"
 
 JWT_SECRET="generate-a-long-random-secret"
 JWT_EXPIRES_IN="7d"
@@ -327,7 +327,7 @@ Use pooled connection for runtime if available and direct connection for Prisma 
 Create buckets:
 
 ```text
-package-images
+gjxpress-storage
 payment-proofs
 exception-images
 public-assets
@@ -336,7 +336,7 @@ public-assets
 Recommended privacy:
 
 ```text
-package-images: private
+gjxpress-storage: private
 payment-proofs: private
 exception-images: private
 public-assets: public

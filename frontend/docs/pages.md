@@ -689,6 +689,8 @@ Features:
 
 - List with search, status filter, pagination
 - Create modal with: optional domesticTrackingNo, customerCode, adminNote, images
+- CustomerCodeInput shows fixed `GJ`; admin enters four digits, payload keeps full `GJxxxx`
+- Images upload only after create response returns package id; no id means upload is blocked
 - Empty domesticTrackingNo displays as `未填写`
 - Missing customer displays as `未识别`
 - Status filter only shows: 未识别 / 已入库 / 已合箱
@@ -983,6 +985,7 @@ APIs:
 - `/admin/customers` and `/admin/customers/[id]` now include `domesticReturnAddress` field
 - Create customer modal includes domesticReturnAddress
 - Detail page edit form includes domesticReturnAddress
+- Detail page hydrates from `GET /admin/customers/:id` and is safe to refresh directly
 - `/admin/customers` reads normalized `response.items`
 - The table displays customerCode, phone, wechatId, domestic return address summary, status, createdAt, and actions
 - Customer list/detail do not depend on `displayName`
@@ -996,7 +999,8 @@ Features:
 
 - List with search, status filter, pagination
 - Status filter only shows: 已打包 / 已发货 / 已到达 / 待自提 / 已取货 / 异常
-- Create modal accepts admin-facing customerCode and resolves backend-required customerId
+- Create modal accepts admin-facing customerCode and submits `customerCode` in payload
+- CustomerCodeInput shows fixed `GJ`; admin enters four digits, payload keeps full `GJxxxx`
 - Create modal includes `件数` number input, default 1, min 1
 - List and mobile cards display quantity
 

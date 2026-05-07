@@ -11,6 +11,7 @@ import { ImagePicker, LocalImageList } from '@/components/admin/ImageManager';
 import { Pagination } from '@/components/common/Pagination';
 import { CustomerShipmentStatusBadge, PaymentStatusBadge } from '@/components/common/StatusBadge';
 import { CUSTOMER_SHIPMENT_STATUS_OPTIONS } from '@/lib/constants/status';
+import { CustomerCodeInput, isCustomerCodeComplete } from '@/components/admin/CustomerCodeInput';
 
 function generateDefaultNotes(customerCode: string): string {
   const now = new Date();
@@ -95,8 +96,8 @@ export default function CustomerShipmentsPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     const quantity = Number(createForm.quantity);
-    if (!createForm.customerCode.trim()) {
-      setCreateError('客户编号不能为空');
+    if (!isCustomerCodeComplete(createForm.customerCode)) {
+      setCreateError('客户编号必须是 GJ 加 4 位数字');
       return;
     }
     if (!Number.isInteger(quantity) || quantity < 1) {
@@ -107,14 +108,8 @@ export default function CustomerShipmentsPage() {
     setCreateError('');
     setCreateSuccess('');
     try {
-      const matchedCustomers = await adminApi.listCustomers({ q: createForm.customerCode.trim(), page: 1, pageSize: 10 });
-      const matchedCustomer = matchedCustomers.items.find(c => c.customerCode === createForm.customerCode.trim());
-      if (!matchedCustomer) {
-        setCreateError('客户编号不存在，请确认后重试。');
-        return;
-      }
       const shipment = await adminApi.createCustomerShipment({
-        customerId: matchedCustomer.id,
+        customerCode: createForm.customerCode.trim(),
         quantity,
         notes: createForm.notes.trim() || undefined,
         actualWeightKg: createForm.actualWeightKg ? Number(createForm.actualWeightKg) : undefined,
@@ -292,10 +287,11 @@ export default function CustomerShipmentsPage() {
             {createError && <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm">{createError}</div>}
 
             <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium mb-1">客户编号 *</label>
-                <input type="text" value={createForm.customerCode} onChange={(e) => handleCustomerCodeChange(e.target.value)} placeholder="例如 GJ3178" className="w-full px-3 py-2 rounded-md border bg-background text-sm" required />
-              </div>
+              <CustomerCodeInput
+                value={createForm.customerCode}
+                onChange={handleCustomerCodeChange}
+                required
+              />
               <div>
                 <label className="block text-xs font-medium mb-1">件数 *</label>
                 <input type="number" min={1} step={1} value={createForm.quantity} onChange={(e) => setCreateForm(f => ({ ...f, quantity: e.target.value }))} placeholder="例如 3" className="w-full px-3 py-2 rounded-md border bg-background text-sm" required />

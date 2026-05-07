@@ -24,9 +24,11 @@ Create rules:
 - 国内快递单号 is optional.
 - Blank tracking input is submitted as `null`.
 - 客户编号 input uses `customerCode`, for example `GJ3178`.
+- Customer code input shows fixed `GJ`; admins only type four digits. Form state and payload keep the full `GJxxxx` value.
 - `customerId` is an internal FK and is not the admin-facing package attribution input.
 - Unknown customerCode errors show: `客户编号不存在，请确认后重试。`
 - Image upload and barcode scanning remain available in the create flow.
+- Create with images uploads only after a real package id is extracted from the create response. If no id is returned, upload is blocked and the page asks the admin to refresh the list.
 
 List/detail display rules:
 
@@ -44,10 +46,19 @@ Create rules:
 - Default `quantity` is `1`.
 - It must be an integer >= 1.
 - The frontend submits `quantity` to the backend.
-- The form accepts admin-facing `customerCode` and resolves it to backend-required `customerId`.
+- The form accepts admin-facing `customerCode` and submits `customerCode` in the create payload.
 
 List/detail/edit display `件数`.
 
 Shipment statuses are simplified to 已打包, 已发货, 已到达, 待自提, 已取货, 异常.
+
+## Detail Pages
+
+Admin detail pages hydrate directly from backend detail APIs with route params:
+
+- `/admin/customers/:id` calls `GET /admin/customers/:id`
+- `/admin/inbound-packages/:id` calls `GET /admin/inbound-packages/:id`
+
+They do not depend on list-page state, so browser refresh and direct links should still populate forms.
 
 No payment entry points or payment call-to-action copy are added in admin pages.

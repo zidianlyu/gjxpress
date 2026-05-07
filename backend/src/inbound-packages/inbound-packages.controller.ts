@@ -13,9 +13,11 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { IsString, IsOptional } from 'class-validator';
+import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InboundPackagesService } from './inbound-packages.service';
 import { CreateInboundPackageDto } from './dto/create-inbound-package.dto';
@@ -38,6 +40,8 @@ import {
 class UpdateInboundPackageDto {
   @ApiPropertyOptional({ description: 'Domestic tracking number.' })
   @IsString() @IsOptional() domesticTrackingNo?: string;
+  @ApiPropertyOptional({ description: 'Customer business code. Empty or null clears customer ownership.', example: 'GJ3178' })
+  @IsString() @IsOptional() customerCode?: string;
   @ApiPropertyOptional({ format: 'date-time', description: 'Warehouse received timestamp.' })
   @IsString() @IsOptional() warehouseReceivedAt?: string;
   @ApiPropertyOptional({ description: 'Issue note.' })
@@ -46,6 +50,13 @@ class UpdateInboundPackageDto {
   @IsString() @IsOptional() adminNote?: string;
   @ApiPropertyOptional({ description: 'Inbound package status.' })
   @IsString() @IsOptional() status?: string;
+}
+
+function assertValidInboundPackageId(id: string) {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!id || id === 'undefined' || id === 'null' || !uuidPattern.test(id)) {
+    throw new BadRequestException('Invalid inbound package id');
+  }
 }
 
 class AssignCustomerDto {
@@ -148,9 +159,15 @@ export class InboundPackagesController {
   async uploadImage(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
   ) {
+    assertValidInboundPackageId(id);
     if (!file) throw new BadRequestException('file is required (multipart/form-data field: file)');
-    const url = await this.imageService.upload(file, 'inbound-packages', id);
+    await this.service.findOne(id);
+    const requestId = req.headers['x-request-id'];
+    const url = await this.imageService.upload(file, 'inbound-packages', id, {
+      requestId: Array.isArray(requestId) ? requestId[0] : requestId,
+    });
     return this.service.addImage(id, url);
   }
 
@@ -166,7 +183,12 @@ export class InboundPackagesController {
     @Query('imageUrl') imageUrl: string,
     @Query('confirm') confirm: string,
   ) {
+    assertValidInboundPackageId(id);
     if (!imageUrl) throw new BadRequestException('imageUrl query param is required');
+    if (confirm !== 'DELETE_HARD') {
+      throw new BadRequestException('Must pass confirm=DELETE_HARD to confirm image deletion');
+    }
+    await this.service.findOne(id);
     await this.imageService.delete(imageUrl);
     return this.service.removeImage(id, imageUrl, confirm);
   }

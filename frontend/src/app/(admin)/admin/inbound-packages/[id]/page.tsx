@@ -11,10 +11,37 @@ import { InboundPackageStatusBadge } from '@/components/common/StatusBadge';
 import { INBOUND_PACKAGE_STATUS_LABELS, INBOUND_PACKAGE_STATUS_OPTIONS, normalizeInboundPackageStatus } from '@/lib/constants/status';
 import { DeleteConfirmDialog } from '@/components/common/DeleteConfirmDialog';
 import { ServerImageGrid } from '@/components/admin/ImageManager';
+import { CustomerCodeInput, isCustomerCodeComplete } from '@/components/admin/CustomerCodeInput';
+import { formatDateTime } from '@/lib/format';
 
 const ALL_STATUSES: InboundPackageStatus[] = [
   'UNIDENTIFIED', 'ARRIVED', 'CONSOLIDATED',
 ];
+
+function toDateTimeLocal(value?: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function fromDateTimeLocal(value: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function buildForm(pkg: InboundPackage) {
+  return {
+    domesticTrackingNo: pkg.domesticTrackingNo || '',
+    customerCode: pkg.customer?.customerCode || '',
+    status: normalizeInboundPackageStatus(pkg.status),
+    warehouseReceivedAt: toDateTimeLocal(pkg.warehouseReceivedAt),
+    adminNote: pkg.adminNote || '',
+    issueNote: pkg.issueNote || '',
+  };
+}
 
 export default function InboundPackageDetailPage() {
   const params = useParams();
@@ -30,11 +57,14 @@ export default function InboundPackageDetailPage() {
   const [saving, setSaving] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
   const [actionError, setActionError] = useState('');
-
-  // Assign customer
-  const [assignCode, setAssignCode] = useState('');
-  // Status update
-  const [newStatus, setNewStatus] = useState('');
+  const [form, setForm] = useState({
+    domesticTrackingNo: '',
+    customerCode: '',
+    status: 'UNIDENTIFIED',
+    warehouseReceivedAt: '',
+    adminNote: '',
+    issueNote: '',
+  });
 
 
   const fetchPkg = useCallback(async () => {
@@ -43,8 +73,12 @@ export default function InboundPackageDetailPage() {
     setErrorRequestId('');
     try {
       const data = await adminApi.getInboundPackageById(id);
+      if (!data?.id) {
+        setError('未找到入库包裹');
+        return;
+      }
       setPkg(data);
-      setNewStatus(normalizeInboundPackageStatus(data.status));
+      setForm(buildForm(data));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -59,42 +93,35 @@ export default function InboundPackageDetailPage() {
 
   useEffect(() => { fetchPkg(); }, [fetchPkg]);
 
-  const handleAssignCustomer = async () => {
-    if (!assignCode.trim()) return;
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (form.customerCode && !isCustomerCodeComplete(form.customerCode)) {
+      setActionError('客户编号必须是 GJ 加 4 位数字');
+      return;
+    }
     setSaving(true);
     setActionMsg('');
     setActionError('');
     try {
-      const updated = await adminApi.assignCustomerToPackage(id, { customerCode: assignCode.trim() });
+      const updated = await adminApi.updateInboundPackage(id, {
+        domesticTrackingNo: form.domesticTrackingNo.trim() || null,
+        customerCode: form.customerCode.trim() || null,
+        status: form.status,
+        warehouseReceivedAt: fromDateTimeLocal(form.warehouseReceivedAt),
+        adminNote: form.adminNote.trim() || null,
+        issueNote: form.issueNote.trim() || null,
+      });
       setPkg(updated);
-      setAssignCode('');
-      setActionMsg('客户绑定成功');
+      setForm(buildForm(updated));
+      setActionMsg('保存成功');
     } catch (err) {
       if (err instanceof ApiError) {
-        const notFoundMsg = err.status === 404 ? '客户编号不存在，请确认后重试。' : err.message;
+        const notFoundMsg = err.status === 404 && form.customerCode.trim()
+          ? '客户编号不存在，请确认后重试。'
+          : err.message;
         setActionError(`${notFoundMsg}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
       } else {
-        setActionError('操作失败');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleStatusUpdate = async () => {
-    if (!newStatus || newStatus === normalizeInboundPackageStatus(pkg?.status || '')) return;
-    setSaving(true);
-    setActionMsg('');
-    setActionError('');
-    try {
-      const updated = await adminApi.updateInboundPackageStatus(id, { status: newStatus });
-      setPkg(updated);
-      setActionMsg('状态更新成功');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setActionError(`${err.message}${err.requestId ? ` (Request ID: ${err.requestId})` : ''}`);
-      } else {
-        setActionError('操作失败');
+        setActionError('保存失败');
       }
     } finally {
       setSaving(false);
@@ -199,18 +226,79 @@ export default function InboundPackageDetailPage() {
         {actionMsg && <div className="p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm">{actionMsg}</div>}
         {actionError && <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm">{actionError}</div>}
 
-        {/* Basic Info */}
-        <div className="rounded-lg border p-4 space-y-3">
+        <form onSubmit={handleSave} className="rounded-lg border p-4 space-y-4">
           <h2 className="font-semibold">基础信息</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div><span className="text-muted-foreground">国内快递单号：</span>{pkg.domesticTrackingNo || '未填写'}</div>
             <div><span className="text-muted-foreground">状态：</span><InboundPackageStatusBadge status={pkg.status} /></div>
             <div><span className="text-muted-foreground">客户编号：</span>{pkg.customer ? `${pkg.customer.customerCode} (${pkg.customer.wechatId || pkg.customer.phoneNumber || ''})` : '未识别'}</div>
-            <div><span className="text-muted-foreground">入库时间：</span>{pkg.warehouseReceivedAt ? new Date(pkg.warehouseReceivedAt).toLocaleString('zh-CN') : '-'}</div>
+            <div><span className="text-muted-foreground">入库时间：</span>{formatDateTime(pkg.warehouseReceivedAt)}</div>
           </div>
-          {pkg.adminNote && <div className="text-sm"><span className="text-muted-foreground">管理员备注：</span>{pkg.adminNote}</div>}
-          {pkg.issueNote && <div className="text-sm"><span className="text-muted-foreground">异常备注：</span>{pkg.issueNote}</div>}
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium mb-1">国内快递单号</label>
+              <input
+                type="text"
+                value={form.domesticTrackingNo}
+                onChange={(e) => setForm(f => ({ ...f, domesticTrackingNo: e.target.value }))}
+                placeholder="可选"
+                className="w-full px-3 py-2 rounded-md border bg-background text-sm"
+              />
+            </div>
+            <CustomerCodeInput
+              value={form.customerCode}
+              onChange={(customerCode) => setForm(f => ({ ...f, customerCode }))}
+            />
+            <div>
+              <label className="block text-xs font-medium mb-1">状态</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+                className="w-full px-3 py-2 rounded-md border bg-background text-sm"
+              >
+                {ALL_STATUSES.map(s => (
+                  <option key={s} value={s}>{INBOUND_PACKAGE_STATUS_OPTIONS.find(option => option.value === s)?.label || INBOUND_PACKAGE_STATUS_LABELS[s] || s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">入库时间</label>
+              <input
+                type="datetime-local"
+                value={form.warehouseReceivedAt}
+                onChange={(e) => setForm(f => ({ ...f, warehouseReceivedAt: e.target.value }))}
+                className="w-full px-3 py-2 rounded-md border bg-background text-sm"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1">管理员备注</label>
+            <textarea
+              value={form.adminNote}
+              onChange={(e) => setForm(f => ({ ...f, adminNote: e.target.value }))}
+              rows={2}
+              placeholder="可选"
+              className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1">异常备注</label>
+            <textarea
+              value={form.issueNote}
+              onChange={(e) => setForm(f => ({ ...f, issueNote: e.target.value }))}
+              rows={2}
+              placeholder="可选"
+              className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-none"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
+          >
+            {saving ? '保存中...' : '保存编辑'}
+          </button>
+        </form>
 
         {/* Images */}
         <ServerImageGrid
@@ -221,53 +309,9 @@ export default function InboundPackageDetailPage() {
           title="包裹图片"
         />
 
-        {/* Assign Customer */}
-        <div className="rounded-lg border p-4 space-y-3">
-          <h2 className="font-semibold">绑定客户</h2>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={assignCode}
-              onChange={(e) => setAssignCode(e.target.value)}
-              placeholder="输入客户编号，如 GJ3178"
-              className="flex-1 px-3 py-2 rounded-md border bg-background text-sm"
-            />
-            <button
-              onClick={handleAssignCustomer}
-              disabled={saving || !assignCode.trim()}
-              className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
-            >
-              绑定
-            </button>
-          </div>
-        </div>
-
-        {/* Update Status */}
-        <div className="rounded-lg border p-4 space-y-3">
-          <h2 className="font-semibold">更新状态</h2>
-          <div className="flex gap-2">
-            <select
-              value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-md border bg-background text-sm"
-            >
-              {ALL_STATUSES.map(s => (
-                <option key={s} value={s}>{INBOUND_PACKAGE_STATUS_OPTIONS.find(option => option.value === s)?.label || INBOUND_PACKAGE_STATUS_LABELS[s] || s}</option>
-              ))}
-            </select>
-            <button
-              onClick={handleStatusUpdate}
-              disabled={saving || newStatus === normalizeInboundPackageStatus(pkg.status)}
-              className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50"
-            >
-              更新
-            </button>
-          </div>
-        </div>
-
         <div className="text-xs text-muted-foreground">
-          <p>创建时间：{new Date(pkg.createdAt).toLocaleString('zh-CN')}</p>
-          {pkg.updatedAt && <p>更新时间：{new Date(pkg.updatedAt).toLocaleString('zh-CN')}</p>}
+          <p>创建时间：{formatDateTime(pkg.createdAt)}</p>
+          <p>更新时间：{formatDateTime(pkg.updatedAt)}</p>
         </div>
 
         {/* Danger Zone */}

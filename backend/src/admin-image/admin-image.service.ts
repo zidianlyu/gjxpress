@@ -11,6 +11,7 @@ export class AdminImageService {
   private readonly logger = new Logger(AdminImageService.name);
   private supabase: SupabaseClient;
   private bucket: string;
+  private readonly bucketEnvName = 'SUPABASE_STORAGE_BUCKET_PACKAGE_IMAGES';
 
   constructor(private config: ConfigService) {
     const url = this.config.get<string>('SUPABASE_URL');
@@ -19,13 +20,20 @@ export class AdminImageService {
       throw new InternalServerErrorException('Supabase credentials not configured');
     }
     this.supabase = createClient(url, key, { auth: { persistSession: false } });
-    this.bucket = this.config.get<string>('SUPABASE_ADMIN_IMAGE_BUCKET') || 'gjxpress-admin-images';
+    const bucket = this.config.get<string>(this.bucketEnvName)?.trim();
+    if (!bucket) {
+      throw new InternalServerErrorException(
+        `Missing required env ${this.bucketEnvName}`,
+      );
+    }
+    this.bucket = bucket;
   }
 
   async upload(
     file: Express.Multer.File,
     folder: 'inbound-packages' | 'customer-shipments',
     resourceId: string,
+    context?: { requestId?: string },
   ): Promise<string> {
     if (!ALLOWED_MIME.includes(file.mimetype)) {
       throw new BadRequestException(
@@ -50,7 +58,12 @@ export class AdminImageService {
       });
 
     if (error) {
-      throw new InternalServerErrorException(`Storage upload failed: ${error.message}`);
+      this.logger.error(
+        `Storage upload failed bucket=${this.bucket} env=${this.bucketEnvName} requestId=${context?.requestId ?? 'n/a'} code=${(error as any).statusCode ?? (error as any).code ?? 'n/a'} message=${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        `Storage upload failed for bucket ${this.bucket} (${this.bucketEnvName}): ${error.message}`,
+      );
     }
 
     const { data } = this.supabase.storage.from(this.bucket).getPublicUrl(path);

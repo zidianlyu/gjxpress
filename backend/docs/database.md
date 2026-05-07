@@ -785,7 +785,7 @@ Recommendation by slug/status/city/category
 Recommended buckets:
 
 ```text
-package-images
+gjxpress-storage
 payment-proofs
 exception-images
 public-assets
@@ -796,7 +796,7 @@ public-assets
 MVP recommendation:
 
 ```text
-package-images: private
+gjxpress-storage: private
 payment-proofs: private
 exception-images: private
 public-assets: public
